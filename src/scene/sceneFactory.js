@@ -81,16 +81,42 @@ function createParticles(animated) {
   return points
 }
 
+function createSiteProps() {
+  const group = new THREE.Group()
+  const trunkMaterial = new THREE.MeshStandardMaterial({ color: 0x14332d, roughness: .85 })
+  const foliageMaterial = new THREE.MeshStandardMaterial({ color: 0x0a4a45, roughness: .7, emissive: 0x16c9c3, emissiveIntensity: .09 })
+  const treePositions = [[-10, -7], [-8, 7], [-4.5, 7.2], [3.5, 7.4], [7.5, 7], [10, 5.4], [10.3, .3], [9.4, -7], [5, -7.3], [1, 7.4], [-10.4, 3], [-10.2, -3]]
+  treePositions.forEach(([x, z], index) => {
+    const tree = new THREE.Group()
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(.06, .08, .5, 5), trunkMaterial)
+    trunk.position.y = .55
+    const crown = new THREE.Mesh(new THREE.ConeGeometry(.32 + (index % 3) * .04, .95, 7), foliageMaterial)
+    crown.position.y = 1.15
+    tree.position.set(x, .25, z)
+    tree.scale.setScalar(.82 + (index % 4) * .08)
+    tree.add(trunk, crown)
+    group.add(tree)
+  })
+
+  const utilityMaterial = new THREE.MeshStandardMaterial({ color: 0x0c3548, metalness: .72, roughness: .25, emissive: 0x19d7ff, emissiveIntensity: .12 })
+  for (const [x, z, scale] of [[1.3, 1.3, .8], [3.7, 1.7, .65], [-7.9, 1.2, .7], [5.7, 5.8, .58]]) {
+    const utility = new THREE.Mesh(new THREE.CylinderGeometry(.34 * scale, .4 * scale, 1.35 * scale, 12), utilityMaterial)
+    utility.position.set(x, .25 + .68 * scale, z)
+    group.add(utility)
+  }
+  return group
+}
+
 function createLights() {
   const group = new THREE.Group()
-  group.add(new THREE.HemisphereLight(0x83dfff, 0x021018, 1.8))
+  group.add(new THREE.HemisphereLight(0xb6f5ff, 0x031422, 2.45))
   const key = new THREE.DirectionalLight(0xa8efff, 2.2)
   key.position.set(-8, 16, 8)
   key.castShadow = true
   key.shadow.mapSize.set(1024, 1024)
-  const cyan = new THREE.PointLight(0x19d7ff, 28, 22, 2)
+  const cyan = new THREE.PointLight(0x19d7ff, 42, 24, 2)
   cyan.position.set(6, 5, 2)
-  const orange = new THREE.PointLight(0xff7138, 32, 18, 2)
+  const orange = new THREE.PointLight(0xff7138, 48, 19, 2)
   orange.position.set(-2, 4, -1)
   group.add(key, cyan, orange)
   return group
@@ -102,7 +128,7 @@ export function createIndustrialScene() {
   const animated = []
   const materials = { cyan: createMaterialLibrary('cyan'), orange: createMaterialLibrary('orange') }
 
-  root.add(createBase(), createRoads(), createEnergyNetwork(animated), createParticles(animated), createLights())
+  root.add(createBase(), createRoads(), createSiteProps(), createEnergyNetwork(animated), createParticles(animated), createLights())
   const grid = new THREE.GridHelper(44, 44, 0x075f88, 0x07324c)
   grid.position.y = -.75
   grid.material.transparent = true

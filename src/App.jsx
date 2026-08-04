@@ -1,6 +1,6 @@
 import { BottomMetrics } from './components/BottomMetrics.jsx'
 import { DashboardHeader } from './components/DashboardHeader.jsx'
-import { IndustrialHero } from './components/IndustrialHero.jsx'
+import { IndustrialScene } from './components/IndustrialScene.jsx'
 import { PowerPanel } from './components/PowerPanel.jsx'
 import { SteamPanel } from './components/SteamPanel.jsx'
 import { WaterPanel } from './components/WaterPanel.jsx'
@@ -19,7 +19,7 @@ export default function App() {
       >
         <DashboardHeader />
         <WaterPanel data={dashboardData.water} chartOption={chartOptions.waterUsage} />
-        <IndustrialHero />
+        <IndustrialScene />
         <SteamPanel data={dashboardData.steam} chartOption={chartOptions.steamFlow} />
         <PowerPanel data={dashboardData.power} chartOption={chartOptions.powerLoad} />
         <BottomMetrics metrics={dashboardData.bottomMetrics} />

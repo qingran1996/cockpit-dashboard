@@ -161,7 +161,7 @@ button, input, select { font: inherit; }
   color: #e2edf4;
 }
 
-.industrial-hero {
+.industrial-scene {
   position: absolute;
   z-index: 1;
   left: 391px;
@@ -169,55 +169,112 @@ button, input, select { font: inherit; }
   width: 1138px;
   height: 668px;
   overflow: hidden;
-  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 50% 62%, rgba(15, 132, 178, .28), transparent 55%),
+    linear-gradient(180deg, rgba(2, 12, 23, .02), rgba(2, 12, 23, .42));
 }
 
-.industrial-hero img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: 50% 50%;
-  filter: saturate(.96) contrast(1.06) brightness(.9);
-}
-
-.industrial-hero__vignette {
+.industrial-scene::before {
+  content: "";
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(90deg, #02101e 0%, transparent 8%, transparent 92%, #02101e 100%),
-    linear-gradient(0deg, #02101e 0%, transparent 12%, transparent 88%, #02101e 100%);
+    linear-gradient(rgba(17, 134, 176, .05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(17, 134, 176, .05) 1px, transparent 1px);
+  background-size: 42px 42px;
+  mask-image: linear-gradient(to bottom, transparent 3%, #000 40%, #000 90%, transparent);
+  transform: perspective(650px) rotateX(66deg) scale(1.7) translateY(155px);
+  transform-origin: center bottom;
+  pointer-events: none;
 }
 
-.industrial-hero__scan {
+.industrial-scene__canvas,
+.industrial-scene__webgl { position: absolute; inset: 0; width: 100%; height: 100%; }
+.industrial-scene__webgl { display: block; touch-action: none; }
+
+.industrial-scene__vignette {
   position: absolute;
-  top: -25%;
-  left: 0;
-  width: 100%;
-  height: 18%;
-  background: linear-gradient(180deg, transparent, rgba(31, 220, 255, .12), rgba(157, 250, 255, .2), transparent);
-  mix-blend-mode: screen;
-  animation: scan 7s linear infinite;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, #02101e 0%, transparent 7%, transparent 93%, #02101e 100%),
+    linear-gradient(0deg, #02101e 0%, transparent 11%, transparent 89%, rgba(2, 16, 30, .82) 100%);
 }
 
-.industrial-hero__horizon {
+.industrial-scene__scanline {
   position: absolute;
-  left: 10%;
-  right: 10%;
-  bottom: 12%;
+  left: 8%;
+  right: 8%;
+  top: 18%;
   height: 1px;
-  background: linear-gradient(90deg, transparent, #2de3ff, transparent);
-  box-shadow: 0 0 14px #18cfff;
-  opacity: .65;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(110, 246, 255, .75), transparent);
+  box-shadow: 0 0 12px #19d7ff;
+  animation: sceneScan 6.8s linear infinite;
 }
 
-.industrial-hero--fallback {
-  display: grid;
-  place-items: center;
-  background: linear-gradient(rgba(10, 109, 153, .14) 1px, transparent 1px), linear-gradient(90deg, rgba(10, 109, 153, .14) 1px, transparent 1px), #041524;
-  background-size: 40px 40px;
+@keyframes sceneScan { 0% { transform: translateY(-70px); opacity: 0; } 12%, 78% { opacity: .5; } 100% { transform: translateY(490px); opacity: 0; } }
+
+.scene-tooltip {
+  position: absolute;
+  z-index: 8;
+  min-width: 130px;
+  padding: 8px 11px;
+  transform: translate(15px, -105%);
+  clip-path: polygon(0 0, 92% 0, 100% 24%, 100% 100%, 8% 100%, 0 76%);
+  border-left: 2px solid #50eaff;
+  background: rgba(2, 23, 38, .92);
+  box-shadow: 0 0 15px rgba(25, 215, 255, .22);
+  pointer-events: none;
 }
 
-.industrial-hero__fallback { color: #68dff5; font-size: 32px; letter-spacing: 9px; }
+.scene-tooltip b, .scene-tooltip span { display: block; }
+.scene-tooltip b { color: #d6fbff; font-size: 13px; }
+.scene-tooltip span { margin-top: 3px; color: #6ea8bb; font-size: 10px; }
+
+.scene-detail {
+  position: absolute;
+  z-index: 9;
+  top: 78px;
+  right: 36px;
+  width: 225px;
+  padding: 16px 17px 14px;
+  clip-path: polygon(0 0, 89% 0, 100% 14%, 100% 100%, 7% 100%, 0 89%);
+  border-left: 2px solid #19d7ff;
+  background: linear-gradient(145deg, rgba(4, 37, 57, .96), rgba(2, 15, 27, .94));
+  box-shadow: 0 0 24px rgba(25, 215, 255, .2), inset 0 0 18px rgba(25, 215, 255, .06);
+}
+
+.scene-detail__close { position: absolute; top: 7px; right: 10px; border: 0; background: transparent; color: #7fb4c4; font-size: 20px; cursor: pointer; }
+.scene-detail__eyebrow { color: #27d6f6; font: 9px "Arial Narrow", sans-serif; letter-spacing: 1px; }
+.scene-detail h3 { margin: 8px 0 2px; color: #dcfbff; font-size: 17px; }
+.scene-detail p { margin: 0 0 12px; color: #789dac; font-size: 11px; }
+.scene-detail dl { margin: 0; display: grid; gap: 7px; }
+.scene-detail dl div { display: flex; justify-content: space-between; padding-top: 7px; border-top: 1px solid rgba(45, 164, 201, .13); }
+.scene-detail dt { color: #7896a4; font-size: 11px; }
+.scene-detail dd { margin: 0; color: #bdf7ff; font: 13px "DIN Alternate", sans-serif; }
+.scene-detail dd.is-normal { color: var(--green); }
+.scene-detail dd.is-normal i { display: inline-block; width: 5px; height: 5px; margin-right: 5px; border-radius: 50%; background: var(--green); box-shadow: 0 0 6px var(--green); }
+
+.scene-controls-tip {
+  position: absolute;
+  z-index: 7;
+  left: 50%;
+  bottom: 104px;
+  transform: translateX(-50%);
+  color: rgba(157, 210, 224, .58);
+  font-size: 10px;
+  letter-spacing: 1px;
+  pointer-events: none;
+}
+
+.scene-controls-tip i { display: inline-block; width: 1px; height: 8px; margin: 0 9px; background: rgba(71, 183, 215, .35); }
+.scene-reset { position: absolute; z-index: 9; right: 39px; bottom: 102px; padding: 6px 10px; border: 1px solid rgba(25, 215, 255, .3); background: rgba(3, 31, 47, .78); color: #8bddea; font-size: 10px; cursor: pointer; clip-path: polygon(8% 0, 100% 0, 100% 72%, 92% 100%, 0 100%, 0 28%); }
+.scene-reset:hover { color: #d7fbff; border-color: #19d7ff; box-shadow: 0 0 11px rgba(25, 215, 255, .2); }
+
+.industrial-scene__fallback { position: absolute; inset: 14%; display: grid; place-content: center; gap: 8px; text-align: center; color: #80dceb; border: 1px solid rgba(25, 215, 255, .25); background: rgba(2, 16, 28, .92); }
+.industrial-scene__fallback strong { font-size: 20px; }
+.industrial-scene__fallback span { color: #638a99; font-size: 12px; }
 
 .energy-node {
   position: absolute;
@@ -252,5 +309,5 @@ button, input, select { font: inherit; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; }
-  .industrial-hero__scan { display: none; }
+  .industrial-scene__scanline { display: none; }
 }

@@ -146,9 +146,9 @@ const factories = {
 export function createMaterialLibrary(tone) {
   const color = COLORS[tone]
   return {
-    body: new THREE.MeshStandardMaterial({ color: 0x082137, metalness: .7, roughness: .3, emissive: color, emissiveIntensity: .08 }),
-    metal: new THREE.MeshStandardMaterial({ color: 0x16445b, metalness: .85, roughness: .24, emissive: color, emissiveIntensity: .1 }),
-    glass: new THREE.MeshPhysicalMaterial({ color, transparent: true, opacity: .36, metalness: .2, roughness: .08, emissive: color, emissiveIntensity: .25 }),
+    body: new THREE.MeshStandardMaterial({ color: tone === 'orange' ? 0x351a19 : 0x093047, metalness: .65, roughness: .28, emissive: color, emissiveIntensity: .16 }),
+    metal: new THREE.MeshStandardMaterial({ color: 0x1c5268, metalness: .8, roughness: .22, emissive: color, emissiveIntensity: .18 }),
+    glass: new THREE.MeshPhysicalMaterial({ color, transparent: true, opacity: .45, metalness: .18, roughness: .08, emissive: color, emissiveIntensity: .38 }),
     glow: new THREE.MeshBasicMaterial({ color, transparent: true, opacity: .92, toneMapped: false }),
     edge: new THREE.LineBasicMaterial({ color, transparent: true, opacity: .88, toneMapped: false }),
   }
@@ -159,13 +159,29 @@ export function createBuilding(record, materialLibrary) {
   group.position.set(...record.position)
   group.userData.buildingId = record.id
   group.userData.tone = record.tone
+  const solidMeshes = []
   group.traverse((object) => {
     if (object.isMesh) {
       object.userData.buildingId = record.id
       object.userData.tone = record.tone
       object.castShadow = true
       object.receiveShadow = true
+      if (object.material?.isMeshStandardMaterial || object.material?.isMeshPhysicalMaterial) solidMeshes.push(object)
     }
+  })
+  solidMeshes.forEach((mesh) => {
+    const shell = new THREE.Mesh(mesh.geometry, new THREE.MeshBasicMaterial({
+      color: COLORS[record.tone],
+      transparent: true,
+      opacity: .055,
+      side: THREE.BackSide,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      toneMapped: false,
+    }))
+    shell.scale.setScalar(1.025)
+    shell.userData.buildingId = record.id
+    mesh.add(shell)
   })
   return group
 }

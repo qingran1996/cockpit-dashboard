@@ -4,7 +4,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { createIndustrialScene } from '../scene/sceneFactory.js'
 import { cameraLimits, clampPixelRatio, normalizePointer } from '../scene/sceneMath.js'
 
-const INITIAL_CAMERA = new THREE.Vector3(22, 18, 24)
+const INITIAL_CAMERA = new THREE.Vector3(19, 15.5, 21)
 const INITIAL_TARGET = new THREE.Vector3(0, 1.2, -.4)
 
 function setBuildingHighlight(building, active) {
@@ -56,6 +56,8 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
     renderer.setPixelRatio(clampPixelRatio(window.devicePixelRatio))
     renderer.setClearColor(0x000000, 0)
     renderer.outputColorSpace = THREE.SRGBColorSpace
+    renderer.toneMapping = THREE.ACESFilmicToneMapping
+    renderer.toneMappingExposure = 1.35
     renderer.shadowMap.enabled = true
     renderer.shadowMap.type = THREE.PCFSoftShadowMap
     renderer.domElement.className = 'industrial-scene__webgl'
@@ -80,6 +82,7 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
     controls.update()
 
     const park = createIndustrialScene()
+    park.root.position.y = -1.2
     scene.add(park.root)
     const raycaster = new THREE.Raycaster()
     const pointer = new THREE.Vector2(2, 2)
@@ -151,7 +154,7 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
     const animate = (time) => {
       frameId = window.requestAnimationFrame(animate)
       const seconds = time * .001
-      controls.autoRotate = !reducedMotion && !resetStart && performance.now() - lastInteraction > 3000
+      controls.autoRotate = !reducedMotion && !resetStart && performance.now() - lastInteraction > 8000
 
       if (resetStart) {
         const progress = Math.min((performance.now() - resetStart) / 900, 1)
