@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.playwright-cli/
+.DS_Store
+
+# Local visual reference supplied for implementation
+disignpng.png
