@@ -2,6 +2,7 @@ import { BottomMetrics } from './components/BottomMetrics.jsx'
 import { DashboardHeader } from './components/DashboardHeader.jsx'
 import { IndustrialScene } from './components/IndustrialScene.jsx'
 import { PowerPanel } from './components/PowerPanel.jsx'
+import { SideRail } from './components/SideRail.jsx'
 import { SteamPanel } from './components/SteamPanel.jsx'
 import { WaterPanel } from './components/WaterPanel.jsx'
 import { chartOptions, dashboardData } from './data/dashboard.js'
@@ -13,6 +14,8 @@ export default function App() {
   return (
     <main className="dashboard-shell">
       <div className="ambient ambient--one" /><div className="ambient ambient--two" />
+      <SideRail side="left" gap={left} />
+      <SideRail side="right" gap={left} />
       <div
         className="dashboard-canvas"
         style={{ transform: `translate(${left}px, ${top}px) scale(${scale})` }}
