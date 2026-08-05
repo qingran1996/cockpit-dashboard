@@ -201,3 +201,52 @@
 .bottom-metric small { margin-left: 6px; color: #b0c8d2; font-size: 12px; }
 .bottom-metric em { align-self: end; margin-bottom: 17px; color: #7997a4; font-size: 11px; font-style: normal; white-space: nowrap; }
 .bottom-metric em b { color: var(--green); font-weight: 500; }
+
+/* ===== 面板边框能量增强：四角能量节点 + 标题栏能量流光 + 外层能量场（青/橙自动跟随 tone）===== */
+.water-panel, .power-panel, .steam-panel {
+  filter: drop-shadow(0 0 9px rgba(var(--tone-rgb), .28)) drop-shadow(0 0 26px rgba(var(--tone-rgb), .1));
+}
+
+/* 四角能量节点：L 角标拐点处的脉冲发光点，四角错峰 */
+.water-panel .tech-corner::after,
+.power-panel .tech-corner::after,
+.steam-panel .tech-corner::after {
+  content: "";
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--tone);
+  box-shadow: 0 0 8px var(--tone), 0 0 16px rgba(var(--tone-rgb), .65);
+  animation: nodePulse 2.6s ease-out infinite;
+}
+.water-panel .tech-corner--tl::after, .power-panel .tech-corner--tl::after, .steam-panel .tech-corner--tl::after { left: -2px; top: -2px; }
+.water-panel .tech-corner--tr::after, .power-panel .tech-corner--tr::after, .steam-panel .tech-corner--tr::after { right: -2px; top: -2px; animation-delay: .65s; }
+.water-panel .tech-corner--bl::after, .power-panel .tech-corner--bl::after, .steam-panel .tech-corner--bl::after { left: -2px; bottom: -2px; animation-delay: 1.3s; }
+.water-panel .tech-corner--br::after, .power-panel .tech-corner--br::after, .steam-panel .tech-corner--br::after { right: -2px; bottom: -2px; animation-delay: 1.95s; }
+
+/* 标题栏底边能量流光：横向光段扫过，象征能量注入 */
+.water-panel .tech-panel__header::after,
+.power-panel .tech-panel__header::after,
+.steam-panel .tech-panel__header::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 42%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--tone) 55%, white) 45%, var(--tone) 55%, transparent);
+  box-shadow: 0 0 10px var(--tone), 0 0 18px rgba(var(--tone-rgb), .5);
+  animation: panelHeaderBeam 4.2s linear infinite;
+}
+@keyframes panelHeaderBeam {
+  0%   { transform: translateX(-60%); opacity: 0; }
+  14%  { opacity: 1; }
+  86%  { opacity: 1; }
+  100% { transform: translateX(240%); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .water-panel .tech-corner::after, .power-panel .tech-corner::after, .steam-panel .tech-corner::after { animation: none; }
+  .water-panel .tech-panel__header::after, .power-panel .tech-panel__header::after, .steam-panel .tech-panel__header::after { display: none; }
+}
