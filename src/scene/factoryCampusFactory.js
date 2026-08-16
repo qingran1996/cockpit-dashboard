@@ -8,7 +8,7 @@ const COLORS = {
   wall: 0xe3e5e6,
   roof: 0xb8bcc0,
   glass: 0x123c55,
-  asphalt: 0x17232b,
+  asphalt: 0x4b626d,
   lawn: 0x153c32,
   court: 0x8f433a,
 }
@@ -417,16 +417,20 @@ export const campusPerimeterSegments = [
 export const campusRoadSegments = [
   { id: 'front-perimeter-road', width: 69, depth: 1.75, x: 0, z: 25.0 },
   { id: 'rear-perimeter-road', width: 69, depth: 1.25, x: 0, z: -25.0 },
-  { id: 'central-service-road', width: 27.5, depth: .875, x: -3.75, z: -2.5 },
-  { id: 'rear-service-road', width: 15, depth: .525, x: 1.875, z: -8.625 },
-  { id: 'east-service-road', width: 14.375, depth: .875, x: 17.5, z: 3.05 },
+  { id: 'central-service-road', width: 27.5, depth: 1.2, x: -3.75, z: -2.5 },
+  { id: 'rear-service-road', width: 15, depth: 1.0, x: 1.875, z: -8.625 },
+  { id: 'east-service-road', width: 20.5, depth: 1.2, x: 20.55, z: 3.05 },
   { id: 'west-perimeter-road', width: 1.2, depth: 51.0, x: -32.75, z: 0 },
   { id: 'east-perimeter-road', width: 1.2, depth: 51.0, x: 32.75, z: 0 },
   { id: 'east-entrance-link', width: .875, depth: 15.0, x: 18.125, z: 11.25 },
-  { id: 'admin-access-link', width: .875, depth: 7.5, x: -7.5, z: 15.0 },
+  { id: 'admin-access-link', width: 1.0, depth: 7.5, x: -7.5, z: 15.0 },
   { id: 'main-gate-link', width: 6.2, depth: 12.0, x: -10.5, z: 20.55 },
   { id: 'parking-access-road', width: 14.0, depth: 1.2, x: -18.0, z: 14.3 },
   { id: 'logistics-gate-link', width: 13.5, depth: 4.25, x: 27.8, z: -5.1 },
+  { id: 'west-inner-spine', width: 1.4, depth: 41.0, x: -17.5, z: 1.0 },
+  { id: 'rear-inner-cross', width: 48.3, depth: 1.4, x: 6.65, z: -19.0 },
+  { id: 'east-inner-spine', width: 1.4, depth: 40.5, x: 30.8, z: 1.25 },
+  { id: 'front-inner-cross', width: 48.3, depth: 1.4, x: 6.65, z: 21.5 },
 ]
 
 export const campusCourtFootprint = {
@@ -471,6 +475,24 @@ function createRoadSystem(materials) {
     setInstanceMatrix(dashes, index + 30, [x, .115, -25])
   }
   group.add(dashes)
+
+  const innerDashPositions = []
+  for (let x = -15.4; x <= 29.0; x += 2.2) {
+    innerDashPositions.push([x, -19, 0], [x, 21.5, 0])
+  }
+  for (let z = -17.4; z <= 19.6; z += 2.2) {
+    innerDashPositions.push([-17.5, z, Math.PI / 2], [30.8, z, Math.PI / 2])
+  }
+  const innerDashes = new THREE.InstancedMesh(
+    new THREE.BoxGeometry(.58, .025, .06),
+    materials.roadWhite,
+    innerDashPositions.length,
+  )
+  innerDashes.name = 'inner-road-dashes'
+  innerDashPositions.forEach(([x, z, rotation], index) => {
+    setInstanceMatrix(innerDashes, index, [x, .12, z], [1, 1, 1], rotation)
+  })
+  group.add(innerDashes)
 
   const stripeGeometry = new THREE.BoxGeometry(.08, .026, .72)
   const crossings = new THREE.InstancedMesh(stripeGeometry, materials.roadWhite, 48)

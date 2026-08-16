@@ -11,6 +11,7 @@ import {
   createFactoryCampusSystems,
   createFactoryCampusLights,
   createFactoryCampusMaterials,
+  createFactoryCampusSystemMaterials,
   facadeBayLayout,
   pipeRackRoutes,
   isInteriorTreePositionClear,
@@ -201,6 +202,55 @@ test('road segments stay in service corridors instead of cutting through buildin
   }
 })
 
+test('internal roads form a connected rectangular service loop', () => {
+  const byId = new Map(campusRoadSegments.map((road) => [road.id, road]))
+  const loopIds = ['west-inner-spine', 'rear-inner-cross', 'east-inner-spine', 'front-inner-cross']
+  loopIds.forEach((id) => assert.ok(byId.has(id), `missing ${id}`))
+  assert.ok(campusRoadSegments.length >= 16)
+
+  const touches = (left, right) => (
+    Math.abs(left.x - right.x) <= (left.width + right.width) / 2 + .05
+    && Math.abs(left.z - right.z) <= (left.depth + right.depth) / 2 + .05
+  )
+  assert.ok(touches(byId.get('west-inner-spine'), byId.get('rear-inner-cross')))
+  assert.ok(touches(byId.get('rear-inner-cross'), byId.get('east-inner-spine')))
+  assert.ok(touches(byId.get('east-inner-spine'), byId.get('front-inner-cross')))
+  assert.ok(touches(byId.get('front-inner-cross'), byId.get('west-inner-spine')))
+})
+
+test('internal service loop renders continuous lane guidance', () => {
+  const systems = createFactoryCampusSystems([])
+  const markings = systems.getObjectByName('inner-road-dashes')
+  assert.ok(markings?.isInstancedMesh)
+  assert.ok(markings.count >= 60)
+})
+
+test('every supplemental building has an adjacent internal service road', () => {
+  const supplementalIds = new Set([
+    'west-maintenance-shop',
+    'west-utility-plant',
+    'east-logistics-annex',
+    'east-water-treatment',
+  ])
+  const supplemental = factoryCampusRegistry.filter(({ id }) => supplementalIds.has(id))
+  assert.equal(supplemental.length, supplementalIds.size)
+
+  for (const building of supplemental) {
+    const served = campusRoadSegments.some((road) => {
+      const gapX = Math.max(
+        0,
+        Math.abs(building.position[0] - road.x) - (building.size[0] + road.width) / 2,
+      )
+      const gapZ = Math.max(
+        0,
+        Math.abs(building.position[2] - road.z) - (building.size[2] + road.depth) / 2,
+      )
+      return Math.hypot(gapX, gapZ) <= 1.35
+    })
+    assert.ok(served, `${building.id} has no adjacent service road`)
+  }
+})
+
 test('court and interior trees stay clear of building and road footprints', () => {
   for (const building of factoryCampusRegistry) {
     assert.equal(
@@ -269,4 +319,20 @@ test('factory campus materials preserve the reference image pale gray palette', 
   assert.ok(wall.r >= 0.68 && wall.g >= 0.72 && wall.b >= 0.74)
   assert.ok(roof.r >= 0.42 && roof.g >= 0.45 && roof.b >= 0.48)
   assert.ok(Math.max(roof.r, roof.g, roof.b) - Math.min(roof.r, roof.g, roof.b) < 0.12)
+})
+
+test('internal asphalt remains visibly distinct from the campus lawn', () => {
+  const materials = createFactoryCampusSystemMaterials()
+  try {
+    const asphalt = materials.asphalt.color
+    const lawn = materials.lawn.color
+    const contrast = Math.hypot(
+      asphalt.r - lawn.r,
+      asphalt.g - lawn.g,
+      asphalt.b - lawn.b,
+    )
+    assert.ok(contrast >= .15)
+  } finally {
+    Object.values(materials).forEach((material) => material.dispose())
+  }
 })

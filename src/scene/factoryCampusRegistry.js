@@ -59,6 +59,26 @@ export const factoryCampusRegistry = [
     metricLabel: '通行状态', metricValue: '畅通', temperature: '24°C',
     position: [-15.0, 0, 18.5], size: [1.8, 1.5, 1.5], levels: 1, roofType: 'flat', accent: 'neutral',
   },
+  {
+    id: 'west-maintenance-shop', name: '西区维修车间', type: '设备维修设施', status: '正常',
+    metricLabel: '工单完成率', metricValue: '93%', temperature: '25°C',
+    position: [-23.0, 0, -4.0], size: [7.0, 3.0, 3.6], levels: 1, roofType: 'shallow', accent: 'blue',
+  },
+  {
+    id: 'west-utility-plant', name: '西区综合动力站', type: '公用工程设施', status: '正常',
+    metricLabel: '设备在线率', metricValue: '97%', temperature: '30°C',
+    position: [-22.5, 0, -12.5], size: [6.0, 3.4, 4.0], levels: 2, roofType: 'stepped', accent: 'cyan',
+  },
+  {
+    id: 'east-logistics-annex', name: '东区物流辅房', type: '物流配套设施', status: '正常',
+    metricLabel: '月台占用率', metricValue: '58%', temperature: '24°C',
+    position: [26.0, 0, 6.5], size: [6.0, 2.8, 3.6], levels: 1, roofType: 'shallow', accent: 'blue',
+  },
+  {
+    id: 'east-water-treatment', name: '东区水处理站', type: '环保处理设施', status: '正常',
+    metricLabel: '处理负荷', metricValue: '72%', temperature: '26°C',
+    position: [27.0, 0, 13.5], size: [5.0, 3.2, 4.4], levels: 2, roofType: 'stepped', accent: 'cyan',
+  },
 ]
 
 export const factoryCampusReferenceFrame = Object.freeze({
