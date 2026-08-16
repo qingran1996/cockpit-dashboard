@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useIndustrialScene } from '../hooks/useIndustrialScene.js'
-import { buildingById, buildingRegistry } from '../scene/buildingRegistry.js'
+import { factoryCampusById, factoryCampusRegistry } from '../scene/factoryCampusRegistry.js'
 
 function useReducedMotion() {
   const [reduced, setReduced] = useState(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches)
@@ -32,11 +32,11 @@ export function IndustrialScene() {
     reducedMotion,
   })
 
-  const selected = selectedId ? buildingById.get(selectedId) : null
-  const hoveredBuilding = hovered ? buildingById.get(hovered.buildingId) : null
+  const selected = selectedId ? factoryCampusById.get(selectedId) : null
+  const hoveredBuilding = hovered ? factoryCampusById.get(hovered.buildingId) : null
 
   return (
-    <section className="industrial-scene" data-building-count={buildingRegistry.length} aria-label="交互式三维工业园区">
+    <section className="industrial-scene" data-building-count={factoryCampusRegistry.length} aria-label="交互式三维工业园区">
       <div ref={canvasRef} className="industrial-scene__canvas" />
       <div className="industrial-scene__vignette" />
       <div className="industrial-scene__scanline" />

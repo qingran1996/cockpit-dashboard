@@ -4,8 +4,8 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { createIndustrialScene } from '../scene/sceneFactory.js'
 import { cameraLimits, clampPixelRatio, normalizePointer } from '../scene/sceneMath.js'
 
-const INITIAL_CAMERA = new THREE.Vector3(19, 15.5, 21)
-const INITIAL_TARGET = new THREE.Vector3(0, 1.2, -.4)
+const INITIAL_CAMERA = new THREE.Vector3(24, 19, 26)
+const INITIAL_TARGET = new THREE.Vector3(0, .9, -.2)
 
 function setBuildingHighlight(building, active) {
   if (!building) return
