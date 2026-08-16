@@ -5,6 +5,12 @@ export const cameraLimits = Object.freeze({
   maxPolarAngle: Math.PI * 0.47,
 })
 
+export const factoryCampusInitialView = Object.freeze({
+  position: Object.freeze([23, 21, 27]),
+  target: Object.freeze([0, .6, -.5]),
+  fov: 36,
+})
+
 export function normalizePointer(clientX, clientY, rect) {
   return {
     x: ((clientX - rect.left) / rect.width) * 2 - 1,

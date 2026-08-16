@@ -2,14 +2,18 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   campusSeededValue,
+  campusRoadSegments,
+  campusCourtFootprint,
   createFactoryCampusLights,
   createFactoryCampusMaterials,
   facadeBayLayout,
   pipeRackRoutes,
+  isInteriorTreePositionClear,
   roofVentFootprint,
   roofVentLayout,
   supportedRoofTypes,
 } from '../src/scene/factoryCampusFactory.js'
+import { factoryCampusRegistry } from '../src/scene/factoryCampusRegistry.js'
 
 test('campus seeded values are deterministic and normalized', () => {
   const first = Array.from({ length: 12 }, (_, index) => campusSeededValue(index))
@@ -41,9 +45,53 @@ test('every registry roof type has a geometry strategy', () => {
   assert.deepEqual([...supportedRoofTypes].sort(), ['flat', 'shallow', 'stepped'])
 })
 
-test('pipe racks clear the roofs along their routes', () => {
+test('pipe racks follow visible service corridors instead of crossing roofs', () => {
   assert.ok(pipeRackRoutes.length >= 2)
-  assert.ok(pipeRackRoutes.every(({ y }) => y >= 3.5))
+  assert.ok(pipeRackRoutes.every(({ y }) => y >= 1.2 && y <= 1.6))
+  assert.ok(pipeRackRoutes.some(({ from, to }) => from[1] !== to[1]))
+})
+
+test('road segments stay in service corridors instead of cutting through buildings', () => {
+  for (const road of campusRoadSegments) {
+    for (const building of factoryCampusRegistry) {
+      const overlapX = Math.min(road.x + road.width / 2, building.position[0] + building.size[0] / 2)
+        - Math.max(road.x - road.width / 2, building.position[0] - building.size[0] / 2)
+      const overlapZ = Math.min(road.z + road.depth / 2, building.position[2] + building.size[2] / 2)
+        - Math.max(road.z - road.depth / 2, building.position[2] - building.size[2] / 2)
+      assert.ok(overlapX <= .05 || overlapZ <= .05, `${road.id} crosses ${building.id}`)
+    }
+  }
+})
+
+test('court and interior trees stay clear of building and road footprints', () => {
+  for (const building of factoryCampusRegistry) {
+    assert.equal(
+      isInteriorTreePositionClear(building.position[0], building.position[2]),
+      false,
+      `tree clearance missed ${building.id}`,
+    )
+
+    const overlapX = Math.min(
+      campusCourtFootprint.x + campusCourtFootprint.width / 2,
+      building.position[0] + building.size[0] / 2,
+    ) - Math.max(
+      campusCourtFootprint.x - campusCourtFootprint.width / 2,
+      building.position[0] - building.size[0] / 2,
+    )
+    const overlapZ = Math.min(
+      campusCourtFootprint.z + campusCourtFootprint.depth / 2,
+      building.position[2] + building.size[2] / 2,
+    ) - Math.max(
+      campusCourtFootprint.z - campusCourtFootprint.depth / 2,
+      building.position[2] - building.size[2] / 2,
+    )
+    assert.ok(overlapX <= .05 || overlapZ <= .05, `court overlaps ${building.id}`)
+  }
+
+  for (const road of campusRoadSegments) {
+    assert.equal(isInteriorTreePositionClear(road.x, road.z), false, `tree clearance missed ${road.id}`)
+  }
+  assert.equal(isInteriorTreePositionClear(-14, -11), true)
 })
 
 test('stepped roofs keep vents on the smaller upper roof', () => {

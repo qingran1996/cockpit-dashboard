@@ -4,11 +4,81 @@ import { factoryCampusById, factoryCampusRegistry } from '../src/scene/factoryCa
 import { createIndustrialScene } from '../src/scene/sceneFactory.js'
 
 test('defines the reference factory campus landmarks', () => {
-  assert.ok(factoryCampusRegistry.length >= 9)
+  assert.equal(factoryCampusRegistry.length, 12)
   assert.equal(new Set(factoryCampusRegistry.map(({ id }) => id)).size, factoryCampusRegistry.length)
   const ids = new Set(factoryCampusRegistry.map(({ id }) => id))
-  for (const id of ['main-production-hall', 'central-processing-hall', 'rear-high-bay', 'right-warehouse', 'right-utility', 'administration']) {
+  for (const id of [
+    'main-production-hall',
+    'central-processing-hall',
+    'rear-high-bay',
+    'north-east-workshop',
+    'right-warehouse',
+    'right-utility',
+    'front-utility-annex',
+    'administration',
+    'gatehouse',
+  ]) {
     assert.ok(ids.has(id), `missing ${id}`)
+  }
+})
+
+test('campus landmarks preserve the reference front-to-back hierarchy', () => {
+  const main = factoryCampusById.get('main-production-hall')
+  const central = factoryCampusById.get('central-processing-hall')
+  const rear = factoryCampusById.get('rear-high-bay')
+  const front = factoryCampusById.get('front-warehouse')
+  const admin = factoryCampusById.get('administration')
+  const gatehouse = factoryCampusById.get('gatehouse')
+
+  assert.ok(rear.position[2] < central.position[2])
+  assert.ok(central.position[2] < main.position[2])
+  assert.ok(main.position[2] < front.position[2])
+  assert.ok(front.position[2] < admin.position[2])
+  assert.ok(main.size[0] >= 13 && main.position[0] < -6)
+  assert.ok(gatehouse.position[0] < admin.position[0] && gatehouse.position[2] > admin.position[2])
+
+  const mainToCentralGap = (main.position[2] - main.size[2] / 2)
+    - (central.position[2] + central.size[2] / 2)
+  const centralToRearGap = (central.position[2] - central.size[2] / 2)
+    - (rear.position[2] + rear.size[2] / 2)
+  assert.ok(mainToCentralGap >= .8)
+  assert.ok(centralToRearGap >= .5)
+})
+
+test('east-side buildings form four separated depth bands', () => {
+  const ids = ['north-east-workshop', 'east-process-hall', 'right-warehouse', 'front-utility-annex']
+  const buildings = ids.map((id) => factoryCampusById.get(id))
+  assert.ok(buildings.every((building) => building.position[0] > 5))
+  const depths = buildings.map((building) => building.position[2]).sort((a, b) => a - b)
+  assert.ok(depths[1] - depths[0] >= 2)
+  assert.ok(depths[2] - depths[1] >= 2)
+  assert.ok(depths[3] - depths[2] >= 2)
+})
+
+test('independent building footprints do not overlap', () => {
+  for (let leftIndex = 0; leftIndex < factoryCampusRegistry.length; leftIndex += 1) {
+    for (let rightIndex = leftIndex + 1; rightIndex < factoryCampusRegistry.length; rightIndex += 1) {
+      const left = factoryCampusRegistry[leftIndex]
+      const right = factoryCampusRegistry[rightIndex]
+      const overlapX = Math.min(
+        left.position[0] + left.size[0] / 2,
+        right.position[0] + right.size[0] / 2,
+      ) - Math.max(
+        left.position[0] - left.size[0] / 2,
+        right.position[0] - right.size[0] / 2,
+      )
+      const overlapZ = Math.min(
+        left.position[2] + left.size[2] / 2,
+        right.position[2] + right.size[2] / 2,
+      ) - Math.max(
+        left.position[2] - left.size[2] / 2,
+        right.position[2] - right.size[2] / 2,
+      )
+      assert.ok(
+        overlapX <= .05 || overlapZ <= .05,
+        `${left.id} overlaps ${right.id}`,
+      )
+    }
   }
 })
 

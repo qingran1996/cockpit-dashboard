@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { factoryCampusRegistry } from './factoryCampusRegistry.js'
 
 const COLORS = {
   navy: 0x05131d,
@@ -276,30 +277,62 @@ function addRoad(group, materials, width, depth, x, z) {
   group.add(road)
 }
 
+export const campusRoadSegments = [
+  { id: 'front-perimeter-road', width: 37, depth: 1.2, x: 0, z: 13.2 },
+  { id: 'front-service-road', width: 37, depth: .7, x: 0, z: 3.15 },
+  { id: 'central-service-road', width: 23, depth: .7, x: -4.5, z: -3.85 },
+  { id: 'rear-service-road', width: 22, depth: .7, x: -5, z: -8.9 },
+  { id: 'west-perimeter-road', width: 1.2, depth: 27.5, x: -16.5, z: 0 },
+  { id: 'east-perimeter-road', width: 1.2, depth: 27.5, x: 16.5, z: 0 },
+  { id: 'front-entrance-link', width: .7, depth: 9, x: 11.2, z: 8.35 },
+]
+
+export const campusCourtFootprint = {
+  width: 5.6,
+  depth: 3.25,
+  x: .3,
+  z: 10.8,
+}
+
+function overlapsFootprint(x, z, footprint, clearance) {
+  return Math.abs(x - footprint.x) <= footprint.width / 2 + clearance
+    && Math.abs(z - footprint.z) <= footprint.depth / 2 + clearance
+}
+
+export function isInteriorTreePositionClear(x, z, clearance = .45) {
+  const overlapsBuilding = factoryCampusRegistry.some((building) => overlapsFootprint(x, z, {
+    x: building.position[0],
+    z: building.position[2],
+    width: building.size[0],
+    depth: building.size[2],
+  }, clearance))
+  if (overlapsBuilding) return false
+
+  if (campusRoadSegments.some((road) => overlapsFootprint(x, z, road, clearance))) return false
+  return !overlapsFootprint(x, z, campusCourtFootprint, clearance)
+}
+
 function createRoadSystem(materials) {
   const group = new THREE.Group()
   group.name = 'road-system'
-  addRoad(group, materials, 33, 2.0, 0, 10.6)
-  addRoad(group, materials, 33, 1.4, 0, 3.6)
-  addRoad(group, materials, 33, 1.35, 0, -3.5)
-  addRoad(group, materials, 1.45, 23, -13.2, 0)
-  addRoad(group, materials, 1.35, 23, 4.3, 0)
-  addRoad(group, materials, 1.4, 23, 13.2, 0)
+  campusRoadSegments.forEach((road) => {
+    addRoad(group, materials, road.width, road.depth, road.x, road.z)
+  })
 
   const dashGeometry = new THREE.BoxGeometry(.58, .025, .065)
   const dashes = new THREE.InstancedMesh(dashGeometry, materials.roadWhite, 36)
   dashes.name = 'lane-dashes'
   for (let index = 0; index < 18; index += 1) {
-    const x = -15.3 + index * 1.8
-    setInstanceMatrix(dashes, index, [x, .115, 10.6])
-    setInstanceMatrix(dashes, index + 18, [x, .115, 3.6])
+    const x = -16.2 + index * 1.9
+    setInstanceMatrix(dashes, index, [x, .115, 13.2])
+    setInstanceMatrix(dashes, index + 18, [x, .115, 3.15])
   }
   group.add(dashes)
 
   const stripeGeometry = new THREE.BoxGeometry(.08, .026, .72)
   const crossings = new THREE.InstancedMesh(stripeGeometry, materials.roadWhite, 48)
   crossings.name = 'zebra-crossings'
-  const crossingCenters = [[-12.2, 10.6], [4.3, 10.6], [13.2, 3.6], [4.3, -3.5]]
+  const crossingCenters = [[-16.5, 13.2], [11.2, 13.2], [-16.5, 3.15], [11.2, 3.15]]
   crossingCenters.forEach(([centerX, centerZ], crossingIndex) => {
     for (let stripe = 0; stripe < 12; stripe += 1) {
       setInstanceMatrix(crossings, crossingIndex * 12 + stripe, [centerX - .55 + stripe * .1, .12, centerZ])
@@ -312,8 +345,9 @@ function createRoadSystem(materials) {
 function createBasketballCourt(materials) {
   const group = new THREE.Group()
   group.name = 'sports-system'
-  const court = box(5.6, .06, 3.25, materials.court, 'basketball-court', .09)
-  court.position.set(-1.0, court.position.y, 9.0)
+  const { width, depth, x: courtX, z: courtZ } = campusCourtFootprint
+  const court = box(width, .06, depth, materials.court, 'basketball-court', .09)
+  court.position.set(courtX, court.position.y, courtZ)
   group.add(court)
 
   const lineMaterial = materials.roadWhite
@@ -324,43 +358,52 @@ function createBasketballCourt(materials) {
     box(.05, .02, 3.15, lineMaterial, 'court-line', .13),
     box(.05, .02, 3.15, lineMaterial, 'court-center-line', .13),
   ]
-  boundary[0].position.set(-1, .13, 7.42)
-  boundary[1].position.set(-1, .13, 10.58)
-  boundary[2].position.set(-3.72, .13, 9)
-  boundary[3].position.set(1.72, .13, 9)
-  boundary[4].position.set(-1, .13, 9)
+  boundary[0].position.set(courtX, .13, courtZ - 1.58)
+  boundary[1].position.set(courtX, .13, courtZ + 1.58)
+  boundary[2].position.set(courtX - 2.72, .13, courtZ)
+  boundary[3].position.set(courtX + 2.72, .13, courtZ)
+  boundary[4].position.set(courtX, .13, courtZ)
   group.add(...boundary)
 
-  for (const x of [-3.25, 1.25]) {
+  for (const x of [courtX - 2.25, courtX + 2.25]) {
     const pole = new THREE.Mesh(new THREE.CylinderGeometry(.035, .045, .72, 8), materials.pipe)
-    pole.position.set(x, .47, 9)
+    pole.position.set(x, .47, courtZ)
     const board = box(.06, .46, .8, materials.roadWhite, 'court-backboard', .78)
-    board.position.set(x, .78, 9)
+    board.position.set(x, .78, courtZ)
     group.add(pole, board)
   }
   return group
 }
 
 export const pipeRackRoutes = [
-  { from: [-7.5, 2.0], to: [12.0, 2.0], y: 3.5 },
-  { from: [-1.5, -4.4], to: [10.2, -4.4], y: 3.65 },
+  { from: [-4.9, -3.85], to: [6.35, -3.85], y: 1.5 },
+  { from: [6.35, -3.85], to: [6.55, -2.4], y: 1.45 },
+  { from: [6.55, -2.4], to: [13.4, -2.4], y: 1.4 },
 ]
 
 function createPipeRackSystem(materials, animated) {
   const group = new THREE.Group()
   group.name = 'pipe-rack-system'
   pipeRackRoutes.forEach((route, routeIndex) => {
-    const length = route.to[0] - route.from[0]
+    const deltaX = route.to[0] - route.from[0]
+    const deltaZ = route.to[1] - route.from[1]
+    const length = Math.hypot(deltaX, deltaZ)
+    const angle = Math.atan2(deltaZ, deltaX)
+    const perpendicularX = -Math.sin(angle)
+    const perpendicularZ = Math.cos(angle)
     const supportCount = Math.floor(length / 1.5) + 1
     for (let index = 0; index < supportCount; index += 1) {
-      const x = route.from[0] + length * (index / Math.max(1, supportCount - 1))
+      const progress = index / Math.max(1, supportCount - 1)
+      const x = route.from[0] + deltaX * progress
+      const z = route.from[1] + deltaZ * progress
       const left = new THREE.Mesh(new THREE.CylinderGeometry(.035, .05, route.y, 6), materials.pipeSupport)
       const right = left.clone()
-      left.position.set(x, route.y / 2, route.from[1] - .34)
-      right.position.set(x, route.y / 2, route.from[1] + .34)
+      left.position.set(x + perpendicularX * .34, route.y / 2, z + perpendicularZ * .34)
+      right.position.set(x - perpendicularX * .34, route.y / 2, z - perpendicularZ * .34)
       const beam = box(.08, .07, .82, materials.pipeSupport, 'pipe-rack-beam', route.y)
       beam.position.x = x
-      beam.position.z = route.from[1]
+      beam.position.z = z
+      beam.rotation.y = -angle
       group.add(left, right, beam)
     }
     for (let pipeIndex = 0; pipeIndex < 4; pipeIndex += 1) {
@@ -375,9 +418,9 @@ function createPipeRackSystem(materials, animated) {
     for (let nodeIndex = 0; nodeIndex < 5; nodeIndex += 1) {
       const node = new THREE.Mesh(new THREE.SphereGeometry(.1, 10, 8), materials.energy.clone())
       node.position.set(
-        route.from[0] + length * (nodeIndex / 4),
+        route.from[0] + deltaX * (nodeIndex / 4),
         route.y + .48,
-        route.from[1],
+        route.from[1] + deltaZ * (nodeIndex / 4),
       )
       group.add(node)
       animated.push({ kind: 'pulse', object: node, phase: routeIndex + nodeIndex * .72 })
@@ -389,13 +432,13 @@ function createPipeRackSystem(materials, animated) {
 function createParkingCanopies(materials) {
   const group = new THREE.Group()
   group.name = 'parking-system'
-  for (const [z, row] of [[5.8, 0], [7.25, 1]]) {
+  for (const [z, row] of [[5.0, 0], [6.4, 1]]) {
     const roof = box(7.2, .09, .9, materials.roof, `parking-canopy-${row}`, .88)
-    roof.position.set(-10.0, roof.position.y, z)
+    roof.position.set(-12.4, roof.position.y, z)
     group.add(roof)
     for (let index = 0; index < 8; index += 1) {
       const post = new THREE.Mesh(new THREE.CylinderGeometry(.025, .035, .82, 6), materials.pipeSupport)
-      post.position.set(-13.1 + index * .88, .45, z)
+      post.position.set(-15.5 + index * .88, .45, z)
       group.add(post)
     }
   }
@@ -406,19 +449,21 @@ function createLandscape(materials) {
   const group = new THREE.Group()
   group.name = 'landscape-system'
   const positions = []
-  for (let index = 0; index < 64; index += 1) {
+  for (let index = 0; index < 72; index += 1) {
     const side = index % 4
-    const t = (Math.floor(index / 4) + .5) / 16
-    if (side === 0) positions.push([-16 + t * 32, -11.7])
-    else if (side === 1) positions.push([-16 + t * 32, 12.0])
-    else if (side === 2) positions.push([-15.3, -11 + t * 22])
-    else positions.push([15.3, -11 + t * 22])
+    const t = (Math.floor(index / 4) + .5) / 18
+    if (side === 0) positions.push([-18 + t * 36, -13.7])
+    else if (side === 1) positions.push([-18 + t * 36, 13.7])
+    else if (side === 2) positions.push([-17.6, -13 + t * 26])
+    else positions.push([17.6, -13 + t * 26])
   }
-  for (let index = 0; index < 28; index += 1) {
-    positions.push([
-      -12 + campusSeededValue(index * 2) * 24,
-      -10 + campusSeededValue(index * 2 + 1) * 20,
-    ])
+  let acceptedInteriorTrees = 0
+  for (let candidate = 0; acceptedInteriorTrees < 28 && candidate < 256; candidate += 1) {
+    const x = -14 + campusSeededValue(candidate * 2) * 28
+    const z = -11 + campusSeededValue(candidate * 2 + 1) * 22
+    if (!isInteriorTreePositionClear(x, z)) continue
+    positions.push([x, z])
+    acceptedInteriorTrees += 1
   }
 
   const trunkGeometry = new THREE.CylinderGeometry(.035, .06, .48, 6)
@@ -440,8 +485,10 @@ function createLandscape(materials) {
   const flowers = new THREE.InstancedMesh(flowerGeometry, materials.flower, 54)
   flowers.name = 'flower-bands'
   for (let index = 0; index < 54; index += 1) {
-    const x = -13 + index * .46
-    const z = 8.8 + Math.sin(index * 1.7) * .24
+    const leftBand = index < 27
+    const localIndex = leftBand ? index : index - 27
+    const x = leftBand ? -15 + localIndex * .25 : 7 + localIndex * .28
+    const z = (leftBand ? 11.5 : 10.8) + Math.sin(index * 1.7) * .24
     setInstanceMatrix(flowers, index, [x, .15, z], [1, .8, 1])
   }
   group.add(flowers)
@@ -452,18 +499,18 @@ function createPerimeterAndLights(materials) {
   const group = new THREE.Group()
   group.name = 'perimeter-system'
   const positions = []
-  for (let x = -15.5; x <= 15.5; x += 1.15) {
-    positions.push([x, -11.1], [x, 11.15])
+  for (let x = -17.8; x <= 17.8; x += 1.15) {
+    positions.push([x, -13.15], [x, 13.15])
   }
-  for (let z = -10; z <= 10; z += 1.15) {
-    positions.push([-15.55, z], [15.55, z])
+  for (let z = -12.2; z <= 12.2; z += 1.15) {
+    positions.push([-17.85, z], [17.85, z])
   }
   const posts = new THREE.InstancedMesh(new THREE.BoxGeometry(.055, .48, .055), materials.fence, positions.length)
   posts.name = 'fence-posts'
   positions.forEach(([x, z], index) => setInstanceMatrix(posts, index, [x, .28, z]))
   group.add(posts)
 
-  const streetPositions = [[-12.3, 9.7], [-8.5, 9.7], [4.8, 9.7], [9.5, 9.7], [12.4, 2.8], [4.8, -2.8], [-12.3, 2.8]]
+  const streetPositions = [[-14.2, 12.2], [-9.0, 12.2], [6.9, 12.2], [12.0, 12.2], [14.3, 2.4], [6.9, -3.0], [-14.2, 2.4]]
   streetPositions.forEach(([x, z], index) => {
     const pole = new THREE.Mesh(new THREE.CylinderGeometry(.025, .035, 1.0, 7), materials.pipeSupport)
     pole.name = `streetlight-${index}`
@@ -498,8 +545,8 @@ export function createFactoryCampusSystems(animated) {
   const group = new THREE.Group()
   group.name = 'factory-campus-systems'
 
-  const foundation = box(34, .7, 25, materials.foundation, 'campus-foundation', -.35)
-  const lawn = box(33.2, .13, 24.2, materials.lawn, 'campus-lawn', .015)
+  const foundation = box(38, .7, 29, materials.foundation, 'campus-foundation', -.35)
+  const lawn = box(37.2, .13, 28.2, materials.lawn, 'campus-lawn', .015)
   group.add(
     foundation,
     lawn,
@@ -511,7 +558,7 @@ export function createFactoryCampusSystems(animated) {
     createPerimeterAndLights(materials),
   )
 
-  const grid = new THREE.GridHelper(45, 45, 0x14637a, 0x0d3545)
+  const grid = new THREE.GridHelper(50, 50, 0x14637a, 0x0d3545)
   grid.position.y = -.72
   grid.material.transparent = true
   grid.material.opacity = .28

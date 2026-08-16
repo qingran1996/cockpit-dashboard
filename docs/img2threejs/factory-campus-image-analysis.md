@@ -106,9 +106,31 @@ Intended output: a real-time browser scene that preserves the reference's recogn
 - The top white title/logo area is presentation artwork outside the 3D campus and will not be reconstructed.
 - Fine facade text is unreadable and will not be invented.
 
+## Revised footprint count after layout review
+
+The reference is treated as twelve independently readable building masses rather than the earlier
+ten-building abstraction:
+
+1. dominant west/main production hall;
+2. central long processing hall;
+3. rear high-bay hall;
+4. north-east auxiliary workshop;
+5. east process hall;
+6. far-east stepped utility building;
+7. east finished-goods warehouse;
+8. front raw-material warehouse;
+9. front utility annex;
+10. low laboratory/service block;
+11. administration building;
+12. entrance gatehouse.
+
+Parking canopies are site equipment, not additional buildings. The revised layout keeps explicit
+front-to-back gaps between the main, central, and rear halls and separates the east cluster into
+four depth bands instead of merging it into one dense row.
+
 ## Quality contract draft
 
-- Minimum 9 independently selectable building groups.
+- Exactly 12 independently selectable building groups for the current single-view interpretation.
 - Minimum 8 macro systems, 12 meso assemblies, and 18 mapped detail groups.
 - Required repeated systems: roof vents, skylights, windows, doors, pipe supports, trees, streetlights, lane markings, zebra stripes, fence posts.
 - Required review views: reference-matched oblique view plus front, right, rear, and left turntable views.

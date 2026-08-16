@@ -2,10 +2,15 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { createIndustrialScene } from '../scene/sceneFactory.js'
-import { cameraLimits, clampPixelRatio, normalizePointer } from '../scene/sceneMath.js'
+import {
+  cameraLimits,
+  clampPixelRatio,
+  factoryCampusInitialView,
+  normalizePointer,
+} from '../scene/sceneMath.js'
 
-const INITIAL_CAMERA = new THREE.Vector3(24, 19, 26)
-const INITIAL_TARGET = new THREE.Vector3(0, .9, -.2)
+const INITIAL_CAMERA = new THREE.Vector3(...factoryCampusInitialView.position)
+const INITIAL_TARGET = new THREE.Vector3(...factoryCampusInitialView.target)
 
 function setBuildingHighlight(building, active) {
   if (!building) return
@@ -66,7 +71,7 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
 
     const scene = new THREE.Scene()
     scene.fog = new THREE.FogExp2(0x020b14, .024)
-    const camera = new THREE.PerspectiveCamera(37, 1, .1, 120)
+    const camera = new THREE.PerspectiveCamera(factoryCampusInitialView.fov, 1, .1, 120)
     camera.position.copy(INITIAL_CAMERA)
 
     const controls = new OrbitControls(camera, renderer.domElement)
