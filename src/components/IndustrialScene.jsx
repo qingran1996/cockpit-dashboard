@@ -26,7 +26,7 @@ export function IndustrialScene() {
     setHovered(buildingId && point ? { buildingId, point } : null)
   }, [])
   const handleSelect = useCallback((buildingId) => setSelectedId(buildingId), [])
-  const { webglError, resetView, viewMode, toggleFirstPerson } = useIndustrialScene({
+  const { webglError, resetView, viewMode, pointerLocked, toggleFirstPerson } = useIndustrialScene({
     containerRef: canvasRef,
     onHover: handleHover,
     onSelect: handleSelect,
@@ -37,7 +37,7 @@ export function IndustrialScene() {
   const hoveredBuilding = hovered ? factoryCampusById.get(hovered.buildingId) : null
 
   return (
-    <section className="industrial-scene" data-building-count={factoryCampusRegistry.length} data-view-mode={viewMode} aria-label="交互式三维工业园区">
+    <section className="industrial-scene" data-building-count={factoryCampusRegistry.length} data-view-mode={viewMode} data-pointer-locked={pointerLocked} aria-label="交互式三维工业园区">
       <div ref={canvasRef} className="industrial-scene__canvas" />
       <div className="industrial-scene__vignette" />
       <div className="industrial-scene__scanline" />
@@ -62,10 +62,13 @@ export function IndustrialScene() {
         </aside>
       )}
 
-      {viewMode === 'first-person' && <div className="scene-walk-reticle" aria-hidden="true" />}
+      {viewMode === 'first-person' && <div className="scene-immersion-vignette" aria-hidden="true" />}
+      {viewMode === 'first-person' && pointerLocked && <div className="scene-walk-reticle" aria-hidden="true" />}
       <div className="scene-controls-tip">
         {viewMode === 'first-person'
-          ? <><span>WASD / 方向键移动</span><i />拖拽转向 · Shift 加速 · Esc 退出</>
+          ? pointerLocked
+            ? <><span>WASD 人物行走</span><i />鼠标转向 · Shift 奔跑 · Esc 释放鼠标</>
+            : <><span>点击场景进入沉浸漫游</span><i />WASD 人物行走</>
           : <><span>点击建筑查看近景</span><i />拖拽旋转 · 滚轮缩放</>}
       </div>
       <div className="scene-view-actions">

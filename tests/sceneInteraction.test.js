@@ -99,3 +99,32 @@ test('first person look target follows yaw and pitch', () => {
   assert.ok(Math.abs(right[1] - 2) < 1e-9)
   assert.ok(Math.abs(right[2] - 3) < 1e-9)
 })
+
+test('first person pointer look follows natural mouse direction', () => {
+  assert.equal(typeof sceneMath.updateFirstPersonLook, 'function')
+  if (typeof sceneMath.updateFirstPersonLook !== 'function') return
+
+  const right = sceneMath.updateFirstPersonLook(0, 0, 100, 0)
+  assert.ok(right.yaw > 0, 'moving the mouse right turns the person right')
+  const up = sceneMath.updateFirstPersonLook(0, 0, 0, -100)
+  assert.ok(up.pitch > 0, 'moving the mouse up makes the person look up')
+  const clamped = sceneMath.updateFirstPersonLook(0, 0, 0, -100000)
+  assert.equal(clamped.pitch, 1.05)
+})
+
+test('walking pose adds human head and arm motion only while moving', () => {
+  assert.equal(typeof sceneMath.getFirstPersonWalkPose, 'function')
+  if (typeof sceneMath.getFirstPersonWalkPose !== 'function') return
+
+  assert.deepEqual(sceneMath.getFirstPersonWalkPose(1, false, false), {
+    headBob: 0,
+    bodySway: 0,
+    armSwing: 0,
+  })
+  const walking = sceneMath.getFirstPersonWalkPose(.2, true, false)
+  assert.ok(walking.headBob > 0 && walking.headBob <= .06)
+  assert.ok(Math.abs(walking.bodySway) <= .025)
+  assert.ok(Math.abs(walking.armSwing) > .1 && Math.abs(walking.armSwing) <= .36)
+  const running = sceneMath.getFirstPersonWalkPose(.2, true, true)
+  assert.ok(running.headBob > walking.headBob)
+})

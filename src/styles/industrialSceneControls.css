@@ -31,6 +31,20 @@
 
 .scene-first-person.is-active { background: rgba(6, 82, 99, .88); }
 
+.scene-immersion-vignette {
+  position: absolute;
+  z-index: 6;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at center, transparent 48%, rgba(0, 9, 17, .2) 82%, rgba(0, 7, 13, .52) 100%),
+    linear-gradient(180deg, rgba(17, 178, 211, .035), transparent 24%, transparent 78%, rgba(0, 8, 15, .2));
+  pointer-events: none;
+}
+
+.industrial-scene[data-view-mode="first-person"][data-pointer-locked="true"] .scene-controls-tip {
+  opacity: .72;
+}
+
 .scene-walk-reticle {
   position: absolute;
   z-index: 8;

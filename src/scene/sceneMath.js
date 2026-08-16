@@ -49,6 +49,23 @@ export function getFirstPersonLookTarget(position, yaw, pitch) {
   ]
 }
 
+export function updateFirstPersonLook(yaw, pitch, movementX, movementY) {
+  return {
+    yaw: yaw + movementX * .0032,
+    pitch: Math.max(-1.05, Math.min(1.05, pitch - movementY * .0026)),
+  }
+}
+
+export function getFirstPersonWalkPose(seconds, moving, sprinting) {
+  if (!moving) return { headBob: 0, bodySway: 0, armSwing: 0 }
+  const phase = seconds * (sprinting ? 11 : 8)
+  return {
+    headBob: Math.abs(Math.sin(phase)) * (sprinting ? .08 : .055),
+    bodySway: Math.sin(phase * .5) * (sprinting ? .024 : .018),
+    armSwing: Math.sin(phase) * (sprinting ? .36 : .32),
+  }
+}
+
 export function isFirstPersonPositionClear(position, obstacles, site, clearance = 1.1) {
   const [x, , z] = position
   if (Math.abs(x) > site.width / 2 - 1 || Math.abs(z) > site.depth / 2 - 1) return false

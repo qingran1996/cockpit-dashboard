@@ -12,8 +12,10 @@ import {
   factoryCampusInitialView,
   getBuildingFocusView,
   getFirstPersonLookTarget,
+  getFirstPersonWalkPose,
   moveFirstPerson,
   normalizePointer,
+  updateFirstPersonLook,
 } from '../scene/sceneMath.js'
 
 const INITIAL_CAMERA = new THREE.Vector3(...factoryCampusInitialView.position)
@@ -46,9 +48,49 @@ function findBuildingGroup(object) {
   return current
 }
 
+function createFirstPersonBody() {
+  const root = new THREE.Group()
+  root.name = 'first-person-body'
+  root.visible = false
+
+  const sleeveMaterial = new THREE.MeshBasicMaterial({ color: 0x13576a, depthTest: false, depthWrite: false, toneMapped: false })
+  const handMaterial = new THREE.MeshBasicMaterial({ color: 0xe2b088, depthTest: false, depthWrite: false, toneMapped: false })
+  const sleeveGeometry = new THREE.CylinderGeometry(.045, .065, .3, 8)
+  const handGeometry = new THREE.SphereGeometry(.055, 10, 7)
+
+  const makeArm = (side) => {
+    const arm = new THREE.Group()
+    arm.position.set(side * .27, -.32, -.82)
+    arm.rotation.set(-.42, 0, side * .22)
+    const sleeve = new THREE.Mesh(sleeveGeometry, sleeveMaterial)
+    sleeve.position.y = -.09
+    const hand = new THREE.Mesh(handGeometry, handMaterial)
+    hand.scale.set(.92, 1.18, .92)
+    hand.position.y = .1
+    sleeve.renderOrder = 100
+    hand.renderOrder = 101
+    arm.add(sleeve, hand)
+    return arm
+  }
+
+  const leftArm = makeArm(-1)
+  const rightArm = makeArm(1)
+  root.add(leftArm, rightArm)
+  root.userData.leftArm = leftArm
+  root.userData.rightArm = rightArm
+  root.userData.dispose = () => {
+    sleeveGeometry.dispose()
+    handGeometry.dispose()
+    sleeveMaterial.dispose()
+    handMaterial.dispose()
+  }
+  return root
+}
+
 export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMotion }) {
   const [webglError, setWebglError] = useState(false)
   const [viewMode, setViewMode] = useState('overview')
+  const [pointerLocked, setPointerLocked] = useState(false)
   const resetRef = useRef(() => {})
   const toggleFirstPersonRef = useRef(() => {})
 
@@ -83,6 +125,9 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
     scene.fog = new THREE.FogExp2(0x020b14, factoryCampusFogDensity)
     const camera = new THREE.PerspectiveCamera(factoryCampusInitialView.fov, 1, .1, cameraLimits.farPlane)
     camera.position.copy(INITIAL_CAMERA)
+    const firstPersonBody = createFirstPersonBody()
+    camera.add(firstPersonBody)
+    scene.add(camera)
 
     const controls = new OrbitControls(camera, renderer.domElement)
     controls.target.copy(INITIAL_TARGET)
@@ -109,6 +154,8 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
     let cameraTween = null
     let firstPersonYaw = factoryCampusFirstPersonSpawn.yaw
     let firstPersonPitch = factoryCampusFirstPersonSpawn.pitch
+    let firstPersonGroundPosition = [...factoryCampusFirstPersonSpawn.position]
+    let walkElapsed = 0
     const pressedKeys = new Set()
 
     const resize = () => {
@@ -144,6 +191,7 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
       const toPosition = new THREE.Vector3(...position)
       const toTarget = new THREE.Vector3(...target)
       setMode(mode)
+      firstPersonBody.visible = false
       controls.enabled = true
       controls.autoRotate = false
       controls.minDistance = 5
@@ -178,6 +226,15 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
       onHover(null, null)
     }
 
+    const requestFirstPersonPointerLock = () => {
+      try {
+        const request = renderer.domElement.requestPointerLock?.()
+        request?.catch?.(() => {})
+      } catch {
+        // Browsers without Pointer Lock keep the click-and-drag fallback active.
+      }
+    }
+
     const enterFirstPerson = () => {
       cameraTween = null
       pressedKeys.clear()
@@ -187,15 +244,20 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
       controls.autoRotate = false
       firstPersonYaw = factoryCampusFirstPersonSpawn.yaw
       firstPersonPitch = factoryCampusFirstPersonSpawn.pitch
-      camera.position.set(...factoryCampusFirstPersonSpawn.position)
+      firstPersonGroundPosition = [...factoryCampusFirstPersonSpawn.position]
+      walkElapsed = 0
+      camera.position.set(...firstPersonGroundPosition)
       setCameraFov(62)
       camera.lookAt(...getFirstPersonLookTarget(camera.position.toArray(), firstPersonYaw, firstPersonPitch))
+      firstPersonBody.visible = true
       renderer.domElement.style.cursor = 'crosshair'
       setMode('first-person')
+      requestFirstPersonPointerLock()
     }
 
     const exitToOverview = () => {
       pressedKeys.clear()
+      if (document.pointerLockElement === renderer.domElement) document.exitPointerLock()
       if (activeMode === 'first-person') {
         controls.target.set(...getFirstPersonLookTarget(camera.position.toArray(), firstPersonYaw, firstPersonPitch))
       }
@@ -214,11 +276,12 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
 
     const handlePointerMove = (event) => {
       if (activeMode === 'first-person') {
-        if (event.buttons & 1) {
-          firstPersonYaw -= event.movementX * .0032
-          firstPersonPitch = Math.max(-1.05, Math.min(1.05, firstPersonPitch - event.movementY * .0026))
+        if (document.pointerLockElement === renderer.domElement || event.buttons & 1) {
+          const look = updateFirstPersonLook(firstPersonYaw, firstPersonPitch, event.movementX, event.movementY)
+          firstPersonYaw = look.yaw
+          firstPersonPitch = look.pitch
         }
-        renderer.domElement.style.cursor = 'crosshair'
+        renderer.domElement.style.cursor = document.pointerLockElement === renderer.domElement ? 'none' : 'crosshair'
         return
       }
       const { building, rect } = pick(event)
@@ -236,7 +299,10 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
     }
 
     const handleClick = (event) => {
-      if (activeMode === 'first-person') return
+      if (activeMode === 'first-person') {
+        if (document.pointerLockElement !== renderer.domElement) requestFirstPersonPointerLock()
+        return
+      }
       const { building } = pick(event)
       const buildingId = building?.userData.buildingId ?? null
       onSelect(buildingId)
@@ -250,8 +316,8 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
     const handleKeyDown = (event) => {
       if (activeMode !== 'first-person') return
       if (event.code === 'Escape') {
-        event.preventDefault()
-        exitToOverview()
+        pressedKeys.clear()
+        if (document.pointerLockElement === renderer.domElement) document.exitPointerLock()
         return
       }
       if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ShiftLeft', 'ShiftRight'].includes(event.code)) {
@@ -264,11 +330,19 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
       pressedKeys.delete(event.code)
     }
 
+    const handlePointerLockChange = () => {
+      const locked = document.pointerLockElement === renderer.domElement
+      setPointerLocked(locked)
+      container.dataset.pointerLocked = String(locked)
+      if (activeMode === 'first-person') renderer.domElement.style.cursor = locked ? 'none' : 'crosshair'
+    }
+
     renderer.domElement.addEventListener('pointermove', handlePointerMove)
     renderer.domElement.addEventListener('pointerleave', handlePointerLeave)
     renderer.domElement.addEventListener('click', handleClick)
     window.addEventListener('keydown', handleKeyDown)
     window.addEventListener('keyup', handleKeyUp)
+    document.addEventListener('pointerlockchange', handlePointerLockChange)
     controls.addEventListener('start', () => {
       controls.autoRotate = false
       lastInteraction = performance.now()
@@ -313,15 +387,33 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
         const strafe = Number(pressedKeys.has('KeyD')) - Number(pressedKeys.has('KeyA'))
         const sprinting = pressedKeys.has('ShiftLeft') || pressedKeys.has('ShiftRight')
         const nextPosition = moveFirstPerson(
-          camera.position.toArray(),
+          firstPersonGroundPosition,
           firstPersonYaw,
           { forward, strafe },
           (sprinting ? 8 : 4.5) * delta,
           factoryCampusRegistry,
           campusSite,
         )
-        camera.position.set(...nextPosition)
-        camera.lookAt(...getFirstPersonLookTarget(nextPosition, firstPersonYaw, firstPersonPitch))
+        const moved = Math.hypot(
+          nextPosition[0] - firstPersonGroundPosition[0],
+          nextPosition[2] - firstPersonGroundPosition[2],
+        ) > 1e-5
+        firstPersonGroundPosition = nextPosition
+        if (moved) walkElapsed += delta
+        const pose = reducedMotion
+          ? { headBob: 0, bodySway: 0, armSwing: 0 }
+          : getFirstPersonWalkPose(walkElapsed, moved, sprinting)
+        const eyePosition = [
+          nextPosition[0],
+          nextPosition[1] + pose.headBob,
+          nextPosition[2],
+        ]
+        camera.position.set(...eyePosition)
+        camera.lookAt(...getFirstPersonLookTarget(eyePosition, firstPersonYaw, firstPersonPitch))
+        camera.rotateZ(-pose.bodySway * .35)
+        firstPersonBody.position.x = pose.bodySway
+        firstPersonBody.userData.leftArm.rotation.x = -.42 + pose.armSwing
+        firstPersonBody.userData.rightArm.rotation.x = -.42 - pose.armSwing
       } else {
         controls.update()
       }
@@ -356,18 +448,22 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
       renderer.domElement.removeEventListener('click', handleClick)
       window.removeEventListener('keydown', handleKeyDown)
       window.removeEventListener('keyup', handleKeyUp)
+      document.removeEventListener('pointerlockchange', handlePointerLockChange)
+      if (document.pointerLockElement === renderer.domElement) document.exitPointerLock()
       setBuildingHighlight(hovered, false)
       controls.dispose()
       park.dispose()
+      firstPersonBody.userData.dispose()
       scene.clear()
       renderer.dispose()
       renderer.forceContextLoss()
       renderer.domElement.remove()
       delete container.dataset.viewMode
+      delete container.dataset.pointerLocked
       resetRef.current = () => {}
       toggleFirstPersonRef.current = () => {}
     }
   }, [containerRef, onHover, onSelect, reducedMotion])
 
-  return { webglError, resetView, viewMode, toggleFirstPerson }
+  return { webglError, resetView, viewMode, pointerLocked, toggleFirstPerson }
 }
