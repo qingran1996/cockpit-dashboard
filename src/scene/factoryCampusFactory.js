@@ -278,12 +278,10 @@ function addRoad(group, materials, width, depth, x, z) {
 }
 
 export const campusSite = Object.freeze({ width: 56, depth: 42 })
-export const externalParkingLot = Object.freeze({ x: -16, z: 30, width: 18, depth: 7.2 })
+export const externalParkingLot = Object.freeze({ x: -18, z: 8, width: 18, depth: 6 })
 export const externalRoadSegments = [
   { id: 'front-external-road', width: 68, depth: 3.2, x: 0, z: 23.0 },
   { id: 'east-external-road', width: 3.2, depth: 52, x: 29.6, z: 1.0 },
-  { id: 'parking-east-link', width: 3.4, depth: 6.4, x: -8.2, z: 26.2 },
-  { id: 'parking-west-link', width: 3.4, depth: 6.4, x: -23.0, z: 26.2 },
 ]
 export const parkingSpaceLayout = Array.from({ length: 20 }, (_, index) => {
   const row = index < 10 ? 0 : 1
@@ -292,14 +290,18 @@ export const parkingSpaceLayout = Array.from({ length: 20 }, (_, index) => {
     id: `parking-space-${row}-${column}`,
     row,
     column,
-    x: -24.1 + column * 1.8,
-    z: row === 0 ? 27.55 : 32.45,
+    x: -26.1 + column * 1.8,
+    z: row === 0 ? 6 : 10,
   })
 })
 export const vehicleRoutes = [
   {
     id: 'parking-circulation', purpose: 'parking', count: 4,
-    points: [[-33, 22.45], [-8.2, 22.45], [-8.2, 30], [-23, 30], [-23, 22.45]],
+    points: [
+      [-33, 22.7], [-9.3, 22.7], [-9.3, 20.55], [-9.3, 11],
+      [-17, 11], [-17, 8], [-24.5, 8], [-24.5, 11],
+      [-7.2, 11], [-7.2, 20.55], [-7.2, 23.3], [-33, 23.3],
+    ],
   },
   {
     id: 'logistics-circulation', purpose: 'logistics', count: 2,
@@ -332,6 +334,7 @@ export const campusRoadSegments = [
   { id: 'east-entrance-link', width: .7, depth: 12.0, x: 14.5, z: 9.0 },
   { id: 'admin-access-link', width: .7, depth: 6.0, x: -6.0, z: 12.0 },
   { id: 'main-gate-link', width: 5.0, depth: 9.0, x: -8.2, z: 16.0 },
+  { id: 'parking-access-road', width: 8.8, depth: .4, x: -15.1, z: 11.0 },
   { id: 'logistics-gate-link', width: 10.8, depth: 3.4, x: 22.2, z: -4.05 },
 ]
 
@@ -356,6 +359,7 @@ export function isInteriorTreePositionClear(x, z, clearance = .45) {
   }, clearance))
   if (overlapsBuilding) return false
 
+  if (overlapsFootprint(x, z, externalParkingLot, clearance)) return false
   if (campusRoadSegments.some((road) => overlapsFootprint(x, z, road, clearance))) return false
   return !overlapsFootprint(x, z, campusCourtFootprint, clearance)
 }
@@ -537,9 +541,9 @@ function createExternalTransportSystem(materials, animated) {
   group.add(parkingLines)
 
   const signPost = box(.16, 1.1, .16, materials.gateColumn, 'parking-sign-post', .58)
-  signPost.position.set(-6.8, signPost.position.y, 29.1)
+  signPost.position.set(-9.7, signPost.position.y, 8)
   const sign = box(1.15, .62, .12, materials.parkingSign, 'parking-sign', 1.3)
-  sign.position.set(-6.8, sign.position.y, 29.1)
+  sign.position.set(-9.7, sign.position.y, 8)
   group.add(signPost, sign)
 
   const occupiedSpaces = [0, 3, 7, 11, 14, 18]
@@ -669,13 +673,13 @@ function createPipeRackSystem(materials, animated) {
 function createParkingCanopies(materials) {
   const group = new THREE.Group()
   group.name = 'parking-system'
-  for (const [z, row] of [[6.0, 0], [7.5, 1]]) {
-    const roof = box(7.2, .09, .9, materials.roof, `parking-canopy-${row}`, .88)
-    roof.position.set(-12.4, roof.position.y, z)
+  for (const [z, row] of [[6, 0], [10, 1]]) {
+    const roof = box(16.8, .09, .9, materials.roof, `parking-canopy-${row}`, .88)
+    roof.position.set(-18, roof.position.y, z)
     group.add(roof)
-    for (let index = 0; index < 8; index += 1) {
+    for (let index = 0; index < 10; index += 1) {
       const post = new THREE.Mesh(new THREE.CylinderGeometry(.025, .035, .82, 6), materials.pipeSupport)
-      post.position.set(-15.5 + index * .88, .45, z)
+      post.position.set(-25.5 + index * 1.66, .45, z)
       group.add(post)
     }
   }
