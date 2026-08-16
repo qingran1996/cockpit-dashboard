@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useIndustrialScene } from '../hooks/useIndustrialScene.js'
 import { factoryCampusById, factoryCampusRegistry } from '../scene/factoryCampusRegistry.js'
+import '../styles/industrialSceneControls.css'
 
 function useReducedMotion() {
   const [reduced, setReduced] = useState(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches)
@@ -25,7 +26,7 @@ export function IndustrialScene() {
     setHovered(buildingId && point ? { buildingId, point } : null)
   }, [])
   const handleSelect = useCallback((buildingId) => setSelectedId(buildingId), [])
-  const { webglError, resetView } = useIndustrialScene({
+  const { webglError, resetView, viewMode, toggleFirstPerson } = useIndustrialScene({
     containerRef: canvasRef,
     onHover: handleHover,
     onSelect: handleSelect,
@@ -36,7 +37,7 @@ export function IndustrialScene() {
   const hoveredBuilding = hovered ? factoryCampusById.get(hovered.buildingId) : null
 
   return (
-    <section className="industrial-scene" data-building-count={factoryCampusRegistry.length} aria-label="交互式三维工业园区">
+    <section className="industrial-scene" data-building-count={factoryCampusRegistry.length} data-view-mode={viewMode} aria-label="交互式三维工业园区">
       <div ref={canvasRef} className="industrial-scene__canvas" />
       <div className="industrial-scene__vignette" />
       <div className="industrial-scene__scanline" />
@@ -61,8 +62,23 @@ export function IndustrialScene() {
         </aside>
       )}
 
-      <div className="scene-controls-tip"><span>拖拽旋转</span><i />滚轮缩放</div>
-      <button type="button" className="scene-reset" onClick={resetView}>复位视角</button>
+      {viewMode === 'first-person' && <div className="scene-walk-reticle" aria-hidden="true" />}
+      <div className="scene-controls-tip">
+        {viewMode === 'first-person'
+          ? <><span>WASD / 方向键移动</span><i />拖拽转向 · Shift 加速 · Esc 退出</>
+          : <><span>点击建筑查看近景</span><i />拖拽旋转 · 滚轮缩放</>}
+      </div>
+      <div className="scene-view-actions">
+        <button
+          type="button"
+          className={`scene-first-person${viewMode === 'first-person' ? ' is-active' : ''}`}
+          onClick={toggleFirstPerson}
+          aria-pressed={viewMode === 'first-person'}
+        >
+          {viewMode === 'first-person' ? '退出漫游' : '第一人称'}
+        </button>
+        <button type="button" className="scene-reset" onClick={resetView}>复位视角</button>
+      </div>
 
       {webglError && (
         <div className="industrial-scene__fallback" role="status">
