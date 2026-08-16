@@ -99,7 +99,7 @@ Intended output: a real-time browser scene that preserves the reference's recogn
 ## Layer 8 — uncertainty and single-image limits
 
 - Rear and lateral elevations hidden by perspective are inferred from visible facade systems.
-- Exact building dimensions and spacing are undetermined; proportions will be normalized to a 34 × 25 scene footprint.
+- Exact real-world dimensions and spacing are undetermined; visible proportions are normalized to a 42 × 32 scene footprint.
 - Roof pitch is visually shallow and will be approximated with thin box/extruded roof shells.
 - Pipe connectivity behind buildings is occluded; only visible route logic will be reconstructed.
 - Tree species, vehicle models, signage, and company logos are not identity-critical and will be simplified or omitted.
@@ -127,6 +127,22 @@ ten-building abstraction:
 Parking canopies are site equipment, not additional buildings. The revised layout keeps explicit
 front-to-back gaps between the main, central, and rear halls and separates the east cluster into
 four depth bands instead of merging it into one dense row.
+
+## Reference-camera and placement calibration
+
+The second layout pass uses the 1992 × 1270 source image as a measurement frame. The initial camera
+is fixed at `[12, 24, 36]`, targets `[0, 0.6, 0]`, and uses a 39° vertical field of view. Its
+side/front position ratio is 0.333, which makes the projected front road and long roof edges follow
+the shallow screen-space slope visible in the reference.
+
+Each of the twelve building roof centres has a manually measured image landmark. The runtime test
+projects each Three.js roof centre back into the 1992 × 1270 frame and requires it to land within an
+18-pixel radius of that landmark. This makes placement changes measurable and prevents later camera
+or coordinate edits from silently returning to the earlier generic campus layout.
+
+This contract is image-view exactness, not survey/CAD exactness. Hidden elevations, true metric
+dimensions, and occluded service corridors remain inferred until a site plan or additional views
+are supplied.
 
 ## Quality contract draft
 

@@ -278,20 +278,22 @@ function addRoad(group, materials, width, depth, x, z) {
 }
 
 export const campusRoadSegments = [
-  { id: 'front-perimeter-road', width: 37, depth: 1.2, x: 0, z: 13.2 },
-  { id: 'front-service-road', width: 37, depth: .7, x: 0, z: 3.15 },
-  { id: 'central-service-road', width: 23, depth: .7, x: -4.5, z: -3.85 },
-  { id: 'rear-service-road', width: 22, depth: .7, x: -5, z: -8.9 },
-  { id: 'west-perimeter-road', width: 1.2, depth: 27.5, x: -16.5, z: 0 },
-  { id: 'east-perimeter-road', width: 1.2, depth: 27.5, x: 16.5, z: 0 },
-  { id: 'front-entrance-link', width: .7, depth: 9, x: 11.2, z: 8.35 },
+  { id: 'front-perimeter-road', width: 41, depth: 1.2, x: 0, z: 15.0 },
+  { id: 'rear-perimeter-road', width: 41, depth: .8, x: 0, z: -14.2 },
+  { id: 'central-service-road', width: 22, depth: .7, x: -3.0, z: -2.0 },
+  { id: 'rear-service-road', width: 12, depth: .42, x: 1.5, z: -6.9 },
+  { id: 'east-service-road', width: 11.5, depth: .7, x: 14.0, z: 2.45 },
+  { id: 'west-perimeter-road', width: .8, depth: 30.5, x: -20.0, z: 0 },
+  { id: 'east-perimeter-road', width: .8, depth: 30.5, x: 20.0, z: 0 },
+  { id: 'east-entrance-link', width: .7, depth: 12.0, x: 14.5, z: 9.0 },
+  { id: 'admin-access-link', width: .7, depth: 6.0, x: -6.0, z: 12.0 },
 ]
 
 export const campusCourtFootprint = {
   width: 5.6,
   depth: 3.25,
-  x: .3,
-  z: 10.8,
+  x: 3.5,
+  z: 12.2,
 }
 
 function overlapsFootprint(x, z, footprint, clearance) {
@@ -323,16 +325,16 @@ function createRoadSystem(materials) {
   const dashes = new THREE.InstancedMesh(dashGeometry, materials.roadWhite, 36)
   dashes.name = 'lane-dashes'
   for (let index = 0; index < 18; index += 1) {
-    const x = -16.2 + index * 1.9
-    setInstanceMatrix(dashes, index, [x, .115, 13.2])
-    setInstanceMatrix(dashes, index + 18, [x, .115, 3.15])
+    const x = -19.2 + index * 2.25
+    setInstanceMatrix(dashes, index, [x, .115, 15.0])
+    setInstanceMatrix(dashes, index + 18, [x, .115, -14.2])
   }
   group.add(dashes)
 
   const stripeGeometry = new THREE.BoxGeometry(.08, .026, .72)
   const crossings = new THREE.InstancedMesh(stripeGeometry, materials.roadWhite, 48)
   crossings.name = 'zebra-crossings'
-  const crossingCenters = [[-16.5, 13.2], [11.2, 13.2], [-16.5, 3.15], [11.2, 3.15]]
+  const crossingCenters = [[-20, 15], [14.5, 15], [-20, -14.2], [20, -14.2]]
   crossingCenters.forEach(([centerX, centerZ], crossingIndex) => {
     for (let stripe = 0; stripe < 12; stripe += 1) {
       setInstanceMatrix(crossings, crossingIndex * 12 + stripe, [centerX - .55 + stripe * .1, .12, centerZ])
@@ -376,9 +378,9 @@ function createBasketballCourt(materials) {
 }
 
 export const pipeRackRoutes = [
-  { from: [-4.9, -3.85], to: [6.35, -3.85], y: 1.5 },
-  { from: [6.35, -3.85], to: [6.55, -2.4], y: 1.45 },
-  { from: [6.55, -2.4], to: [13.4, -2.4], y: 1.4 },
+  { from: [-4.0, -2.0], to: [8.0, -2.0], y: 1.5 },
+  { from: [8.0, -2.0], to: [8.0, -3.5], y: 1.45 },
+  { from: [8.0, -3.5], to: [18.0, -3.5], y: 1.4 },
 ]
 
 function createPipeRackSystem(materials, animated) {
@@ -432,7 +434,7 @@ function createPipeRackSystem(materials, animated) {
 function createParkingCanopies(materials) {
   const group = new THREE.Group()
   group.name = 'parking-system'
-  for (const [z, row] of [[5.0, 0], [6.4, 1]]) {
+  for (const [z, row] of [[6.0, 0], [7.5, 1]]) {
     const roof = box(7.2, .09, .9, materials.roof, `parking-canopy-${row}`, .88)
     roof.position.set(-12.4, roof.position.y, z)
     group.add(roof)
@@ -452,15 +454,15 @@ function createLandscape(materials) {
   for (let index = 0; index < 72; index += 1) {
     const side = index % 4
     const t = (Math.floor(index / 4) + .5) / 18
-    if (side === 0) positions.push([-18 + t * 36, -13.7])
-    else if (side === 1) positions.push([-18 + t * 36, 13.7])
-    else if (side === 2) positions.push([-17.6, -13 + t * 26])
-    else positions.push([17.6, -13 + t * 26])
+    if (side === 0) positions.push([-20.5 + t * 41, -15.5])
+    else if (side === 1) positions.push([-20.5 + t * 41, 15.5])
+    else if (side === 2) positions.push([-20.5, -15 + t * 30])
+    else positions.push([20.5, -15 + t * 30])
   }
   let acceptedInteriorTrees = 0
   for (let candidate = 0; acceptedInteriorTrees < 28 && candidate < 256; candidate += 1) {
-    const x = -14 + campusSeededValue(candidate * 2) * 28
-    const z = -11 + campusSeededValue(candidate * 2 + 1) * 22
+    const x = -18 + campusSeededValue(candidate * 2) * 36
+    const z = -12.5 + campusSeededValue(candidate * 2 + 1) * 25
     if (!isInteriorTreePositionClear(x, z)) continue
     positions.push([x, z])
     acceptedInteriorTrees += 1
@@ -499,18 +501,18 @@ function createPerimeterAndLights(materials) {
   const group = new THREE.Group()
   group.name = 'perimeter-system'
   const positions = []
-  for (let x = -17.8; x <= 17.8; x += 1.15) {
-    positions.push([x, -13.15], [x, 13.15])
+  for (let x = -20.5; x <= 20.5; x += 1.15) {
+    positions.push([x, -15.45], [x, 15.45])
   }
-  for (let z = -12.2; z <= 12.2; z += 1.15) {
-    positions.push([-17.85, z], [17.85, z])
+  for (let z = -14.8; z <= 14.8; z += 1.15) {
+    positions.push([-20.55, z], [20.55, z])
   }
   const posts = new THREE.InstancedMesh(new THREE.BoxGeometry(.055, .48, .055), materials.fence, positions.length)
   posts.name = 'fence-posts'
   positions.forEach(([x, z], index) => setInstanceMatrix(posts, index, [x, .28, z]))
   group.add(posts)
 
-  const streetPositions = [[-14.2, 12.2], [-9.0, 12.2], [6.9, 12.2], [12.0, 12.2], [14.3, 2.4], [6.9, -3.0], [-14.2, 2.4]]
+  const streetPositions = [[-17.5, 14.1], [-9.0, 14.1], [6.9, 14.1], [14.0, 14.1], [19.0, 2.4], [8.0, -3.0], [-17.5, 2.4]]
   streetPositions.forEach(([x, z], index) => {
     const pole = new THREE.Mesh(new THREE.CylinderGeometry(.025, .035, 1.0, 7), materials.pipeSupport)
     pole.name = `streetlight-${index}`
@@ -545,8 +547,8 @@ export function createFactoryCampusSystems(animated) {
   const group = new THREE.Group()
   group.name = 'factory-campus-systems'
 
-  const foundation = box(38, .7, 29, materials.foundation, 'campus-foundation', -.35)
-  const lawn = box(37.2, .13, 28.2, materials.lawn, 'campus-lawn', .015)
+  const foundation = box(42, .7, 32, materials.foundation, 'campus-foundation', -.35)
+  const lawn = box(41.2, .13, 31.2, materials.lawn, 'campus-lawn', .015)
   group.add(
     foundation,
     lawn,

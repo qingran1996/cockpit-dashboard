@@ -26,7 +26,11 @@ test('camera limits preserve an isometric viewing range', () => {
 })
 
 test('factory campus opens from an elevated reference-like overview', () => {
-  assert.deepEqual(factoryCampusInitialView.position, [23, 21, 27])
-  assert.deepEqual(factoryCampusInitialView.target, [0, .6, -.5])
-  assert.equal(factoryCampusInitialView.fov, 36)
+  assert.deepEqual(factoryCampusInitialView.position, [12, 24, 36])
+  assert.deepEqual(factoryCampusInitialView.target, [0, .6, 0])
+  assert.equal(factoryCampusInitialView.fov, 39)
+
+  const sideToFrontRatio = factoryCampusInitialView.position[0]
+    / factoryCampusInitialView.position[2]
+  assert.ok(sideToFrontRatio >= .3 && sideToFrontRatio <= .36)
 })

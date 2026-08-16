@@ -1,14 +1,14 @@
 export const cameraLimits = Object.freeze({
   minDistance: 18,
-  maxDistance: 42,
+  maxDistance: 52,
   minPolarAngle: Math.PI * 0.18,
   maxPolarAngle: Math.PI * 0.47,
 })
 
 export const factoryCampusInitialView = Object.freeze({
-  position: Object.freeze([23, 21, 27]),
-  target: Object.freeze([0, .6, -.5]),
-  fov: 36,
+  position: Object.freeze([12, 24, 36]),
+  target: Object.freeze([0, .6, 0]),
+  fov: 39,
 })
 
 export function normalizePointer(clientX, clientY, rect) {

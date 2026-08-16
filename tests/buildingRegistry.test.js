@@ -1,7 +1,13 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { factoryCampusById, factoryCampusRegistry } from '../src/scene/factoryCampusRegistry.js'
+import * as THREE from 'three'
+import {
+  factoryCampusById,
+  factoryCampusReferenceFrame,
+  factoryCampusRegistry,
+} from '../src/scene/factoryCampusRegistry.js'
 import { createIndustrialScene } from '../src/scene/sceneFactory.js'
+import { factoryCampusInitialView } from '../src/scene/sceneMath.js'
 
 test('defines the reference factory campus landmarks', () => {
   assert.equal(factoryCampusRegistry.length, 12)
@@ -79,6 +85,33 @@ test('independent building footprints do not overlap', () => {
         `${left.id} overlaps ${right.id}`,
       )
     }
+  }
+})
+
+test('roof centres project onto the measured reference-image landmarks', () => {
+  const { width, height, roofCenters, tolerancePixels } = factoryCampusReferenceFrame
+  const camera = new THREE.PerspectiveCamera(factoryCampusInitialView.fov, width / height, .1, 120)
+  camera.position.set(...factoryCampusInitialView.position)
+  camera.lookAt(...factoryCampusInitialView.target)
+  camera.updateMatrixWorld()
+  camera.updateProjectionMatrix()
+
+  for (const building of factoryCampusRegistry) {
+    const projected = new THREE.Vector3(
+      building.position[0],
+      building.size[1] + .1 - 1.2,
+      building.position[2],
+    ).project(camera)
+    const pixel = [
+      (projected.x + 1) * width / 2,
+      (1 - projected.y) * height / 2,
+    ]
+    const target = roofCenters[building.id]
+    assert.ok(target, `missing measured roof centre for ${building.id}`)
+    assert.ok(
+      Math.hypot(pixel[0] - target[0], pixel[1] - target[1]) <= tolerancePixels,
+      `${building.id} projects to ${pixel.map(Math.round)} instead of ${target}`,
+    )
   }
 })
 
