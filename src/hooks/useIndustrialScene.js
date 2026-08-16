@@ -5,6 +5,7 @@ import { createIndustrialScene } from '../scene/sceneFactory.js'
 import {
   cameraLimits,
   clampPixelRatio,
+  factoryCampusFogDensity,
   factoryCampusInitialView,
   normalizePointer,
 } from '../scene/sceneMath.js'
@@ -70,8 +71,8 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
     container.appendChild(renderer.domElement)
 
     const scene = new THREE.Scene()
-    scene.fog = new THREE.FogExp2(0x020b14, .024)
-    const camera = new THREE.PerspectiveCamera(factoryCampusInitialView.fov, 1, .1, 120)
+    scene.fog = new THREE.FogExp2(0x020b14, factoryCampusFogDensity)
+    const camera = new THREE.PerspectiveCamera(factoryCampusInitialView.fov, 1, .1, cameraLimits.farPlane)
     camera.position.copy(INITIAL_CAMERA)
 
     const controls = new OrbitControls(camera, renderer.domElement)
@@ -180,6 +181,8 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
           } else if (item.kind === 'heat') {
             item.object.rotation.y += .00045
           } else if (item.kind === 'pedestrian') {
+            item.update(seconds)
+          } else if (item.kind === 'vehicle') {
             item.update(seconds)
           }
         })

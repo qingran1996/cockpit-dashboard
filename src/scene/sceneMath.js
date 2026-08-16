@@ -1,13 +1,16 @@
 export const cameraLimits = Object.freeze({
   minDistance: 18,
-  maxDistance: 70,
+  maxDistance: 105,
+  farPlane: 200,
   minPolarAngle: Math.PI * 0.18,
   maxPolarAngle: Math.PI * 0.47,
 })
 
+export const factoryCampusFogDensity = .012
+
 export const factoryCampusInitialView = Object.freeze({
-  position: Object.freeze([17, 34, 51]),
-  target: Object.freeze([0, .6, 3]),
+  position: Object.freeze([25, 50, 75]),
+  target: Object.freeze([0, .6, 10]),
   fov: 39,
 })
 

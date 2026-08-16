@@ -15,10 +15,15 @@ import {
   pipeRackRoutes,
   isInteriorTreePositionClear,
   pedestrianRoutes,
+  externalParkingLot,
+  externalRoadSegments,
+  parkingSpaceLayout,
   roofVentFootprint,
   roofVentLayout,
   samplePedestrianRoute,
+  sampleVehicleRoute,
   supportedRoofTypes,
+  vehicleRoutes,
 } from '../src/scene/factoryCampusFactory.js'
 import { factoryCampusRegistry } from '../src/scene/factoryCampusRegistry.js'
 
@@ -77,8 +82,8 @@ test('pedestrian routes loop continuously through measured walkway points', () =
 })
 
 test('expanded campus leaves a landscaped safety margin around every building', () => {
-  assert.ok(campusSite.width >= 50)
-  assert.ok(campusSite.depth >= 38)
+  assert.ok(campusSite.width >= 56)
+  assert.ok(campusSite.depth >= 42)
   for (const building of factoryCampusRegistry) {
     const clearanceX = campusSite.width / 2
       - (Math.abs(building.position[0]) + building.size[0] / 2)
@@ -86,6 +91,41 @@ test('expanded campus leaves a landscaped safety margin around every building', 
       - (Math.abs(building.position[2]) + building.size[2] / 2)
     assert.ok(clearanceX >= 3, `${building.id} has only ${clearanceX} horizontal clearance`)
     assert.ok(clearanceZ >= 3, `${building.id} has only ${clearanceZ} depth clearance`)
+  }
+})
+
+test('external parking provides two usable rows outside the front perimeter', () => {
+  assert.ok(externalParkingLot.z - externalParkingLot.depth / 2 > campusSite.depth / 2)
+  assert.ok(externalParkingLot.width >= 18)
+  assert.ok(externalParkingLot.depth >= 7)
+  assert.ok(parkingSpaceLayout.length >= 20)
+  assert.deepEqual(new Set(parkingSpaceLayout.map(({ row }) => row)), new Set([0, 1]))
+})
+
+test('external roads connect front and east approaches without occupying the factory interior', () => {
+  assert.ok(externalRoadSegments.length >= 4)
+  assert.ok(externalRoadSegments.some(({ id }) => id === 'front-external-road'))
+  assert.ok(externalRoadSegments.some(({ id }) => id === 'east-external-road'))
+  assert.ok(externalRoadSegments.every((road) => (
+    Math.abs(road.x) - road.width / 2 >= campusSite.width / 2
+    || Math.abs(road.z) - road.depth / 2 >= campusSite.depth / 2
+  )))
+})
+
+test('vehicle routes loop through the parking aisle with deterministic motion', () => {
+  assert.ok(vehicleRoutes.length >= 2)
+  assert.ok(vehicleRoutes.some(({ purpose }) => purpose === 'parking'))
+  assert.equal(vehicleRoutes.reduce((count, route) => count + route.count, 0), 6)
+  for (const route of vehicleRoutes) {
+    const start = sampleVehicleRoute(route.points, 0)
+    const looped = sampleVehicleRoute(route.points, 1)
+    const advanced = sampleVehicleRoute(route.points, .2)
+    assert.deepEqual(looped.position, start.position)
+    assert.ok(Math.hypot(
+      advanced.position[0] - start.position[0],
+      advanced.position[1] - start.position[1],
+    ) > .5)
+    assert.ok(Math.hypot(...start.direction) > .99)
   }
 })
 

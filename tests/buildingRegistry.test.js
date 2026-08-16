@@ -146,7 +146,7 @@ test('industrial scene exposes a shared clickable and explodable part runtime', 
   const park = createIndustrialScene()
   try {
     const runtime = park.root.userData.sculptRuntime
-    const requiredSystems = ['road-system', 'sports-system', 'pipe-rack-system', 'parking-system', 'landscape-system', 'perimeter-system', 'pedestrian-system']
+    const requiredSystems = ['road-system', 'sports-system', 'pipe-rack-system', 'parking-system', 'landscape-system', 'perimeter-system', 'pedestrian-system', 'external-transport-system']
     assert.equal(runtime.parts.length, factoryCampusRegistry.length + requiredSystems.length)
     assert.ok(runtime.parts.every(({ node }) => node))
     assert.ok(factoryCampusRegistry.every(({ id }) => runtime.nodes[id].userData.explodable))
@@ -177,6 +177,21 @@ test('pedestrians expose deterministic runtime updates without becoming selectab
     walkers[0].update(2.5)
     assert.ok(walkers[0].object.position.distanceTo(before) > .1)
     assert.ok(walkers.every(({ update }) => typeof update === 'function'))
+    assert.equal(park.interactiveObjects.length, factoryCampusRegistry.length)
+  } finally {
+    park.dispose()
+  }
+})
+
+test('external traffic animates six vehicles without adding selectable buildings', () => {
+  const park = createIndustrialScene()
+  try {
+    const vehicles = park.animated.filter(({ kind }) => kind === 'vehicle')
+    assert.equal(vehicles.length, 6)
+    const before = vehicles[0].object.position.clone()
+    vehicles[0].update(3)
+    assert.ok(vehicles[0].object.position.distanceTo(before) > .2)
+    assert.ok(vehicles.every(({ update }) => typeof update === 'function'))
     assert.equal(park.interactiveObjects.length, factoryCampusRegistry.length)
   } finally {
     park.dispose()

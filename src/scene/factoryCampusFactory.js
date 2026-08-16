@@ -277,34 +277,62 @@ function addRoad(group, materials, width, depth, x, z) {
   group.add(road)
 }
 
-export const campusSite = Object.freeze({ width: 50, depth: 38 })
+export const campusSite = Object.freeze({ width: 56, depth: 42 })
+export const externalParkingLot = Object.freeze({ x: -16, z: 30, width: 18, depth: 7.2 })
+export const externalRoadSegments = [
+  { id: 'front-external-road', width: 68, depth: 3.2, x: 0, z: 23.0 },
+  { id: 'east-external-road', width: 3.2, depth: 52, x: 29.6, z: 1.0 },
+  { id: 'parking-east-link', width: 3.4, depth: 6.4, x: -8.2, z: 26.2 },
+  { id: 'parking-west-link', width: 3.4, depth: 6.4, x: -23.0, z: 26.2 },
+]
+export const parkingSpaceLayout = Array.from({ length: 20 }, (_, index) => {
+  const row = index < 10 ? 0 : 1
+  const column = index % 10
+  return Object.freeze({
+    id: `parking-space-${row}-${column}`,
+    row,
+    column,
+    x: -24.1 + column * 1.8,
+    z: row === 0 ? 27.55 : 32.45,
+  })
+})
+export const vehicleRoutes = [
+  {
+    id: 'parking-circulation', purpose: 'parking', count: 4,
+    points: [[-33, 22.45], [-8.2, 22.45], [-8.2, 30], [-23, 30], [-23, 22.45]],
+  },
+  {
+    id: 'logistics-circulation', purpose: 'logistics', count: 2,
+    points: [[33, 23.55], [29.6, 23.55], [29.6, -4.05], [27.1, -4.05], [29.6, -4.05], [29.6, -22.5], [33, -22.5]],
+  },
+]
 
 export const campusGateDefinitions = [
-  { id: 'main-entrance', edge: 'front', center: [-8.2, 18.55], openingWidth: 5.6, label: '主入口' },
-  { id: 'logistics-entrance', edge: 'east', center: [24.55, -4.05], openingWidth: 5.0, label: '物流入口' },
+  { id: 'main-entrance', edge: 'front', center: [-8.2, 20.55], openingWidth: 5.6, label: '主入口' },
+  { id: 'logistics-entrance', edge: 'east', center: [27.55, -4.05], openingWidth: 5.0, label: '物流入口' },
 ]
 
 export const campusPerimeterSegments = [
-  { id: 'front-west', edge: 'front', axis: 'x', center: [-17.775, 18.55], length: 13.55 },
-  { id: 'front-east', edge: 'front', axis: 'x', center: [9.575, 18.55], length: 29.95 },
-  { id: 'rear', edge: 'rear', axis: 'x', center: [0, -18.55], length: 49.1 },
-  { id: 'west', edge: 'west', axis: 'z', center: [-24.55, 0], length: 37.1 },
-  { id: 'east-rear', edge: 'east', axis: 'z', center: [24.55, -12.55], length: 12.0 },
-  { id: 'east-front', edge: 'east', axis: 'z', center: [24.55, 8.5], length: 20.1 },
+  { id: 'front-west', edge: 'front', axis: 'x', center: [-19.275, 20.55], length: 16.55 },
+  { id: 'front-east', edge: 'front', axis: 'x', center: [11.075, 20.55], length: 32.95 },
+  { id: 'rear', edge: 'rear', axis: 'x', center: [0, -20.55], length: 55.1 },
+  { id: 'west', edge: 'west', axis: 'z', center: [-27.55, 0], length: 41.1 },
+  { id: 'east-rear', edge: 'east', axis: 'z', center: [27.55, -13.55], length: 14.0 },
+  { id: 'east-front', edge: 'east', axis: 'z', center: [27.55, 9.5], length: 22.1 },
 ]
 
 export const campusRoadSegments = [
-  { id: 'front-perimeter-road', width: 49.2, depth: 1.4, x: 0, z: 17.3 },
-  { id: 'rear-perimeter-road', width: 49.2, depth: 1.0, x: 0, z: -17.3 },
+  { id: 'front-perimeter-road', width: 55.2, depth: 1.4, x: 0, z: 19.25 },
+  { id: 'rear-perimeter-road', width: 55.2, depth: 1.0, x: 0, z: -19.25 },
   { id: 'central-service-road', width: 22, depth: .7, x: -3.0, z: -2.0 },
   { id: 'rear-service-road', width: 12, depth: .42, x: 1.5, z: -6.9 },
   { id: 'east-service-road', width: 11.5, depth: .7, x: 14.0, z: 2.45 },
-  { id: 'west-perimeter-road', width: 1.0, depth: 35.6, x: -23.2, z: 0 },
-  { id: 'east-perimeter-road', width: 1.0, depth: 35.6, x: 23.2, z: 0 },
+  { id: 'west-perimeter-road', width: 1.0, depth: 39.6, x: -26.2, z: 0 },
+  { id: 'east-perimeter-road', width: 1.0, depth: 39.6, x: 26.2, z: 0 },
   { id: 'east-entrance-link', width: .7, depth: 12.0, x: 14.5, z: 9.0 },
   { id: 'admin-access-link', width: .7, depth: 6.0, x: -6.0, z: 12.0 },
-  { id: 'main-gate-link', width: 5.0, depth: 7.0, x: -8.2, z: 14.2 },
-  { id: 'logistics-gate-link', width: 7.8, depth: 3.4, x: 20.7, z: -4.05 },
+  { id: 'main-gate-link', width: 5.0, depth: 9.0, x: -8.2, z: 16.0 },
+  { id: 'logistics-gate-link', width: 10.8, depth: 3.4, x: 22.2, z: -4.05 },
 ]
 
 export const campusCourtFootprint = {
@@ -340,19 +368,19 @@ function createRoadSystem(materials) {
   })
 
   const dashGeometry = new THREE.BoxGeometry(.64, .025, .065)
-  const dashes = new THREE.InstancedMesh(dashGeometry, materials.roadWhite, 44)
+  const dashes = new THREE.InstancedMesh(dashGeometry, materials.roadWhite, 50)
   dashes.name = 'lane-dashes'
-  for (let index = 0; index < 22; index += 1) {
-    const x = -23.1 + index * 2.2
-    setInstanceMatrix(dashes, index, [x, .115, 17.3])
-    setInstanceMatrix(dashes, index + 22, [x, .115, -17.3])
+  for (let index = 0; index < 25; index += 1) {
+    const x = -26.4 + index * 2.2
+    setInstanceMatrix(dashes, index, [x, .115, 19.25])
+    setInstanceMatrix(dashes, index + 25, [x, .115, -19.25])
   }
   group.add(dashes)
 
   const stripeGeometry = new THREE.BoxGeometry(.08, .026, .72)
   const crossings = new THREE.InstancedMesh(stripeGeometry, materials.roadWhite, 48)
   crossings.name = 'zebra-crossings'
-  const crossingCenters = [[-23.2, 17.3], [-8.2, 17.3], [-23.2, -17.3], [23.2, -17.3]]
+  const crossingCenters = [[-26.2, 19.25], [-8.2, 19.25], [-26.2, -19.25], [26.2, -19.25]]
   crossingCenters.forEach(([centerX, centerZ], crossingIndex) => {
     for (let stripe = 0; stripe < 12; stripe += 1) {
       setInstanceMatrix(crossings, crossingIndex * 12 + stripe, [centerX - .55 + stripe * .1, .12, centerZ])
@@ -426,6 +454,124 @@ export function samplePedestrianRoute(points, progress) {
     position: [segment.from[0] + deltaX * ratio, segment.from[1] + deltaZ * ratio],
     direction: segment.length ? [deltaX / segment.length, deltaZ / segment.length] : [0, 1],
   }
+}
+
+export function sampleVehicleRoute(points, progress) {
+  return samplePedestrianRoute(points, progress)
+}
+
+function createVehicle(index, materials, truck = false) {
+  const group = new THREE.Group()
+  group.name = `${truck ? 'truck' : 'car'}-${index}`
+  const paint = [materials.vehicleBlue, materials.vehicleOrange, materials.vehicleSilver][index % 3]
+  const bodyLength = truck ? 1.6 : 1.05
+  const body = box(truck ? .72 : .62, truck ? .3 : .22, bodyLength, paint, `${group.name}-body`, truck ? .34 : .29)
+  const cabin = box(truck ? .68 : .48, truck ? .42 : .26, truck ? .48 : .58, materials.vehicleGlass, `${group.name}-cabin`, truck ? .62 : .5)
+  cabin.position.z = truck ? bodyLength * .28 : -.04
+  group.add(body, cabin)
+
+  const wheelGeometry = new THREE.CylinderGeometry(.12, .12, .09, 10)
+  for (const x of [-.35, .35]) {
+    for (const z of [-bodyLength * .3, bodyLength * .3]) {
+      const wheel = new THREE.Mesh(wheelGeometry, materials.vehicleTyre)
+      wheel.name = `${group.name}-wheel`
+      wheel.rotation.z = Math.PI / 2
+      wheel.position.set(x, .17, z)
+      group.add(wheel)
+    }
+  }
+
+  const headlight = box(.32, .07, .035, materials.vehicleLight, `${group.name}-headlight`, .34)
+  headlight.position.z = bodyLength / 2 + .02
+  group.add(headlight)
+  group.scale.setScalar(truck ? .95 : .88 + campusSeededValue(index + 650) * .08)
+  return group
+}
+
+function createExternalTransportSystem(materials, animated) {
+  const group = new THREE.Group()
+  group.name = 'external-transport-system'
+
+  const externalGround = box(70, .25, 58, materials.externalGround, 'external-transport-ground', -.47)
+  group.add(externalGround)
+  externalRoadSegments.forEach((road) => {
+    addRoad(group, materials, road.width, road.depth, road.x, road.z)
+  })
+
+  const roadDashPositions = []
+  for (let x = -32; x <= 32; x += 2.1) roadDashPositions.push([x, 23, 0])
+  for (let z = -23; z <= 25; z += 2.1) roadDashPositions.push([29.6, z, Math.PI / 2])
+  const roadDashes = new THREE.InstancedMesh(
+    new THREE.BoxGeometry(.72, .026, .075),
+    materials.roadWhite,
+    roadDashPositions.length,
+  )
+  roadDashes.name = 'external-road-dashes'
+  roadDashPositions.forEach(([x, z, rotation], index) => {
+    setInstanceMatrix(roadDashes, index, [x, .12, z], [1, 1, 1], rotation)
+  })
+  group.add(roadDashes)
+
+  const parking = box(
+    externalParkingLot.width,
+    .08,
+    externalParkingLot.depth,
+    materials.parkingAsphalt,
+    'external-parking-lot',
+    .075,
+  )
+  parking.position.x = externalParkingLot.x
+  parking.position.z = externalParkingLot.z
+  group.add(parking)
+
+  const parkingLines = new THREE.InstancedMesh(
+    new THREE.BoxGeometry(.045, .025, 2.35),
+    materials.roadWhite,
+    parkingSpaceLayout.length * 2,
+  )
+  parkingLines.name = 'external-parking-space-lines'
+  parkingSpaceLayout.forEach((space, index) => {
+    setInstanceMatrix(parkingLines, index * 2, [space.x - .83, .135, space.z])
+    setInstanceMatrix(parkingLines, index * 2 + 1, [space.x + .83, .135, space.z])
+  })
+  group.add(parkingLines)
+
+  const signPost = box(.16, 1.1, .16, materials.gateColumn, 'parking-sign-post', .58)
+  signPost.position.set(-6.8, signPost.position.y, 29.1)
+  const sign = box(1.15, .62, .12, materials.parkingSign, 'parking-sign', 1.3)
+  sign.position.set(-6.8, sign.position.y, 29.1)
+  group.add(signPost, sign)
+
+  const occupiedSpaces = [0, 3, 7, 11, 14, 18]
+  occupiedSpaces.forEach((spaceIndex, vehicleIndex) => {
+    const space = parkingSpaceLayout[spaceIndex]
+    const vehicle = createVehicle(vehicleIndex + 20, materials)
+    vehicle.name = `parked-vehicle-${vehicleIndex}`
+    vehicle.position.set(space.x, .13, space.z)
+    vehicle.rotation.y = space.row === 0 ? Math.PI : 0
+    group.add(vehicle)
+  })
+
+  let vehicleIndex = 0
+  vehicleRoutes.forEach((route) => {
+    for (let routeVehicle = 0; routeVehicle < route.count; routeVehicle += 1) {
+      const vehicle = createVehicle(vehicleIndex, materials, route.purpose === 'logistics')
+      const phase = routeVehicle / route.count + campusSeededValue(vehicleIndex + 700) * .035
+      const speed = route.purpose === 'logistics'
+        ? .0065 + campusSeededValue(vehicleIndex + 720) * .0015
+        : .008 + campusSeededValue(vehicleIndex + 720) * .002
+      const update = (seconds) => {
+        const sample = sampleVehicleRoute(route.points, phase + seconds * speed)
+        vehicle.position.set(sample.position[0], .13, sample.position[1])
+        vehicle.rotation.y = Math.atan2(sample.direction[0], sample.direction[1])
+      }
+      update(0)
+      group.add(vehicle)
+      animated.push({ kind: 'vehicle', object: vehicle, routeId: route.id, update })
+      vehicleIndex += 1
+    }
+  })
+  return group
 }
 
 function createPedestrian(index, materials) {
@@ -552,20 +698,20 @@ function createLandscape(materials) {
   const group = new THREE.Group()
   group.name = 'landscape-system'
   const positions = []
-  for (let index = 0; index < 88; index += 1) {
+  for (let index = 0; index < 104; index += 1) {
     const side = index % 4
-    const t = (Math.floor(index / 4) + .5) / 22
+    const t = (Math.floor(index / 4) + .5) / 26
     let position
-    if (side === 0) position = [-24.2 + t * 48.4, -18.05]
-    else if (side === 1) position = [-24.2 + t * 48.4, 18.05]
-    else if (side === 2) position = [-24.05, -17.6 + t * 35.2]
-    else position = [24.05, -17.6 + t * 35.2]
+    if (side === 0) position = [-27.2 + t * 54.4, -20.05]
+    else if (side === 1) position = [-27.2 + t * 54.4, 20.05]
+    else if (side === 2) position = [-27.05, -19.6 + t * 39.2]
+    else position = [27.05, -19.6 + t * 39.2]
     if (!isGateOpeningLandscapePosition(...position)) positions.push(position)
   }
   let acceptedInteriorTrees = 0
-  for (let candidate = 0; acceptedInteriorTrees < 34 && candidate < 320; candidate += 1) {
-    const x = -21.5 + campusSeededValue(candidate * 2) * 43
-    const z = -15.5 + campusSeededValue(candidate * 2 + 1) * 31
+  for (let candidate = 0; acceptedInteriorTrees < 38 && candidate < 360; candidate += 1) {
+    const x = -24.5 + campusSeededValue(candidate * 2) * 49
+    const z = -17.5 + campusSeededValue(candidate * 2 + 1) * 35
     if (!isInteriorTreePositionClear(x, z)) continue
     positions.push([x, z])
     acceptedInteriorTrees += 1
@@ -682,7 +828,7 @@ function createPerimeterAndLights(materials) {
 
   campusGateDefinitions.forEach((definition) => group.add(createCampusGate(definition, materials)))
 
-  const streetPositions = [[-19.0, 16.2], [-12.0, 16.2], [-4.0, 16.2], [7.0, 16.2], [16.0, 16.2], [22.3, 5.0], [22.3, -10.0], [8.0, -3.0], [-21.8, 2.4]]
+  const streetPositions = [[-22.0, 18.1], [-14.0, 18.1], [-4.0, 18.1], [7.0, 18.1], [18.0, 18.1], [25.2, 6.0], [25.2, -12.0], [8.0, -3.0], [-24.8, 2.4]]
   streetPositions.forEach(([x, z], index) => {
     const pole = new THREE.Mesh(new THREE.CylinderGeometry(.025, .035, 1.0, 7), materials.pipeSupport)
     pole.name = `streetlight-${index}`
@@ -714,6 +860,15 @@ export function createFactoryCampusSystemMaterials() {
     gateRoof: new THREE.MeshStandardMaterial({ color: 0x356d7b, roughness: .5, metalness: .35 }),
     gateSign: new THREE.MeshBasicMaterial({ color: 0x2ad7e7, toneMapped: false }),
     barrier: new THREE.MeshStandardMaterial({ color: 0xe1684d, roughness: .58, emissive: 0x572018, emissiveIntensity: .18 }),
+    externalGround: new THREE.MeshStandardMaterial({ color: 0x0b2428, roughness: .96, metalness: 0, emissive: 0x061d21, emissiveIntensity: .08 }),
+    parkingAsphalt: new THREE.MeshStandardMaterial({ color: 0x202c31, roughness: .9, metalness: .02 }),
+    parkingSign: new THREE.MeshBasicMaterial({ color: 0x287ca8, toneMapped: false }),
+    vehicleBlue: new THREE.MeshStandardMaterial({ color: 0x287ca8, roughness: .42, metalness: .38 }),
+    vehicleOrange: new THREE.MeshStandardMaterial({ color: 0xd66f38, roughness: .46, metalness: .28 }),
+    vehicleSilver: new THREE.MeshStandardMaterial({ color: 0xbac4c8, roughness: .38, metalness: .5 }),
+    vehicleGlass: new THREE.MeshStandardMaterial({ color: 0x163d50, roughness: .18, metalness: .35 }),
+    vehicleTyre: new THREE.MeshStandardMaterial({ color: 0x101417, roughness: .94 }),
+    vehicleLight: new THREE.MeshBasicMaterial({ color: 0xcaf8ff, toneMapped: false }),
     pedestrianJacket: new THREE.MeshStandardMaterial({ color: 0x2d91aa, roughness: .72 }),
     pedestrianAccent: new THREE.MeshStandardMaterial({ color: 0xd67a42, roughness: .74 }),
     pedestrianSkin: new THREE.MeshStandardMaterial({ color: 0xd6ab8a, roughness: .8 }),
@@ -729,6 +884,7 @@ export function createFactoryCampusSystems(animated) {
   const foundation = box(campusSite.width, .7, campusSite.depth, materials.foundation, 'campus-foundation', -.35)
   const lawn = box(campusSite.width - .8, .13, campusSite.depth - .8, materials.lawn, 'campus-lawn', .015)
   group.add(
+    createExternalTransportSystem(materials, animated),
     foundation,
     lawn,
     createRoadSystem(materials),
@@ -740,7 +896,7 @@ export function createFactoryCampusSystems(animated) {
     createPedestrianSystem(materials, animated),
   )
 
-  const grid = new THREE.GridHelper(60, 60, 0x14637a, 0x0d3545)
+  const grid = new THREE.GridHelper(76, 76, 0x14637a, 0x0d3545)
   grid.position.y = -.72
   grid.material.transparent = true
   grid.material.opacity = .28
@@ -758,10 +914,10 @@ export function createFactoryCampusLights() {
   key.position.set(-10, 18, 12)
   key.castShadow = true
   key.shadow.mapSize.set(1024, 1024)
-  key.shadow.camera.left = -26
-  key.shadow.camera.right = 26
-  key.shadow.camera.top = 22
-  key.shadow.camera.bottom = -22
+  key.shadow.camera.left = -36
+  key.shadow.camera.right = 36
+  key.shadow.camera.top = 32
+  key.shadow.camera.bottom = -32
   const cyan = new THREE.PointLight(COLORS.cyan, 28, 26, 2)
   cyan.position.set(7, 5, 3)
   const fill = new THREE.DirectionalLight(0x9bc0d2, 1.35)
