@@ -7,7 +7,7 @@ import {
   factoryCampusRegistry,
 } from '../src/scene/factoryCampusRegistry.js'
 import { createIndustrialScene } from '../src/scene/sceneFactory.js'
-import { factoryCampusInitialView } from '../src/scene/sceneMath.js'
+import { factoryCampusReferenceView } from '../src/scene/sceneMath.js'
 
 test('defines the reference factory campus landmarks', () => {
   assert.equal(factoryCampusRegistry.length, 12)
@@ -90,9 +90,9 @@ test('independent building footprints do not overlap', () => {
 
 test('roof centres project onto the measured reference-image landmarks', () => {
   const { width, height, roofCenters, tolerancePixels } = factoryCampusReferenceFrame
-  const camera = new THREE.PerspectiveCamera(factoryCampusInitialView.fov, width / height, .1, 120)
-  camera.position.set(...factoryCampusInitialView.position)
-  camera.lookAt(...factoryCampusInitialView.target)
+  const camera = new THREE.PerspectiveCamera(factoryCampusReferenceView.fov, width / height, .1, 120)
+  camera.position.set(...factoryCampusReferenceView.position)
+  camera.lookAt(...factoryCampusReferenceView.target)
   camera.updateMatrixWorld()
   camera.updateProjectionMatrix()
 

@@ -1,9 +1,14 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import * as THREE from 'three'
 import {
   campusSeededValue,
   campusRoadSegments,
   campusCourtFootprint,
+  campusGateDefinitions,
+  campusPerimeterSegments,
+  campusSite,
+  createFactoryCampusSystems,
   createFactoryCampusLights,
   createFactoryCampusMaterials,
   facadeBayLayout,
@@ -68,6 +73,67 @@ test('pedestrian routes loop continuously through measured walkway points', () =
       advanced.position[1] - start.position[1],
     ) > .1)
     assert.ok(Math.hypot(...start.direction) > .99)
+  }
+})
+
+test('expanded campus leaves a landscaped safety margin around every building', () => {
+  assert.ok(campusSite.width >= 50)
+  assert.ok(campusSite.depth >= 38)
+  for (const building of factoryCampusRegistry) {
+    const clearanceX = campusSite.width / 2
+      - (Math.abs(building.position[0]) + building.size[0] / 2)
+    const clearanceZ = campusSite.depth / 2
+      - (Math.abs(building.position[2]) + building.size[2] / 2)
+    assert.ok(clearanceX >= 3, `${building.id} has only ${clearanceX} horizontal clearance`)
+    assert.ok(clearanceZ >= 3, `${building.id} has only ${clearanceZ} depth clearance`)
+  }
+})
+
+test('campus perimeter is enclosed by six fence runs with two distinct vehicle gates', () => {
+  assert.equal(campusGateDefinitions.length, 2)
+  assert.deepEqual(
+    new Set(campusGateDefinitions.map(({ edge }) => edge)),
+    new Set(['front', 'east']),
+  )
+  assert.ok(campusGateDefinitions.every(({ openingWidth }) => openingWidth >= 4.8))
+  assert.equal(campusPerimeterSegments.length, 6)
+  assert.deepEqual(
+    new Set(campusPerimeterSegments.map(({ edge }) => edge)),
+    new Set(['front', 'rear', 'west', 'east']),
+  )
+
+  const systems = createFactoryCampusSystems([])
+  const perimeter = systems.getObjectByName('perimeter-system')
+  assert.ok(perimeter)
+  for (const gate of campusGateDefinitions) {
+    const gateObject = perimeter.getObjectByName(`campus-gate-${gate.id}`)
+    assert.ok(gateObject, `missing rendered ${gate.id} gate`)
+    assert.ok(gateObject.children.length >= 5, `${gate.id} gate is not visually articulated`)
+  }
+})
+
+test('perimeter landscaping keeps both vehicle gate openings clear', () => {
+  const systems = createFactoryCampusSystems([])
+  const trees = systems.getObjectByName('tree-trunks')
+  const matrix = new THREE.Matrix4()
+  const position = new THREE.Vector3()
+  assert.ok(trees?.isInstancedMesh)
+
+  for (let index = 0; index < trees.count; index += 1) {
+    trees.getMatrixAt(index, matrix)
+    position.setFromMatrixPosition(matrix)
+    for (const gate of campusGateDefinitions) {
+      const alongOpening = gate.edge === 'front'
+        ? Math.abs(position.x - gate.center[0])
+        : Math.abs(position.z - gate.center[1])
+      const nearBoundary = gate.edge === 'front'
+        ? Math.abs(position.z - gate.center[1]) < 1
+        : Math.abs(position.x - gate.center[0]) < 1
+      assert.ok(
+        !nearBoundary || alongOpening >= gate.openingWidth / 2 + .6,
+        `tree ${index} blocks ${gate.id}`,
+      )
+    }
   }
 })
 
