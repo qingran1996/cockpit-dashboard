@@ -39,6 +39,7 @@ export function createIndustrialScene() {
     'parking-system',
     'landscape-system',
     'perimeter-system',
+    'pedestrian-system',
   ])
   systems.children
     .filter((node) => runtimeSystemNames.has(node.name))

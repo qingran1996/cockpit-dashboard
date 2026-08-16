@@ -383,6 +383,77 @@ export const pipeRackRoutes = [
   { from: [8.0, -3.5], to: [18.0, -3.5], y: 1.4 },
 ]
 
+export const pedestrianRoutes = [
+  { id: 'front-promenade', count: 4, points: [[-7.5, 14.0], [12.5, 14.0], [12.5, 13.7], [-7.5, 13.7]] },
+  { id: 'parking-walkway', count: 2, points: [[-15.0, 5.1], [-2.0, 5.1], [-2.0, 5.5], [-15.0, 5.5]] },
+  { id: 'east-access-walkway', count: 2, points: [[18.6, 3.0], [18.6, 13.5], [18.2, 13.5], [18.2, 3.0]] },
+]
+
+export function samplePedestrianRoute(points, progress) {
+  const segments = points.map((point, index) => {
+    const next = points[(index + 1) % points.length]
+    return { from: point, to: next, length: Math.hypot(next[0] - point[0], next[1] - point[1]) }
+  })
+  const totalLength = segments.reduce((sum, segment) => sum + segment.length, 0)
+  let distance = (((progress % 1) + 1) % 1) * totalLength
+  const segment = segments.find((candidate) => {
+    if (distance <= candidate.length) return true
+    distance -= candidate.length
+    return false
+  }) ?? segments[segments.length - 1]
+  const ratio = segment.length ? distance / segment.length : 0
+  const deltaX = segment.to[0] - segment.from[0]
+  const deltaZ = segment.to[1] - segment.from[1]
+  return {
+    position: [segment.from[0] + deltaX * ratio, segment.from[1] + deltaZ * ratio],
+    direction: segment.length ? [deltaX / segment.length, deltaZ / segment.length] : [0, 1],
+  }
+}
+
+function createPedestrian(index, materials) {
+  const group = new THREE.Group()
+  group.name = `pedestrian-${index}`
+  const jacket = index % 3 === 0 ? materials.pedestrianAccent : materials.pedestrianJacket
+  const torso = box(.2, .36, .13, jacket, `pedestrian-${index}-torso`, .56)
+  const head = new THREE.Mesh(new THREE.SphereGeometry(.105, 8, 6), materials.pedestrianSkin)
+  head.name = `pedestrian-${index}-head`
+  head.position.y = .86
+  const leftLeg = box(.065, .3, .075, materials.pedestrianTrousers, `pedestrian-${index}-left-leg`, .22)
+  const rightLeg = box(.065, .3, .075, materials.pedestrianTrousers, `pedestrian-${index}-right-leg`, .22)
+  leftLeg.position.x = -.052
+  rightLeg.position.x = .052
+  group.add(torso, head, leftLeg, rightLeg)
+  group.scale.setScalar(.9 + campusSeededValue(index + 410) * .12)
+  group.userData.legs = [leftLeg, rightLeg]
+  return group
+}
+
+function createPedestrianSystem(materials, animated) {
+  const group = new THREE.Group()
+  group.name = 'pedestrian-system'
+  let personIndex = 0
+  pedestrianRoutes.forEach((route, routeIndex) => {
+    for (let routePerson = 0; routePerson < route.count; routePerson += 1) {
+      const person = createPedestrian(personIndex, materials)
+      const phase = routePerson / route.count + campusSeededValue(personIndex + 500) * .08
+      const speed = .018 + campusSeededValue(personIndex + 520) * .008
+      const update = (seconds) => {
+        const sample = samplePedestrianRoute(route.points, phase + seconds * speed)
+        person.position.set(sample.position[0], .08, sample.position[1])
+        person.rotation.y = Math.atan2(sample.direction[0], sample.direction[1])
+        const stride = Math.sin((phase + seconds * speed) * Math.PI * 24) * .42
+        person.userData.legs[0].rotation.x = stride
+        person.userData.legs[1].rotation.x = -stride
+      }
+      update(0)
+      group.add(person)
+      animated.push({ kind: 'pedestrian', object: person, routeId: route.id, update })
+      personIndex += 1
+    }
+  })
+  return group
+}
+
 function createPipeRackSystem(materials, animated) {
   const group = new THREE.Group()
   group.name = 'pipe-rack-system'
@@ -539,6 +610,10 @@ export function createFactoryCampusSystemMaterials() {
     foliage: new THREE.MeshStandardMaterial({ color: 0x1f5945, roughness: .88, emissive: 0x0c4437, emissiveIntensity: .08 }),
     flower: new THREE.MeshStandardMaterial({ color: 0xa83e68, roughness: .82, emissive: 0x4e1734, emissiveIntensity: .12 }),
     fence: new THREE.MeshStandardMaterial({ color: 0x9bb4b7, roughness: .72, metalness: .2 }),
+    pedestrianJacket: new THREE.MeshStandardMaterial({ color: 0x2d91aa, roughness: .72 }),
+    pedestrianAccent: new THREE.MeshStandardMaterial({ color: 0xd67a42, roughness: .74 }),
+    pedestrianSkin: new THREE.MeshStandardMaterial({ color: 0xd6ab8a, roughness: .8 }),
+    pedestrianTrousers: new THREE.MeshStandardMaterial({ color: 0x24343e, roughness: .86 }),
   }
 }
 
@@ -558,6 +633,7 @@ export function createFactoryCampusSystems(animated) {
     createParkingCanopies(materials),
     createLandscape(materials),
     createPerimeterAndLights(materials),
+    createPedestrianSystem(materials, animated),
   )
 
   const grid = new THREE.GridHelper(50, 50, 0x14637a, 0x0d3545)

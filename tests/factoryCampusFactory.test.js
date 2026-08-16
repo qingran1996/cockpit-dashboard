@@ -9,8 +9,10 @@ import {
   facadeBayLayout,
   pipeRackRoutes,
   isInteriorTreePositionClear,
+  pedestrianRoutes,
   roofVentFootprint,
   roofVentLayout,
+  samplePedestrianRoute,
   supportedRoofTypes,
 } from '../src/scene/factoryCampusFactory.js'
 import { factoryCampusRegistry } from '../src/scene/factoryCampusRegistry.js'
@@ -49,6 +51,24 @@ test('pipe racks follow visible service corridors instead of crossing roofs', ()
   assert.ok(pipeRackRoutes.length >= 2)
   assert.ok(pipeRackRoutes.every(({ y }) => y >= 1.2 && y <= 1.6))
   assert.ok(pipeRackRoutes.some(({ from, to }) => from[1] !== to[1]))
+})
+
+test('pedestrian routes loop continuously through measured walkway points', () => {
+  assert.ok(pedestrianRoutes.length >= 3)
+  assert.equal(pedestrianRoutes.reduce((count, route) => count + route.count, 0), 8)
+
+  for (const route of pedestrianRoutes) {
+    assert.ok(route.points.length >= 2)
+    const start = samplePedestrianRoute(route.points, 0)
+    const looped = samplePedestrianRoute(route.points, 1)
+    const advanced = samplePedestrianRoute(route.points, .25)
+    assert.deepEqual(looped.position, start.position)
+    assert.ok(Math.hypot(
+      advanced.position[0] - start.position[0],
+      advanced.position[1] - start.position[1],
+    ) > .1)
+    assert.ok(Math.hypot(...start.direction) > .99)
+  }
 })
 
 test('road segments stay in service corridors instead of cutting through buildings', () => {

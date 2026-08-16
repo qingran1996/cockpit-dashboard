@@ -179,6 +179,8 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
             item.object.rotation.y = seconds * .018
           } else if (item.kind === 'heat') {
             item.object.rotation.y += .00045
+          } else if (item.kind === 'pedestrian') {
+            item.update(seconds)
           }
         })
       }

@@ -146,7 +146,7 @@ test('industrial scene exposes a shared clickable and explodable part runtime', 
   const park = createIndustrialScene()
   try {
     const runtime = park.root.userData.sculptRuntime
-    const requiredSystems = ['road-system', 'sports-system', 'pipe-rack-system', 'parking-system', 'landscape-system', 'perimeter-system']
+    const requiredSystems = ['road-system', 'sports-system', 'pipe-rack-system', 'parking-system', 'landscape-system', 'perimeter-system', 'pedestrian-system']
     assert.equal(runtime.parts.length, factoryCampusRegistry.length + requiredSystems.length)
     assert.ok(runtime.parts.every(({ node }) => node))
     assert.ok(factoryCampusRegistry.every(({ id }) => runtime.nodes[id].userData.explodable))
@@ -163,6 +163,21 @@ test('industrial scene exposes a shared clickable and explodable part runtime', 
     assert.ok(first.position.distanceTo(base) > 0)
     runtime.resetExplosion()
     assert.ok(first.position.distanceTo(base) < 1e-9)
+  } finally {
+    park.dispose()
+  }
+})
+
+test('pedestrians expose deterministic runtime updates without becoming selectable buildings', () => {
+  const park = createIndustrialScene()
+  try {
+    const walkers = park.animated.filter(({ kind }) => kind === 'pedestrian')
+    assert.equal(walkers.length, 8)
+    const before = walkers[0].object.position.clone()
+    walkers[0].update(2.5)
+    assert.ok(walkers[0].object.position.distanceTo(before) > .1)
+    assert.ok(walkers.every(({ update }) => typeof update === 'function'))
+    assert.equal(park.interactiveObjects.length, factoryCampusRegistry.length)
   } finally {
     park.dispose()
   }
