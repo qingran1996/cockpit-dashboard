@@ -82,8 +82,8 @@ test('pedestrian routes loop continuously through measured walkway points', () =
 })
 
 test('expanded campus leaves a landscaped safety margin around every building', () => {
-  assert.ok(campusSite.width >= 56)
-  assert.ok(campusSite.depth >= 42)
+  assert.ok(campusSite.width >= 68)
+  assert.ok(campusSite.depth >= 52)
   for (const building of factoryCampusRegistry) {
     const clearanceX = campusSite.width / 2
       - (Math.abs(building.position[0]) + building.size[0] / 2)

@@ -6,16 +6,16 @@ export const cameraLimits = Object.freeze({
   maxPolarAngle: Math.PI * 0.47,
 })
 
-export const factoryCampusFogDensity = .012
+export const factoryCampusFogDensity = .0095
 
 export const factoryCampusInitialView = Object.freeze({
-  position: Object.freeze([25, 50, 75]),
-  target: Object.freeze([0, .6, 10]),
+  position: Object.freeze([28, 56, 85]),
+  target: Object.freeze([0, .6, 12]),
   fov: 39,
 })
 
 export const factoryCampusReferenceView = Object.freeze({
-  position: Object.freeze([12, 24, 36]),
+  position: Object.freeze([15, 30, 45]),
   target: Object.freeze([0, .6, 0]),
   fov: 39,
 })

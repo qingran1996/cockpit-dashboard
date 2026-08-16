@@ -7,6 +7,10 @@ import {
   factoryCampusRegistry,
 } from '../src/scene/factoryCampusRegistry.js'
 import { createIndustrialScene } from '../src/scene/sceneFactory.js'
+import {
+  createFactoryCampusBuilding,
+  createFactoryCampusMaterials,
+} from '../src/scene/factoryCampusFactory.js'
 import { factoryCampusReferenceView } from '../src/scene/sceneMath.js'
 
 test('defines the reference factory campus landmarks', () => {
@@ -88,6 +92,27 @@ test('independent building footprints do not overlap', () => {
   }
 })
 
+test('every independent building keeps a readable service gap', () => {
+  for (let leftIndex = 0; leftIndex < factoryCampusRegistry.length; leftIndex += 1) {
+    for (let rightIndex = leftIndex + 1; rightIndex < factoryCampusRegistry.length; rightIndex += 1) {
+      const left = factoryCampusRegistry[leftIndex]
+      const right = factoryCampusRegistry[rightIndex]
+      const gapX = Math.max(
+        0,
+        Math.abs(left.position[0] - right.position[0]) - (left.size[0] + right.size[0]) / 2,
+      )
+      const gapZ = Math.max(
+        0,
+        Math.abs(left.position[2] - right.position[2]) - (left.size[2] + right.size[2]) / 2,
+      )
+      assert.ok(
+        Math.hypot(gapX, gapZ) >= 1.5,
+        `${left.id} is too close to ${right.id}`,
+      )
+    }
+  }
+})
+
 test('roof centres project onto the measured reference-image landmarks', () => {
   const { width, height, roofCenters, tolerancePixels } = factoryCampusReferenceFrame
   const camera = new THREE.PerspectiveCamera(factoryCampusReferenceView.fov, width / height, .1, 120)
@@ -126,6 +151,26 @@ test('every campus building has interaction and geometry data', () => {
     assert.ok(roofTypes.has(record.roofType))
     assert.ok(['cyan', 'blue', 'neutral'].includes(record.accent))
     assert.equal(factoryCampusById.get(record.id), record)
+  }
+})
+
+test('every building has layered industrial facade and roof details', () => {
+  const materials = createFactoryCampusMaterials()
+  try {
+    for (const record of factoryCampusRegistry) {
+      const building = createFactoryCampusBuilding(record, materials)
+      const names = new Set()
+      building.traverse((object) => names.add(object.name))
+      for (const suffix of ['facade-plinth', 'facade-pilasters', 'corner-columns', 'roof-service-units']) {
+        assert.ok(names.has(`${record.id}-${suffix}`), `${record.id} is missing ${suffix}`)
+      }
+      assert.ok(
+        names.has(`${record.id}-loading-canopies`) || names.has('administration-entry-canopy'),
+        `${record.id} is missing an articulated entrance`,
+      )
+    }
+  } finally {
+    Object.values(materials).forEach((material) => material.dispose())
   }
 })
 

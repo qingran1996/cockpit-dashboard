@@ -40,8 +40,8 @@ test('expanded overview remains readable through the scene fog', () => {
 })
 
 test('factory campus opens from an elevated reference-like overview', () => {
-  assert.deepEqual(factoryCampusInitialView.position, [25, 50, 75])
-  assert.deepEqual(factoryCampusInitialView.target, [0, .6, 10])
+  assert.deepEqual(factoryCampusInitialView.position, [28, 56, 85])
+  assert.deepEqual(factoryCampusInitialView.target, [0, .6, 12])
   assert.equal(factoryCampusInitialView.fov, 39)
   assert.ok(cameraLimits.maxDistance >= 100)
 
@@ -57,7 +57,7 @@ test('expanded campus and external transport footprint fit inside the opening ov
   camera.updateMatrixWorld()
   camera.updateProjectionMatrix()
 
-  for (const [x, z] of [[-35, -29], [35, -29], [-35, 34], [35, 34]]) {
+  for (const [x, z] of [[-43, -35], [43, -35], [-43, 35], [43, 35]]) {
     const projected = new THREE.Vector3(x, 0, z).project(camera)
     assert.ok(Math.abs(projected.x) <= 1.05, `site corner ${x},${z} is clipped horizontally`)
     assert.ok(Math.abs(projected.y) <= 1.05, `site corner ${x},${z} is clipped vertically`)
