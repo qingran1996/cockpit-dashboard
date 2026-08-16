@@ -38,3 +38,41 @@ test('industrial scene exposes only the reconstructed campus buildings', () => {
     park.dispose()
   }
 })
+
+test('industrial scene exposes a shared clickable and explodable part runtime', () => {
+  const park = createIndustrialScene()
+  try {
+    const runtime = park.root.userData.sculptRuntime
+    const requiredSystems = ['road-system', 'sports-system', 'pipe-rack-system', 'parking-system', 'landscape-system', 'perimeter-system']
+    assert.equal(runtime.parts.length, factoryCampusRegistry.length + requiredSystems.length)
+    assert.ok(runtime.parts.every(({ node }) => node))
+    assert.ok(factoryCampusRegistry.every(({ id }) => runtime.nodes[id].userData.explodable))
+    requiredSystems.forEach((id) => {
+      const system = runtime.parts.find((part) => part.id === id)
+      assert.ok(system, `missing runtime system ${id}`)
+      assert.equal(system.selectable, false)
+      assert.equal(system.explodable, false)
+    })
+
+    const first = runtime.nodes[factoryCampusRegistry[0].id]
+    const base = first.position.clone()
+    runtime.setExploded(1.25)
+    assert.ok(first.position.distanceTo(base) > 0)
+    runtime.resetExplosion()
+    assert.ok(first.position.distanceTo(base) < 1e-9)
+  } finally {
+    park.dispose()
+  }
+})
+
+test('industrial scene disposes unused per-building material clones', () => {
+  const park = createIndustrialScene()
+  const unusedMaterial = park.root.userData.sculptRuntime.nodes[
+    factoryCampusRegistry[0].id
+  ].userData.materialLibrary.adminStone
+  let disposeCalls = 0
+  unusedMaterial.dispose = () => { disposeCalls += 1 }
+
+  park.dispose()
+  assert.equal(disposeCalls, 1)
+})

@@ -4,8 +4,8 @@ const COLORS = {
   navy: 0x05131d,
   cyan: 0x23d7ea,
   blue: 0x287ca8,
-  wall: 0xb9c7ce,
-  roof: 0x8799a4,
+  wall: 0xe3e5e6,
+  roof: 0xb8bcc0,
   glass: 0x123c55,
   asphalt: 0x17232b,
   lawn: 0x153c32,
@@ -66,8 +66,13 @@ function setInstanceMatrix(instanced, index, position, scale = [1, 1, 1], rotati
   instanced.setMatrixAt(index, matrix)
 }
 
+export function roofVentFootprint(record) {
+  if (record.roofType === 'stepped') return [record.size[0] * .6, record.size[2] * .64]
+  return [record.size[0], record.size[2]]
+}
+
 function addRoofVents(group, record, materials, roofY) {
-  const points = roofVentLayout([record.size[0], record.size[2]], record.id === 'main-production-hall' ? 1.75 : 1.55)
+  const points = roofVentLayout(roofVentFootprint(record), record.id === 'main-production-hall' ? 1.75 : 1.55)
   const geometry = new THREE.CylinderGeometry(.11, .15, .15, 10)
   const vents = new THREE.InstancedMesh(geometry, materials.metal, points.length)
   vents.name = `${record.id}-roof-vents`
@@ -336,14 +341,15 @@ function createBasketballCourt(materials) {
   return group
 }
 
+export const pipeRackRoutes = [
+  { from: [-7.5, 2.0], to: [12.0, 2.0], y: 3.5 },
+  { from: [-1.5, -4.4], to: [10.2, -4.4], y: 3.65 },
+]
+
 function createPipeRackSystem(materials, animated) {
   const group = new THREE.Group()
   group.name = 'pipe-rack-system'
-  const routes = [
-    { from: [-7.5, 2.0], to: [12.0, 2.0], y: 1.18 },
-    { from: [-1.5, -4.4], to: [10.2, -4.4], y: 1.32 },
-  ]
-  routes.forEach((route, routeIndex) => {
+  pipeRackRoutes.forEach((route, routeIndex) => {
     const length = route.to[0] - route.from[0]
     const supportCount = Math.floor(length / 1.5) + 1
     for (let index = 0; index < supportCount; index += 1) {
@@ -518,8 +524,8 @@ export function createFactoryCampusSystems(animated) {
 export function createFactoryCampusLights() {
   const group = new THREE.Group()
   group.name = 'campus-lighting'
-  group.add(new THREE.HemisphereLight(0xc9f4ff, 0x06151d, 2.15))
-  const key = new THREE.DirectionalLight(0xe3f7ff, 2.8)
+  group.add(new THREE.HemisphereLight(0xe8f8ff, 0x0b1a21, 2.6))
+  const key = new THREE.DirectionalLight(0xffffff, 3.6)
   key.position.set(-10, 18, 12)
   key.castShadow = true
   key.shadow.mapSize.set(1024, 1024)
@@ -529,7 +535,7 @@ export function createFactoryCampusLights() {
   key.shadow.camera.bottom = -18
   const cyan = new THREE.PointLight(COLORS.cyan, 28, 26, 2)
   cyan.position.set(7, 5, 3)
-  const fill = new THREE.DirectionalLight(0x557e96, 1.1)
+  const fill = new THREE.DirectionalLight(0x9bc0d2, 1.35)
   fill.position.set(12, 7, -11)
   group.add(key, cyan, fill)
   return group
