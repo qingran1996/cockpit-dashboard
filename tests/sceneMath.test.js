@@ -19,3 +19,15 @@ test('camera limits preserve an isometric viewing range', () => {
   assert.ok(cameraLimits.minDistance < cameraLimits.maxDistance)
   assert.ok(cameraLimits.minPolarAngle < cameraLimits.maxPolarAngle)
 })
+
+test('opening view observes the expanded campus from the reference front-left direction', async () => {
+  const module = await import('../src/scene/sceneMath.js')
+  assert.ok(module.initialCameraView, 'initial camera preset is missing')
+  const [x, y, z] = module.initialCameraView.position
+  const distance = Math.hypot(x, y, z)
+  assert.ok(x < 0 && z < 0, `opening camera is reversed: ${module.initialCameraView.position}`)
+  assert.ok(distance > 48, `opening camera is not pulled back: ${distance}`)
+  assert.ok(module.cameraLimits.maxDistance > distance, 'orbit controls cannot preserve the opening distance')
+  assert.ok(module.initialCameraView.fogDensity <= .014, 'expanded site is obscured by the old close-range fog')
+  assert.ok(module.initialCameraView.exposure >= 1.5, 'front-left view needs enough exposure to read road and parking details')
+})

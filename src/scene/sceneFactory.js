@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import { buildingRegistry } from './buildingRegistry.js'
 import { createBuilding, createMaterialLibrary } from './buildingFactory.js'
+import { loadFactoryCampusModel } from './factoryCampusAsset.js'
 
 function createBase() {
   const group = new THREE.Group()
@@ -122,39 +123,77 @@ function createLights() {
   return group
 }
 
-export function createIndustrialScene() {
+function disposeTree(tree) {
+  const geometries = new Set()
+  const materials = new Set()
+  tree.traverse((object) => {
+    if (object.geometry) geometries.add(object.geometry)
+    const entries = Array.isArray(object.material) ? object.material : [object.material]
+    entries.filter(Boolean).forEach((material) => materials.add(material))
+  })
+  geometries.forEach((geometry) => geometry.dispose())
+  materials.forEach((material) => material.dispose())
+}
+
+export function createIndustrialScene({ loadCampus = loadFactoryCampusModel } = {}) {
   const root = new THREE.Group()
+  const fallback = new THREE.Group()
+  fallback.name = 'ProceduralFallback'
   const interactiveObjects = []
   const animated = []
   const materials = { cyan: createMaterialLibrary('cyan'), orange: createMaterialLibrary('orange') }
+  let disposed = false
+  let materialTemplatesDisposed = false
 
-  root.add(createBase(), createRoads(), createSiteProps(), createEnergyNetwork(animated), createParticles(animated), createLights())
+  const disposeMaterialTemplates = () => {
+    if (materialTemplatesDisposed) return
+    materialTemplatesDisposed = true
+    Object.values(materials).forEach((library) => Object.values(library).forEach((material) => material.dispose()))
+  }
+
+  fallback.add(createBase(), createRoads(), createSiteProps(), createEnergyNetwork(animated), createParticles(animated))
+  root.add(fallback, createLights())
   const grid = new THREE.GridHelper(44, 44, 0x075f88, 0x07324c)
   grid.position.y = -.75
   grid.material.transparent = true
   grid.material.opacity = .3
-  root.add(grid)
+  fallback.add(grid)
 
   buildingRegistry.forEach((record) => {
     const buildingMaterials = Object.fromEntries(Object.entries(materials[record.tone]).map(([key, material]) => [key, material.clone()]))
     const building = createBuilding(record, buildingMaterials)
-    root.add(building)
+    fallback.add(building)
     interactiveObjects.push(building)
     if (record.model === 'chimney' || record.model === 'factory') animated.push({ kind: 'heat', object: building, phase: interactiveObjects.length * .5 })
   })
 
-  const dispose = () => {
-    const geometries = new Set()
-    const sceneMaterials = new Set()
-    root.traverse((object) => {
-      if (object.geometry) geometries.add(object.geometry)
-      const objectMaterials = Array.isArray(object.material) ? object.material : [object.material]
-      objectMaterials.filter(Boolean).forEach((material) => sceneMaterials.add(material))
+  const ready = Promise.resolve()
+    .then(() => loadCampus())
+    .then((campus) => {
+      if (disposed) {
+        disposeTree(campus.root)
+        return { source: 'fallback', error: new Error('scene disposed before campus loaded') }
+      }
+      root.remove(fallback)
+      disposeTree(fallback)
+      disposeMaterialTemplates()
+      root.add(campus.root)
+      interactiveObjects.splice(0, interactiveObjects.length, ...campus.interactiveObjects)
+      animated.splice(0, animated.length, ...(campus.animatedObjects ?? []).map((item) => ({
+        ...item,
+        baseZ: item.object.position.z,
+        baseRotationY: item.object.rotation.y,
+      })))
+      return { source: 'glb' }
     })
-    geometries.forEach((geometry) => geometry.dispose())
-    sceneMaterials.forEach((material) => material.dispose())
-    Object.values(materials).forEach((library) => Object.values(library).forEach((material) => material.dispose()))
+    .catch((error) => ({ source: 'fallback', error }))
+
+  const dispose = () => {
+    if (disposed) return
+    disposed = true
+    disposeTree(root)
+    disposeMaterialTemplates()
   }
 
-  return { root, interactiveObjects, animated, dispose }
+  return { root, interactiveObjects, animated, ready, dispose }
 }

@@ -5,3 +5,11 @@ dist/
 
 # Local visual reference supplied for implementation
 disignpng.png
+
+# Local visual QA captures; keep only the README preview.
+output/playwright/*.png
+!output/playwright/factory-campus-expanded-traffic.png
+
+# Blender autosaves and superseded root-level exports.
+*.blend1
+/assets/*.blend

@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { prepareBuildingFloors } from './floorInteraction.js'
 
 const COLORS = { cyan: 0x19d7ff, orange: 0xff7138 }
 
@@ -143,6 +144,34 @@ const factories = {
   controlCenter: createControlCenter,
 }
 
+function addFloorSpaces(group, record) {
+  const [width, height, depth] = record.size
+  const floorHeight = height / record.floors.length
+  record.floors.forEach((floor, index) => {
+    const floorRoot = new THREE.Group()
+    floorRoot.name = `FLOOR__${record.id}__${floor.id}`
+    floorRoot.userData = { ...floor, buildingId: record.id, floorId: floor.id, interactive: true }
+    const tone = floor.tone === 'orange' ? 0xff7138 : 0x19d7ff
+    const slab = new THREE.Mesh(
+      new THREE.BoxGeometry(width * .88, .08, depth * .82),
+      new THREE.MeshStandardMaterial({ color: 0x52656c, metalness: .22, roughness: .66 }),
+    )
+    slab.position.y = index * floorHeight + .08
+    const volume = new THREE.Mesh(
+      new THREE.BoxGeometry(width * .8, Math.max(.24, floorHeight * .58), depth * .7),
+      new THREE.MeshPhysicalMaterial({ color: tone, transparent: true, opacity: .36, roughness: .2, transmission: .12 }),
+    )
+    volume.position.y = index * floorHeight + floorHeight * .44
+    const core = new THREE.Mesh(
+      new THREE.BoxGeometry(Math.max(.18, width * .1), Math.max(.28, floorHeight * .64), Math.max(.18, depth * .16)),
+      new THREE.MeshStandardMaterial({ color: 0xb5c1c0, roughness: .72 }),
+    )
+    core.position.set(-width * .3, index * floorHeight + floorHeight * .46, -depth * .2)
+    floorRoot.add(slab, volume, core)
+    group.add(floorRoot)
+  })
+}
+
 export function createMaterialLibrary(tone) {
   const color = COLORS[tone]
   return {
@@ -183,5 +212,7 @@ export function createBuilding(record, materialLibrary) {
     shell.userData.buildingId = record.id
     mesh.add(shell)
   })
+  addFloorSpaces(group, record)
+  prepareBuildingFloors(group, record)
   return group
 }

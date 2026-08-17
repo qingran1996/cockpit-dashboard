@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useIndustrialScene } from '../hooks/useIndustrialScene.js'
 import { buildingById, buildingRegistry } from '../scene/buildingRegistry.js'
+import { BuildingFloorPanel } from './BuildingFloorPanel.js'
 
 function useReducedMotion() {
   const [reduced, setReduced] = useState(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches)
@@ -20,16 +21,25 @@ export function IndustrialScene() {
   const reducedMotion = useReducedMotion()
   const [hovered, setHovered] = useState(null)
   const [selectedId, setSelectedId] = useState(null)
+  const [floorsExploded, setFloorsExploded] = useState(false)
 
   const handleHover = useCallback((buildingId, point) => {
     setHovered(buildingId && point ? { buildingId, point } : null)
   }, [])
-  const handleSelect = useCallback((buildingId) => setSelectedId(buildingId), [])
+  const handleSelect = useCallback((buildingId) => {
+    setSelectedId(buildingId)
+    setFloorsExploded(Boolean(buildingId))
+  }, [])
+  const floorView = useMemo(() => ({
+    buildingId: selectedId,
+    exploded: floorsExploded,
+  }), [selectedId, floorsExploded])
   const { webglError, resetView } = useIndustrialScene({
     containerRef: canvasRef,
     onHover: handleHover,
     onSelect: handleSelect,
     reducedMotion,
+    floorView,
   })
 
   const selected = selectedId ? buildingById.get(selectedId) : null
@@ -48,17 +58,12 @@ export function IndustrialScene() {
       )}
 
       {selected && (
-        <aside className="scene-detail" aria-live="polite">
-          <button type="button" className="scene-detail__close" onClick={() => setSelectedId(null)} aria-label="关闭设备详情">×</button>
-          <span className="scene-detail__eyebrow">FACILITY / {selected.id.toUpperCase()}</span>
-          <h3>{selected.name}</h3>
-          <p>{selected.type}</p>
-          <dl>
-            <div><dt>{selected.metricLabel}</dt><dd>{selected.metricValue}</dd></div>
-            <div><dt>设备温度</dt><dd>{selected.temperature}</dd></div>
-            <div><dt>运行状态</dt><dd className="is-normal"><i />{selected.status}</dd></div>
-          </dl>
-        </aside>
+        <BuildingFloorPanel
+          building={selected}
+          exploded={floorsExploded}
+          onToggleExploded={() => setFloorsExploded((value) => !value)}
+          onClose={() => handleSelect(null)}
+        />
       )}
 
       <div className="scene-controls-tip"><span>拖拽旋转</span><i />滚轮缩放</div>

@@ -2,10 +2,12 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { createIndustrialScene } from '../scene/sceneFactory.js'
-import { cameraLimits, clampPixelRatio, normalizePointer } from '../scene/sceneMath.js'
+import { applyFloorView, updateFloorAnimations } from '../scene/floorInteraction.js'
+import { cameraLimits, clampPixelRatio, initialCameraView, normalizePointer } from '../scene/sceneMath.js'
+import { updateVehicleAnimations } from '../scene/vehicleAnimation.js'
 
-const INITIAL_CAMERA = new THREE.Vector3(19, 15.5, 21)
-const INITIAL_TARGET = new THREE.Vector3(0, 1.2, -.4)
+const INITIAL_CAMERA = new THREE.Vector3(...initialCameraView.position)
+const INITIAL_TARGET = new THREE.Vector3(...initialCameraView.target)
 
 function setBuildingHighlight(building, active) {
   if (!building) return
@@ -34,11 +36,18 @@ function findBuildingGroup(object) {
   return current
 }
 
-export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMotion }) {
+export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMotion, floorView }) {
   const [webglError, setWebglError] = useState(false)
   const resetRef = useRef(() => {})
+  const parkRef = useRef(null)
+  const floorViewRef = useRef(floorView)
 
   const resetView = useCallback(() => resetRef.current(), [])
+
+  useEffect(() => {
+    floorViewRef.current = floorView
+    if (parkRef.current) applyFloorView(parkRef.current.interactiveObjects, floorView)
+  }, [floorView])
 
   useEffect(() => {
     const container = containerRef.current
@@ -57,7 +66,7 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
     renderer.setClearColor(0x000000, 0)
     renderer.outputColorSpace = THREE.SRGBColorSpace
     renderer.toneMapping = THREE.ACESFilmicToneMapping
-    renderer.toneMappingExposure = 1.35
+    renderer.toneMappingExposure = initialCameraView.exposure
     renderer.shadowMap.enabled = true
     renderer.shadowMap.type = THREE.PCFSoftShadowMap
     renderer.domElement.className = 'industrial-scene__webgl'
@@ -65,8 +74,8 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
     container.appendChild(renderer.domElement)
 
     const scene = new THREE.Scene()
-    scene.fog = new THREE.FogExp2(0x020b14, .024)
-    const camera = new THREE.PerspectiveCamera(37, 1, .1, 120)
+    scene.fog = new THREE.FogExp2(0x020b14, initialCameraView.fogDensity)
+    const camera = new THREE.PerspectiveCamera(initialCameraView.fov, 1, .1, 160)
     camera.position.copy(INITIAL_CAMERA)
 
     const controls = new OrbitControls(camera, renderer.domElement)
@@ -82,6 +91,11 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
     controls.update()
 
     const park = createIndustrialScene()
+    parkRef.current = park
+    applyFloorView(park.interactiveObjects, floorViewRef.current)
+    park.ready.then(() => {
+      if (parkRef.current === park) applyFloorView(park.interactiveObjects, floorViewRef.current)
+    })
     park.root.position.y = -1.2
     scene.add(park.root)
     const raycaster = new THREE.Raycaster()
@@ -92,6 +106,7 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
     let resetStart = 0
     let resetFromPosition = null
     let resetFromTarget = null
+    let previousFrameTime = 0
 
     const resize = () => {
       const { width, height } = container.getBoundingClientRect()
@@ -154,7 +169,11 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
     const animate = (time) => {
       frameId = window.requestAnimationFrame(animate)
       const seconds = time * .001
+      const deltaSeconds = previousFrameTime ? Math.min((time - previousFrameTime) * .001, .1) : 0
+      previousFrameTime = time
       controls.autoRotate = !reducedMotion && !resetStart && performance.now() - lastInteraction > 8000
+      updateFloorAnimations(park.interactiveObjects, deltaSeconds, reducedMotion)
+      updateVehicleAnimations(park.animated, seconds, reducedMotion)
 
       if (resetStart) {
         const progress = Math.min((performance.now() - resetStart) / 900, 1)
@@ -192,6 +211,7 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
       setBuildingHighlight(hovered, false)
       controls.dispose()
       park.dispose()
+      if (parkRef.current === park) parkRef.current = null
       scene.clear()
       renderer.dispose()
       renderer.forceContextLoss()
