@@ -10,9 +10,11 @@ export function DashboardHeader() {
         <strong>28°C</strong>
         <span>多云</span>
       </div>
-      <div className="dashboard-header__title">
-        <i /><h1>能源综合监控可视化平台</h1><i />
+      <div className="dashboard-header__rail dashboard-header__rail--left" />
+      <div className="dashboard-header__emblem">
+        <h1>能源综合监控可视化平台</h1>
       </div>
+      <div className="dashboard-header__rail dashboard-header__rail--right" />
       <time className="dashboard-header__clock">{time}</time>
     </header>
   )
