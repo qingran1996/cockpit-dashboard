@@ -43,3 +43,10 @@ test('every building exposes ordered interactive floor-space metadata', () => {
     ],
   )
 })
+
+test('key campus buildings use credible vertical floor scale', () => {
+  assert.ok(buildingById.get('administration').size[1] / 3 >= 1.35)
+  assert.ok(buildingById.get('laboratory').size[1] / 3 >= 1.15)
+  assert.ok(buildingById.get('rear-high-bay').size[1] >= 5)
+  assert.ok(buildingById.get('gatehouse').size[1] >= 1.65)
+})

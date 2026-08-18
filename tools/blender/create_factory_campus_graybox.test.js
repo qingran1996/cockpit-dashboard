@@ -238,7 +238,9 @@ test('representative buildings expose layered facade construction instead of fla
     "objects={name:{'dimensions':list(bpy.data.objects[name].dimensions),'parent':bpy.data.objects[name].parent.name if bpy.data.objects[name].parent else None,'material':bpy.data.objects[name].data.materials[0].name} for name in names if name in bpy.data.objects}",
     "materials={name:{'roughness':next(n for n in bpy.data.materials[name].node_tree.nodes if n.type=='BSDF_PRINCIPLED').inputs['Roughness'].default_value,'metallic':next(n for n in bpy.data.materials[name].node_tree.nodes if n.type=='BSDF_PRINCIPLED').inputs['Metallic'].default_value} for name in ['MAT__facade-frame','MAT__wall-secondary','MAT__dock-rubber','MAT__wall-rib','MAT__safety-orange','MAT__luminaire'] if name in bpy.data.materials}",
     "counts={'frontRibs':sum(1 for o in bpy.data.objects if o.name.startswith('MAIN__wall-rib-front-')),'sideRibs':sum(1 for o in bpy.data.objects if o.name.startswith('MAIN__wall-rib-side-')),'doorSlats':sum(1 for o in bpy.data.objects if o.name.startswith('MAIN__sectional-door-slat-')),'clerestoryReveals':sum(1 for o in bpy.data.objects if o.name.startswith('MAIN__clerestory-reveal-'))}",
-    "result={'objects':objects,'materials':materials,'counts':counts}",
+    "ids=['administration','main-production-hall','laboratory','gatehouse']",
+    "constructed={id:{'frames':sum(1 for o in bpy.data.objects if o.name.startswith('FACADE__'+id+'__frame-')),'reveals':sum(1 for o in bpy.data.objects if o.name.startswith('FACADE__'+id+'__reveal-')),'gutters':sum(1 for o in bpy.data.objects if o.name.startswith('ROOF__'+id+'__gutter-')),'downpipes':sum(1 for o in bpy.data.objects if o.name.startswith('SERVICE__'+id+'__downpipe-')),'parent':bpy.data.objects.get('FACADE__'+id+'__frame-01').parent.name if bpy.data.objects.get('FACADE__'+id+'__frame-01') else None} for id in ids}",
+    "result={'objects':objects,'materials':materials,'counts':counts,'constructed':constructed}",
     `open(${JSON.stringify(facadePath)},'w').write(json.dumps(result))`,
   ].join(';')
   const inspected = spawnSync(BLENDER, [blendPath, '--background', '--python-expr', inspectExpression], {
@@ -287,6 +289,13 @@ test('representative buildings expose layered facade construction instead of fla
   assert.ok(facade.materials['MAT__wall-rib'].metallic >= 0.45, 'wall ribs should read as coated sheet metal')
   assert.ok(facade.materials['MAT__safety-orange'].roughness <= 0.52, 'safety signs need a durable enamel finish')
   assert.ok(facade.materials['MAT__luminaire'].roughness <= 0.34, 'exterior light lenses need a crisp highlight')
+  for (const [id, record] of Object.entries(facade.constructed)) {
+    assert.ok(record.frames >= 2, `${id} needs a constructed facade frame rhythm`)
+    assert.ok(record.reveals >= 2, `${id} needs recessed facade openings`)
+    assert.ok(record.gutters >= 1, `${id} needs a roof gutter`)
+    assert.ok(record.downpipes >= 2, `${id} needs paired downpipes`)
+    assert.equal(record.parent, `BLDG__${id}`)
+  }
 })
 
 test('every building exports constructed front and side wall cladding instead of a uniform white shell', () => {

@@ -14,16 +14,16 @@ from mathutils import Vector
 BUILDINGS = [
     ("main-production-hall", (10.0, 0.5), (15.0, 6.2, 3.4), "factory"),
     ("central-processing-hall", (-2.5, -5.9), (11.5, 4.5, 3.1), "factory"),
-    ("rear-high-bay", (0.0, -13.0), (9.5, 4.0, 4.3), "factory"),
+    ("rear-high-bay", (0.0, -13.0), (9.5, 4.0, 5.2), "factory"),
     ("north-east-workshop", (-11.5, -12.5), (5.2, 3.0, 2.8), "factory"),
     ("east-process-hall", (-14.0, -5.0), (6.0, 3.6, 3.0), "factory"),
     ("far-east-utility", (-22.0, 3.2), (3.2, 2.4, 2.1), "factory"),
     ("east-warehouse", (-14.0, 2.2), (7.0, 4.0, 2.7), "factory"),
     ("front-warehouse", (-3.0, 10.0), (7.2, 3.0, 2.9), "factory"),
     ("front-utility-annex", (-12.0, 10.5), (3.0, 2.0, 1.8), "factory"),
-    ("laboratory", (-19.0, 10.5), (3.2, 1.8, 1.9), "office"),
-    ("administration", (9.5, 11.3), (5.0, 3.5, 3.8), "administration"),
-    ("gatehouse", (23.2, 14.7), (2.0, 1.5, 1.4), "office"),
+    ("laboratory", (-19.0, 10.5), (3.2, 1.8, 3.6), "office"),
+    ("administration", (9.5, 11.3), (5.0, 3.5, 4.2), "administration"),
+    ("gatehouse", (23.2, 14.7), (2.0, 1.5, 1.8), "office"),
 ]
 
 BUILDING_FLOORS = {
@@ -822,6 +822,104 @@ def create_wall_cladding(building_id, width, depth, height, mats, root):
     )
 
 
+def create_constructed_envelope(building_id, width, depth, height, kind, mats, root):
+    """Add reusable architectural depth: openings, frame, roof edge, drainage, and services."""
+    front_y = depth / 2
+    bay_count = max(2, min(6, round(width / (1.15 if kind in ("office", "administration") else 1.75))))
+    bay_width = min(0.74, width * 0.72 / bay_count)
+    opening_height = min(0.78, max(0.38, height * 0.22))
+    opening_z = min(height - 0.54, max(0.78, height * 0.62))
+    span = width * 0.70
+
+    for index in range(bay_count):
+        px = -span / 2 + (index + 0.5) * span / bay_count
+        reveal = box(
+            f"FACADE__{building_id}__reveal-{index + 1:02d}",
+            (bay_width + 0.15, 0.16, opening_height + 0.16),
+            (px, front_y + 0.09, opening_z),
+            mats["wall_secondary"],
+            root,
+            0.012,
+        )
+        reveal["layerRole"] = "facade-reveal"
+        glass = box(
+            f"FACADE__{building_id}__glass-{index + 1:02d}",
+            (bay_width, 0.07, opening_height),
+            (px, front_y + 0.19, opening_z),
+            mats["glass"],
+            root,
+            0.008,
+        )
+        glass["layerRole"] = "facade-glazing"
+        frame = box(
+            f"FACADE__{building_id}__frame-{index + 1:02d}",
+            (0.055, 0.12, opening_height + 0.12),
+            (px - bay_width / 2 - 0.045, front_y + 0.225, opening_z),
+            mats["facade_frame"],
+            root,
+            0.006,
+        )
+        frame["layerRole"] = "facade-frame"
+        box(
+            f"FACADE__{building_id}__sill-{index + 1:02d}",
+            (bay_width + 0.16, 0.17, 0.065),
+            (px, front_y + 0.225, opening_z - opening_height / 2 - 0.055),
+            mats["corner_flashing"],
+            root,
+            0.006,
+        )
+
+    parapet_height = height + 0.16
+    for edge, size, location in (
+        ("front", (width + 0.20, 0.12, 0.24), (0, front_y + 0.02, parapet_height)),
+        ("rear", (width + 0.20, 0.12, 0.24), (0, -front_y - 0.02, parapet_height)),
+        ("left", (0.12, depth, 0.24), (-width / 2 - 0.02, 0, parapet_height)),
+        ("right", (0.12, depth, 0.24), (width / 2 + 0.02, 0, parapet_height)),
+    ):
+        box(f"ROOF__{building_id}__parapet-{edge}", size, location, mats["corner_flashing"], root, 0.012)
+    box(
+        f"ROOF__{building_id}__gutter-front",
+        (width - 0.18, 0.10, 0.10),
+        (0, front_y + 0.15, height + 0.02),
+        mats["gutter"],
+        root,
+        0.01,
+    )
+
+    for index, px in enumerate((-width * 0.43, width * 0.43), start=1):
+        pipe = cylinder(
+            f"SERVICE__{building_id}__downpipe-{index:02d}",
+            0.045,
+            max(0.65, height - 0.20),
+            (px, front_y + 0.17, height / 2),
+            mats["gutter"],
+            root,
+            vertices=10,
+        )
+        pipe["layerRole"] = "facade-service"
+
+    service_width = min(1.10, width * 0.32)
+    service_z = min(height - 0.48, max(0.72, height * 0.34))
+    box(
+        f"SERVICE__{building_id}__panel",
+        (service_width, 0.13, 0.54),
+        (-width * 0.27, front_y + 0.17, service_z),
+        mats["interior_equipment"],
+        root,
+        0.012,
+    )
+    for index in range(4):
+        px = -width * 0.27 - service_width * 0.30 + index * service_width * 0.20
+        box(
+            f"SERVICE__{building_id}__louver-{index + 1:02d}",
+            (service_width * 0.13, 0.06, 0.34),
+            (px, front_y + 0.26, service_z),
+            mats["facade_frame"],
+            root,
+            0.006,
+        )
+
+
 def create_building(record, mats, campus):
     building_id, (x, y), (width, depth, height), kind = record
     root = empty(f"BLDG__{building_id}", (x, y, 0), campus)
@@ -834,6 +932,7 @@ def create_building(record, mats, campus):
     box(f"{building_id}__roof", (width + 0.12, depth + 0.12, 0.22), (0, 0, height + 0.11), mats["roof"], root, 0.025)
     box(f"{building_id}__blue-trim", (width + 0.08, 0.10, 0.13), (0, depth / 2 + 0.03, height - 0.18), mats["accent"], root, 0.01)
     create_wall_cladding(building_id, width, depth, height, mats, root)
+    create_constructed_envelope(building_id, width, depth, height, kind, mats, root)
 
     bay_count = max(2, min(8, round(width / 1.35)))
     for index in range(bay_count):
