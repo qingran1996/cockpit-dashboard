@@ -23,6 +23,7 @@ export function IndustrialScene() {
   const [selectedId, setSelectedId] = useState(null)
   const [floorsExploded, setFloorsExploded] = useState(false)
   const [focusedFloorId, setFocusedFloorId] = useState(null)
+  const [lightingMode, setLightingMode] = useState('day')
 
   const handleHover = useCallback((buildingId, point) => {
     setHovered(buildingId && point ? { buildingId, point } : null)
@@ -43,6 +44,7 @@ export function IndustrialScene() {
     onSelect: handleSelect,
     reducedMotion,
     floorView,
+    lightingMode,
   })
 
   const selected = selectedId ? buildingById.get(selectedId) : null
@@ -93,6 +95,10 @@ export function IndustrialScene() {
       )}
 
       <div className="scene-controls-tip"><span>拖拽旋转</span><i />滚轮缩放</div>
+      <div className="scene-lighting-toggle" role="group" aria-label="厂区照明模式">
+        <button type="button" aria-pressed={lightingMode === 'day'} onClick={() => setLightingMode('day')}>日间</button>
+        <button type="button" aria-pressed={lightingMode === 'evening'} onClick={() => setLightingMode('evening')}>傍晚</button>
+      </div>
       <button type="button" className="scene-reset" onClick={handleReset}>复位视角</button>
 
       {webglError && (

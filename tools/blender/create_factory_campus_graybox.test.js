@@ -108,12 +108,18 @@ test('Blender scene preserves the wide front-left industrial-campus composition'
     "gateBlockingTrees=[o.name for o in bpy.data.objects if o.name.startswith('TREE__trunk-') and 16.5 <= o.matrix_world.translation.x <= 24.5 and o.matrix_world.translation.y >= 17.4]",
     "forestCrowns=[o for o in bpy.data.objects if o.name.startswith('ENV__tree-crown-')]",
     "forestTrunks=[o for o in bpy.data.objects if o.name.startswith('ENV__tree-trunk-')]",
+    "perimeterCrowns=[o for o in bpy.data.objects if o.name.startswith('TREE__crown-')]",
+    "rearPerimeterXs=sorted(o.matrix_world.translation.x for o in perimeterCrowns if o.matrix_world.translation.y < -17.5)",
+    "rearPerimeterGaps=[rearPerimeterXs[i+1]-rearPerimeterXs[i] for i in range(len(rearPerimeterXs)-1)]",
+    "perimeterSpacingVariance=(max(rearPerimeterGaps)-min(rearPerimeterGaps))/(sum(rearPerimeterGaps)/len(rearPerimeterGaps))",
+    "entryCanopyIntrusions=sum(1 for o in perimeterCrowns if 16.5 <= o.matrix_world.translation.x <= 24.5 and o.matrix_world.translation.y >= 17.4)",
+    "crownScaleVariants=len(set(round(o.scale.x,2) for o in perimeterCrowns))",
     "forestMetrics={'boundsX':[min(o.matrix_world.translation.x for o in forestCrowns),max(o.matrix_world.translation.x for o in forestCrowns)],'rearCount':sum(1 for o in forestCrowns if o.matrix_world.translation.y <= -21),'westCount':sum(1 for o in forestCrowns if o.matrix_world.translation.x <= -31 and -20 <= o.matrix_world.translation.y <= 17),'eastCount':sum(1 for o in forestCrowns if o.matrix_world.translation.x >= 31 and -20 <= o.matrix_world.translation.y <= 17),'uniqueCrownMeshes':len(set(o.data.name for o in forestCrowns)),'uniqueTrunkMeshes':len(set(o.data.name for o in forestTrunks))}",
     "apron=bpy.data.objects.get('ENV__landscape-apron')",
     "apronDimensions=list(apron.dimensions) if apron else None",
     "motion={k:bpy.data.objects['VEHICLE__gate-shuttle__root'].get(k) for k in ['motionPath','motionDistance','motionSpeed']}",
     "world=list(bpy.context.scene.world.color)",
-    "layout={'site':list(site.dimensions),'main':list(main.dimensions),'rootScale':list(root.scale),'camera':list(camera.location),'admin':list(admin.matrix_world.translation),'east':list(east.matrix_world.translation),'rear':list(rear.matrix_world.translation),'world':world,'hasForest':'ENV__forest-backdrop' in bpy.data.objects,'bounds':bounds,'parkingBays':parkingBays,'siteObjects':siteObjects,'siteCounts':siteCounts,'siteMaterials':siteMaterials,'gateBlockingTrees':gateBlockingTrees,'forestMetrics':forestMetrics,'apronDimensions':apronDimensions,'motion':motion}",
+    "layout={'site':list(site.dimensions),'main':list(main.dimensions),'rootScale':list(root.scale),'camera':list(camera.location),'admin':list(admin.matrix_world.translation),'east':list(east.matrix_world.translation),'rear':list(rear.matrix_world.translation),'world':world,'hasForest':'ENV__forest-backdrop' in bpy.data.objects,'bounds':bounds,'parkingBays':parkingBays,'siteObjects':siteObjects,'siteCounts':siteCounts,'siteMaterials':siteMaterials,'gateBlockingTrees':gateBlockingTrees,'forestMetrics':forestMetrics,'apronDimensions':apronDimensions,'motion':motion,'perimeterSpacingVariance':perimeterSpacingVariance,'entryCanopyIntrusions':entryCanopyIntrusions,'crownScaleVariants':crownScaleVariants}",
     `open(${JSON.stringify(layoutPath)},'w').write(json.dumps(layout))`,
   ].join(';')
   const inspected = spawnSync(BLENDER, [blendPath, '--background', '--python-expr', inspectExpression], {
@@ -133,6 +139,9 @@ test('Blender scene preserves the wide front-left industrial-campus composition'
   assert.equal(layout.hasForest, true, 'missing forest backdrop for depth cues')
   assert.ok(layout.parkingBays >= 10, `parking lot needs at least ten marked bays: ${layout.parkingBays}`)
   assert.deepEqual(layout.gateBlockingTrees, [], 'gate entrance must keep a clear vehicle and sightline corridor')
+  assert.equal(layout.entryCanopyIntrusions, 0, 'entry canopy must remain clear of perimeter crowns')
+  assert.ok(layout.crownScaleVariants >= 5, `perimeter trees need at least five scale variants: ${layout.crownScaleVariants}`)
+  assert.ok(layout.perimeterSpacingVariance >= .18, `perimeter spacing still reads as a rigid array: ${layout.perimeterSpacingVariance}`)
   assert.ok(layout.apronDimensions?.[0] >= 72 && layout.apronDimensions?.[1] >= 56, `landscape apron must extend beyond the campus ground: ${layout.apronDimensions}`)
   assert.ok(layout.forestMetrics.boundsX[0] >= -37 && layout.forestMetrics.boundsX[1] <= 37, `background forest must stay centered over its terrain: ${layout.forestMetrics.boundsX}`)
   assert.ok(layout.forestMetrics.rearCount >= 120, `rear forest needs enough depth for the reference composition: ${layout.forestMetrics.rearCount}`)

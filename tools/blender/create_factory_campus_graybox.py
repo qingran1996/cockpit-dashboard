@@ -1347,21 +1347,36 @@ def create_site_furnishings(mats, campus):
 def create_landscape(mats, campus):
     group = empty("SITE__landscape", parent=campus)
     positions = []
-    for x in range(-25, 26, 2):
-        positions.append((x, -17.8))
+    perimeter_offsets = (0.0, 0.24, -0.18, 0.31, -0.27)
+    for index, x in enumerate(range(-25, 26, 2)):
+        varied_x = x + perimeter_offsets[index % len(perimeter_offsets)]
+        positions.append((varied_x, -17.8))
         if not 16.5 <= x <= 24.5:
-            positions.append((x, 18.0))
-    for y in range(-16, 18, 2):
-        positions.extend([(-25.8, y), (25.8, y)])
+            positions.append((varied_x, 18.0))
+    for index, y in enumerate(range(-16, 18, 2)):
+        varied_y = y + perimeter_offsets[(index + 2) % len(perimeter_offsets)]
+        positions.extend([(-25.8, varied_y), (25.8, varied_y)])
+    perimeter_crown_source = None
     for index, (x, y) in enumerate(positions):
         trunk = cylinder(f"TREE__trunk-{index:02d}", 0.07, 0.55, (x, y, 0.32), mats["trunk"], group, vertices=7)
-        bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=1, radius=0.48 + (index % 3) * 0.05, location=(0, 0, 0))
-        crown = bpy.context.object
-        crown.name = f"TREE__crown-{index:02d}"
-        crown.parent = group
-        crown.location = (x, y, 0.9 + (index % 2) * 0.08)
-        crown.scale.z = 1.25
-        crown.data.materials.append(mats["foliage"])
+        if perimeter_crown_source is None:
+            bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=1, radius=0.50, location=(0, 0, 0))
+            crown = bpy.context.object
+            crown.name = f"TREE__crown-{index:02d}"
+            crown.parent = group
+            crown.data.materials.append(mats["foliage"])
+            perimeter_crown_source = crown
+        else:
+            crown = linked_mesh_instance(
+                f"TREE__crown-{index:02d}",
+                perimeter_crown_source,
+                (x, y, 0),
+                group,
+            )
+        crown.location = (x, y, 0.90 + (index % 2) * 0.08)
+        scale_variant = 0.90 + (index % 5) * 0.055
+        crown.scale = (scale_variant, scale_variant * (0.92 + (index % 3) * 0.035), 1.18 + (index % 5) * 0.055)
+        crown.rotation_euler[2] = math.radians((index * 43) % 360)
         trunk["instanceFamily"] = "tree"
 
     rain_gardens = [

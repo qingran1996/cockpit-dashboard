@@ -110,14 +110,20 @@ function createSiteProps() {
 
 function createLights() {
   const group = new THREE.Group()
-  group.add(new THREE.HemisphereLight(0xb6f5ff, 0x031422, 2.45))
+  group.name = 'CampusLightingRig'
+  const hemisphere = new THREE.HemisphereLight(0xb6f5ff, 0x031422, 2.45)
+  hemisphere.name = 'CampusHemisphere'
+  group.add(hemisphere)
   const key = new THREE.DirectionalLight(0xa8efff, 2.2)
+  key.name = 'CampusKey'
   key.position.set(-8, 16, 8)
   key.castShadow = true
   key.shadow.mapSize.set(1024, 1024)
   const cyan = new THREE.PointLight(0x19d7ff, 42, 24, 2)
+  cyan.name = 'CampusRoadGlow'
   cyan.position.set(6, 5, 2)
   const orange = new THREE.PointLight(0xff7138, 48, 19, 2)
+  orange.name = 'CampusAccentGlow'
   orange.position.set(-2, 4, -1)
   group.add(key, cyan, orange)
   return group

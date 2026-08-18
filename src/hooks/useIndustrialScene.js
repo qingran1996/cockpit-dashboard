@@ -10,6 +10,7 @@ import { updateVehicleAnimations } from '../scene/vehicleAnimation.js'
 import { updatePersonAnimations } from '../scene/personAnimation.js'
 import { updateGateAnimations } from '../scene/gateAnimation.js'
 import { createFloorInspectionLighting } from '../scene/floorInspectionLighting.js'
+import { applyCampusLightingMode } from '../scene/campusLightingMode.js'
 
 const INITIAL_CAMERA = new THREE.Vector3(...initialCameraView.position)
 const INITIAL_TARGET = new THREE.Vector3(...initialCameraView.target)
@@ -41,12 +42,14 @@ function findBuildingGroup(object) {
   return current
 }
 
-export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMotion, floorView }) {
+export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMotion, floorView, lightingMode = 'day' }) {
   const [webglError, setWebglError] = useState(false)
   const resetRef = useRef(() => {})
   const focusFloorRef = useRef(() => {})
   const parkRef = useRef(null)
   const floorViewRef = useRef(floorView)
+  const lightingModeRef = useRef(lightingMode)
+  const lightingControllerRef = useRef(null)
 
   const resetView = useCallback(() => resetRef.current(), [])
   const focusFloor = useCallback((buildingId, floorId) => focusFloorRef.current(buildingId, floorId), [])
@@ -55,6 +58,13 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
     floorViewRef.current = floorView
     if (parkRef.current) applyFloorView(parkRef.current.interactiveObjects, floorView)
   }, [floorView])
+
+  useEffect(() => {
+    lightingModeRef.current = lightingMode
+    if (lightingControllerRef.current) {
+      applyCampusLightingMode(lightingControllerRef.current, lightingMode)
+    }
+  }, [lightingMode])
 
   useEffect(() => {
     const container = containerRef.current
@@ -82,6 +92,7 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
 
     const scene = new THREE.Scene()
     scene.fog = new THREE.FogExp2(0x020b14, initialCameraView.fogDensity)
+    lightingControllerRef.current = { scene, renderer }
     const camera = new THREE.PerspectiveCamera(initialCameraView.fov, 1, .1, 160)
     camera.position.copy(INITIAL_CAMERA)
     const inspectionLighting = createFloorInspectionLighting()
@@ -107,6 +118,10 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
     })
     park.root.position.y = -1.2
     scene.add(park.root)
+    applyCampusLightingMode({ scene, renderer }, lightingModeRef.current)
+    park.ready.then(() => {
+      if (parkRef.current === park) applyCampusLightingMode({ scene, renderer }, lightingModeRef.current)
+    })
     const raycaster = new THREE.Raycaster()
     const pointer = new THREE.Vector2(2, 2)
     let hovered = null
@@ -284,6 +299,7 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
       inspectionLighting.dispose()
       park.dispose()
       if (parkRef.current === park) parkRef.current = null
+      if (lightingControllerRef.current?.scene === scene) lightingControllerRef.current = null
       scene.clear()
       renderer.dispose()
       renderer.forceContextLoss()
