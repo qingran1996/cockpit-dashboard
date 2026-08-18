@@ -2,6 +2,18 @@ import * as THREE from 'three'
 
 const EXPLODED_FLOOR_GAP = 1.25
 const FLOOR_OPACITY = .86
+const INSPECTION_OCCLUDER_NAMES = new Set(['SYSTEM__pipe-racks', 'DETAIL__industrial-finishes'])
+
+export function applyInspectionOccluders(root, active) {
+  if (!root) return
+  root.traverse((object) => {
+    if (!INSPECTION_OCCLUDER_NAMES.has(object.name)) return
+    if (object.userData.inspectionBaseVisible === undefined) {
+      object.userData.inspectionBaseVisible = object.visible
+    }
+    object.visible = active ? false : object.userData.inspectionBaseVisible
+  })
+}
 
 function materialEntries(material) {
   return (Array.isArray(material) ? material : [material]).filter(Boolean)

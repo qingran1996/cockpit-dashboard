@@ -24,6 +24,14 @@ test('keeps small floor inspection views outside the near clipping zone', async 
   assert.deepEqual(pose.position.map((value) => Number(value.toFixed(3))), [-.96, .98, -1.736])
 })
 
+test('pulls farther back for a wide production hall without changing its target bias', async () => {
+  const { createFloorCameraPose } = await import('../src/scene/floorCamera.js')
+  const pose = createFloorCameraPose({ floorWorldPosition: [0, 0, 0], buildingSize: [15, 3.4, 6.2] })
+
+  assert.deepEqual(pose.target.map((value) => Number(value.toFixed(3))), [.45, .408, .496])
+  assert.deepEqual(pose.position.map((value) => Number(value.toFixed(3))), [-3.263, 1.632, -6.254])
+})
+
 test('anchors the inspection camera to floor content instead of the floor root origin', async () => {
   const module = await import('../src/scene/floorCamera.js')
   assert.equal(typeof module.getFloorInspectionAnchor, 'function', 'floor content anchor helper is missing')

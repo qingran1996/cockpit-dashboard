@@ -136,3 +136,21 @@ test('prepares a three-sided cutaway room that appears only for the focused floo
   applyFloorView([building], { buildingId: 'administration', exploded: true, focusedFloorId: null })
   assert.equal(middle.userData.cutaway.visible, false)
 })
+
+test('temporarily hides cross-campus pipe racks during interior inspection', async () => {
+  const module = await import('../src/scene/floorInteraction.js')
+  assert.equal(typeof module.applyInspectionOccluders, 'function', 'inspection occluder helper is missing')
+  const campus = new THREE.Group()
+  const pipeRacks = new THREE.Group()
+  pipeRacks.name = 'SYSTEM__pipe-racks'
+  const detachedFacadeDetails = new THREE.Group()
+  detachedFacadeDetails.name = 'DETAIL__industrial-finishes'
+  campus.add(pipeRacks, detachedFacadeDetails)
+
+  module.applyInspectionOccluders(campus, true)
+  assert.equal(pipeRacks.visible, false)
+  assert.equal(detachedFacadeDetails.visible, false)
+  module.applyInspectionOccluders(campus, false)
+  assert.equal(pipeRacks.visible, true)
+  assert.equal(detachedFacadeDetails.visible, true)
+})

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { createIndustrialScene } from '../scene/sceneFactory.js'
-import { applyFloorView, updateFloorAnimations } from '../scene/floorInteraction.js'
+import { applyFloorView, applyInspectionOccluders, updateFloorAnimations } from '../scene/floorInteraction.js'
 import { createFloorCameraPose, getFloorInspectionAnchor } from '../scene/floorCamera.js'
 import { buildingById } from '../scene/buildingRegistry.js'
 import { cameraLimits, clampPixelRatio, initialCameraView, normalizePointer } from '../scene/sceneMath.js'
@@ -56,7 +56,10 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
 
   useEffect(() => {
     floorViewRef.current = floorView
-    if (parkRef.current) applyFloorView(parkRef.current.interactiveObjects, floorView)
+    if (parkRef.current) {
+      applyFloorView(parkRef.current.interactiveObjects, floorView)
+      applyInspectionOccluders(parkRef.current.root, Boolean(floorView?.focusedFloorId))
+    }
   }, [floorView])
 
   useEffect(() => {
@@ -114,10 +117,14 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
     parkRef.current = park
     applyFloorView(park.interactiveObjects, floorViewRef.current)
     park.ready.then(() => {
-      if (parkRef.current === park) applyFloorView(park.interactiveObjects, floorViewRef.current)
+      if (parkRef.current === park) {
+        applyFloorView(park.interactiveObjects, floorViewRef.current)
+        applyInspectionOccluders(park.root, Boolean(floorViewRef.current?.focusedFloorId))
+      }
     })
     park.root.position.y = -1.2
     scene.add(park.root)
+    applyInspectionOccluders(park.root, Boolean(floorViewRef.current?.focusedFloorId))
     applyCampusLightingMode({ scene, renderer }, lightingModeRef.current)
     park.ready.then(() => {
       if (parkRef.current === park) applyCampusLightingMode({ scene, renderer }, lightingModeRef.current)
