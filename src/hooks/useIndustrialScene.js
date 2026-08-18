@@ -8,6 +8,7 @@ import { buildingById } from '../scene/buildingRegistry.js'
 import { cameraLimits, clampPixelRatio, initialCameraView, normalizePointer } from '../scene/sceneMath.js'
 import { updateVehicleAnimations } from '../scene/vehicleAnimation.js'
 import { updatePersonAnimations } from '../scene/personAnimation.js'
+import { updateGateAnimations } from '../scene/gateAnimation.js'
 
 const INITIAL_CAMERA = new THREE.Vector3(...initialCameraView.position)
 const INITIAL_TARGET = new THREE.Vector3(...initialCameraView.target)
@@ -217,6 +218,7 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
       updateFloorAnimations(park.interactiveObjects, deltaSeconds, reducedMotion)
       updateVehicleAnimations(park.animated, seconds, reducedMotion)
       updatePersonAnimations(park.animated, seconds, reducedMotion)
+      updateGateAnimations(park.animated, seconds, reducedMotion)
 
       if (focusTransition) {
         const pose = resolveFloorPose(focusTransition.buildingId, focusTransition.floorId)

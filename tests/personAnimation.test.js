@@ -41,3 +41,26 @@ test('walks a floor-local person with heading reversal and a two-leg gait', asyn
   assert.equal(leftLeg.rotation.x, 0)
   assert.equal(rightLeg.rotation.x, 0)
 })
+
+test('moves a site patrol along a Z-axis route and restores its base pose', async () => {
+  const { updatePersonAnimations } = await import('../src/scene/personAnimation.js')
+  const person = new THREE.Group()
+  person.position.set(2, .15, -3)
+  const item = {
+    kind: 'person', object: person, axis: 'z', baseX: 2, baseY: .15, baseZ: -3,
+    baseRotationY: 0, distance: 6, speed: .1, phase: 0,
+  }
+
+  updatePersonAnimations([item], 2.5, false)
+  assert.equal(person.position.x, 2)
+  assert.equal(person.position.z, 0)
+  assert.equal(Math.round(person.rotation.y * 100) / 100, 0)
+
+  updatePersonAnimations([item], 7.5, false)
+  assert.equal(person.position.z, 0)
+  assert.equal(Math.round(person.rotation.y * 100) / 100, 3.14)
+
+  updatePersonAnimations([item], 7.5, true)
+  assert.equal(person.position.z, -3)
+  assert.equal(person.rotation.y, 0)
+})

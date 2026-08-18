@@ -25,7 +25,9 @@ const REQUIRED_SCENE_DETAILS = [
   'ROAD__perimeter-east',
   'PARKING__surface',
   'GATE__barrier-inbound',
+  'GATE__barrier-inbound__arm',
   'VEHICLE__gate-shuttle__root',
+  'PATROL__campus-01',
 ]
 
 test('Blender generator exports an editable scene with the complete GLB node contract', () => {
@@ -98,9 +100,14 @@ test('Blender scene preserves the wide front-left industrial-campus composition'
     "siteCounts={'curbs':sum(1 for o in bpy.data.objects if o.name.startswith('ROAD_DETAIL__inner-curb-')),'crosswalkStripes':sum(1 for o in bpy.data.objects if o.name.startswith('ROAD_DETAIL__crosswalk-')),'wheelStops':sum(1 for o in bpy.data.objects if o.name.startswith('PARKING__wheel-stop-')),'rainGardens':sum(1 for o in bpy.data.objects if o.name.startswith('LANDSCAPE__rain-garden-') and '-grass-' not in o.name),'grassClumps':sum(1 for o in bpy.data.objects if o.name.startswith('LANDSCAPE__rain-garden-grass-')),'shrubs':sum(1 for o in bpy.data.objects if o.name.startswith('LANDSCAPE__shrub-mass-')),'innerTrees':sum(1 for o in bpy.data.objects if o.name.startswith('LANDSCAPE__inner-tree-trunk-'))}",
     "siteMaterials={name:{'roughness':next(n for n in bpy.data.materials[name].node_tree.nodes if n.type=='BSDF_PRINCIPLED').inputs['Roughness'].default_value,'color':list(bpy.data.materials[name].diffuse_color)} for name in ['MAT__safety-yellow','MAT__bioswale-soil','MAT__ornamental-grass','MAT__shrub-deep'] if name in bpy.data.materials}",
     "gateBlockingTrees=[o.name for o in bpy.data.objects if o.name.startswith('TREE__trunk-') and 16.5 <= o.matrix_world.translation.x <= 24.5 and o.matrix_world.translation.y >= 17.4]",
+    "forestCrowns=[o for o in bpy.data.objects if o.name.startswith('ENV__tree-crown-')]",
+    "forestTrunks=[o for o in bpy.data.objects if o.name.startswith('ENV__tree-trunk-')]",
+    "forestMetrics={'boundsX':[min(o.matrix_world.translation.x for o in forestCrowns),max(o.matrix_world.translation.x for o in forestCrowns)],'rearCount':sum(1 for o in forestCrowns if o.matrix_world.translation.y <= -21),'westCount':sum(1 for o in forestCrowns if o.matrix_world.translation.x <= -31 and -20 <= o.matrix_world.translation.y <= 17),'eastCount':sum(1 for o in forestCrowns if o.matrix_world.translation.x >= 31 and -20 <= o.matrix_world.translation.y <= 17),'uniqueCrownMeshes':len(set(o.data.name for o in forestCrowns)),'uniqueTrunkMeshes':len(set(o.data.name for o in forestTrunks))}",
+    "apron=bpy.data.objects.get('ENV__landscape-apron')",
+    "apronDimensions=list(apron.dimensions) if apron else None",
     "motion={k:bpy.data.objects['VEHICLE__gate-shuttle__root'].get(k) for k in ['motionPath','motionDistance','motionSpeed']}",
     "world=list(bpy.context.scene.world.color)",
-    "layout={'site':list(site.dimensions),'main':list(main.dimensions),'rootScale':list(root.scale),'camera':list(camera.location),'admin':list(admin.matrix_world.translation),'east':list(east.matrix_world.translation),'rear':list(rear.matrix_world.translation),'world':world,'hasForest':'ENV__forest-backdrop' in bpy.data.objects,'bounds':bounds,'parkingBays':parkingBays,'siteObjects':siteObjects,'siteCounts':siteCounts,'siteMaterials':siteMaterials,'gateBlockingTrees':gateBlockingTrees,'motion':motion}",
+    "layout={'site':list(site.dimensions),'main':list(main.dimensions),'rootScale':list(root.scale),'camera':list(camera.location),'admin':list(admin.matrix_world.translation),'east':list(east.matrix_world.translation),'rear':list(rear.matrix_world.translation),'world':world,'hasForest':'ENV__forest-backdrop' in bpy.data.objects,'bounds':bounds,'parkingBays':parkingBays,'siteObjects':siteObjects,'siteCounts':siteCounts,'siteMaterials':siteMaterials,'gateBlockingTrees':gateBlockingTrees,'forestMetrics':forestMetrics,'apronDimensions':apronDimensions,'motion':motion}",
     `open(${JSON.stringify(layoutPath)},'w').write(json.dumps(layout))`,
   ].join(';')
   const inspected = spawnSync(BLENDER, [blendPath, '--background', '--python-expr', inspectExpression], {
@@ -120,6 +127,12 @@ test('Blender scene preserves the wide front-left industrial-campus composition'
   assert.equal(layout.hasForest, true, 'missing forest backdrop for depth cues')
   assert.ok(layout.parkingBays >= 10, `parking lot needs at least ten marked bays: ${layout.parkingBays}`)
   assert.deepEqual(layout.gateBlockingTrees, [], 'gate entrance must keep a clear vehicle and sightline corridor')
+  assert.ok(layout.apronDimensions?.[0] >= 72 && layout.apronDimensions?.[1] >= 56, `landscape apron must extend beyond the campus ground: ${layout.apronDimensions}`)
+  assert.ok(layout.forestMetrics.boundsX[0] >= -37 && layout.forestMetrics.boundsX[1] <= 37, `background forest must stay centered over its terrain: ${layout.forestMetrics.boundsX}`)
+  assert.ok(layout.forestMetrics.rearCount >= 120, `rear forest needs enough depth for the reference composition: ${layout.forestMetrics.rearCount}`)
+  assert.ok(layout.forestMetrics.westCount >= 18 && layout.forestMetrics.eastCount >= 18, `both side forest bands must close the orbit-view background: ${JSON.stringify(layout.forestMetrics)}`)
+  assert.ok(layout.forestMetrics.uniqueCrownMeshes <= 3, `forest crowns should use linked mesh variants: ${layout.forestMetrics.uniqueCrownMeshes}`)
+  assert.ok(layout.forestMetrics.uniqueTrunkMeshes <= 3, `forest trunks should use linked mesh variants: ${layout.forestMetrics.uniqueTrunkMeshes}`)
   assert.deepEqual(Object.keys(layout.siteObjects).sort(), [
     'LANDSCAPE__inner-tree-crown-01',
     'LANDSCAPE__inner-tree-trunk-01',
@@ -337,9 +350,11 @@ test('Blender floors contain use-specific interiors and walking staff', () => {
   const inspectExpression = [
     'import bpy,json',
     `floors=${JSON.stringify(floorRecords)}`,
-    "records={f['buildingId']+'__'+f['floorId']:{'interior':('INTERIOR__'+f['buildingId']+'__'+f['floorId']) in bpy.data.objects,'interiorParent':bpy.data.objects.get('INTERIOR__'+f['buildingId']+'__'+f['floorId']).parent.name if bpy.data.objects.get('INTERIOR__'+f['buildingId']+'__'+f['floorId']) else None,'props':sum(1 for o in bpy.data.objects if o.name.startswith('PROP__'+f['buildingId']+'__'+f['floorId']+'__')),'walker':('WALKER__'+f['buildingId']+'__'+f['floorId']+'__01') in bpy.data.objects,'walkerParent':bpy.data.objects.get('WALKER__'+f['buildingId']+'__'+f['floorId']+'__01').parent.name if bpy.data.objects.get('WALKER__'+f['buildingId']+'__'+f['floorId']+'__01') else None,'walkerScale':list(bpy.data.objects.get('WALKER__'+f['buildingId']+'__'+f['floorId']+'__01').scale) if bpy.data.objects.get('WALKER__'+f['buildingId']+'__'+f['floorId']+'__01') else None,'motion':{k:bpy.data.objects.get('WALKER__'+f['buildingId']+'__'+f['floorId']+'__01').get(k) for k in ['motionPath','motionDistance','motionSpeed','motionPhase']} if bpy.data.objects.get('WALKER__'+f['buildingId']+'__'+f['floorId']+'__01') else None,'spaceRole':bpy.data.objects[f\"FLOOR_MESH__{f['buildingId']}__{f['floorId']}__space\"].get('layerRole')} for f in floors}",
-    "required=['PROP__main-production-hall__L01__process-skid-01','PROP__front-warehouse__L01__rack-01','PROP__administration__L02__desk-01','PROP__laboratory__L02__lab-bench-01','PROP__main-production-hall__RF__hvac-01','PROP__gatehouse__L01__checkpoint-desk-01']",
-    "result={'records':records,'required':{name:name in bpy.data.objects for name in required},'materials':[name for name in ['MAT__interior-equipment','MAT__interior-worktop','MAT__workwear','MAT__safety-vest','MAT__hardhat'] if name in bpy.data.materials]}",
+    "records={f['buildingId']+'__'+f['floorId']:{'interior':('INTERIOR__'+f['buildingId']+'__'+f['floorId']) in bpy.data.objects,'interiorParent':bpy.data.objects.get('INTERIOR__'+f['buildingId']+'__'+f['floorId']).parent.name if bpy.data.objects.get('INTERIOR__'+f['buildingId']+'__'+f['floorId']) else None,'props':sum(1 for o in bpy.data.objects if o.name.startswith('PROP__'+f['buildingId']+'__'+f['floorId']+'__')),'walker':('WALKER__'+f['buildingId']+'__'+f['floorId']+'__01') in bpy.data.objects,'walkerParent':bpy.data.objects.get('WALKER__'+f['buildingId']+'__'+f['floorId']+'__01').parent.name if bpy.data.objects.get('WALKER__'+f['buildingId']+'__'+f['floorId']+'__01') else None,'walkerScale':list(bpy.data.objects.get('WALKER__'+f['buildingId']+'__'+f['floorId']+'__01').scale) if bpy.data.objects.get('WALKER__'+f['buildingId']+'__'+f['floorId']+'__01') else None,'motion':{k:bpy.data.objects.get('WALKER__'+f['buildingId']+'__'+f['floorId']+'__01').get(k) for k in ['motionPath','motionDistance','motionSpeed','motionPhase']} if bpy.data.objects.get('WALKER__'+f['buildingId']+'__'+f['floorId']+'__01') else None,'spaceRole':bpy.data.objects[f\"FLOOR_MESH__{f['buildingId']}__{f['floorId']}__space\"].get('layerRole'),'sectionHeightRatio':bpy.data.objects[f\"FLOOR_MESH__{f['buildingId']}__{f['floorId']}__space\"].get('sectionHeightRatio')} for f in floors}",
+    "required=['PROP__main-production-hall__L01__process-skid-01','PROP__main-production-hall__L01__worktable-01','PROP__front-warehouse__L01__rack-01','PROP__front-warehouse__L01__packing-table-01','PROP__administration__L02__desk-01','PROP__administration__L02__sofa-01','PROP__administration__L02__coffee-table-01','PROP__laboratory__L02__lab-bench-01','PROP__main-production-hall__RF__hvac-01','PROP__gatehouse__L01__checkpoint-desk-01']",
+    "patrols=[o for o in bpy.data.objects if o.name.startswith('PATROL__campus-') and o.get('motionPath')=='site-patrol']",
+    "gate=bpy.data.objects.get('GATE__barrier-inbound')",
+    "result={'records':records,'required':{name:name in bpy.data.objects for name in required},'materials':[name for name in ['MAT__interior-equipment','MAT__interior-worktop','MAT__workwear','MAT__safety-vest','MAT__hardhat'] if name in bpy.data.materials],'patrols':[{'name':o.name,'motionPath':o.get('motionPath'),'motionAxis':o.get('motionAxis'),'distance':o.get('motionDistance')} for o in patrols],'gate':{k:gate.get(k) for k in ['motionPath','motionAxis','motionSpeed','closedAngle','openAngle']} if gate else None}",
     `open(${JSON.stringify(interiorsPath)},'w').write(json.dumps(result))`,
   ].join(';')
   const inspected = spawnSync(BLENDER, [blendPath, '--background', '--python-expr', inspectExpression], {
@@ -355,6 +370,7 @@ test('Blender floors contain use-specific interiors and walking staff', () => {
     assert.equal(record.interiorParent, `FLOOR__${buildingId}__${floorId}`)
     assert.ok(record.props >= 2, `${buildingId} ${floorId} needs at least two interior props`)
     assert.equal(record.spaceRole, 'floor-volume')
+    assert.ok(record.sectionHeightRatio >= .78, `${buildingId} ${floorId} floor section is still too low`)
     if (floorId === 'RF') {
       assert.equal(record.walker, false, `${buildingId} ${floorId} should not have a routine walker`)
     } else {
@@ -367,6 +383,9 @@ test('Blender floors contain use-specific interiors and walking staff', () => {
     }
   }
   assert.ok(Object.values(interiors.required).every(Boolean), `missing typed interior props: ${JSON.stringify(interiors.required)}`)
+  assert.ok(interiors.patrols.length >= 3, 'campus needs at least three outdoor patrol walkers')
+  assert.ok(interiors.patrols.every((patrol) => patrol.motionPath === 'site-patrol' && patrol.distance > 0))
+  assert.deepEqual(interiors.gate, { motionPath: 'gate-barrier', motionAxis: 'z', motionSpeed: .09, closedAngle: 0, openAngle: -1.22 })
   assert.deepEqual(interiors.materials.sort(), ['MAT__hardhat', 'MAT__interior-equipment', 'MAT__interior-worktop', 'MAT__safety-vest', 'MAT__workwear'])
 })
 

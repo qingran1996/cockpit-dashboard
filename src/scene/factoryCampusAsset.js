@@ -24,7 +24,7 @@ export function prepareFactoryCampusModel(root) {
   const animatedObjects = []
   root.traverse((object) => {
     if (!object.userData.motionPath) return
-    if (object.userData.motionPath === 'floor-walk') {
+    if (object.userData.motionPath === 'floor-walk' || object.userData.motionPath === 'site-patrol') {
       let leftLeg = null
       let rightLeg = null
       object.traverse((child) => {
@@ -35,14 +35,32 @@ export function prepareFactoryCampusModel(root) {
         kind: 'person',
         object,
         motionPath: object.userData.motionPath,
+        axis: object.userData.motionAxis === 'z' ? 'z' : 'x',
         distance: Number(object.userData.motionDistance) || 0,
         speed: Number(object.userData.motionSpeed) || 0,
         phase: Number(object.userData.motionPhase) || 0,
         baseX: object.position.x,
         baseY: object.position.y,
+        baseZ: object.position.z,
         baseRotationY: object.rotation.y,
         leftLeg,
         rightLeg,
+      })
+      return
+    }
+    if (object.userData.motionPath === 'gate-barrier') {
+      animatedObjects.push({
+        kind: 'gate',
+        object,
+        motionPath: object.userData.motionPath,
+        axis: object.userData.motionAxis || 'z',
+        speed: Number(object.userData.motionSpeed) || 0,
+        phase: Number(object.userData.motionPhase) || 0,
+        closedAngle: Number(object.userData.closedAngle) || 0,
+        openAngle: Number(object.userData.openAngle) || 0,
+        baseRotationX: object.rotation.x,
+        baseRotationY: object.rotation.y,
+        baseRotationZ: object.rotation.z,
       })
       return
     }

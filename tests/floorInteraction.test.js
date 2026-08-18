@@ -51,12 +51,12 @@ test('explodes every floor as one synchronized building section and restores it'
   module.updateFloorAnimations([building], 1, true)
 
   assert.deepEqual(floors.map(({ visible }) => visible), [true, true, true])
-  assert.deepEqual(floors.map(({ position }) => position.y), [0, .95, 1.9])
+  assert.deepEqual(floors.map(({ position }) => position.y), [0, 1.25, 2.5])
   assert.equal(exterior.material.transparent, true)
   assert.equal(exterior.material.opacity, .1)
   assert.equal(exterior.material.depthWrite, false)
   assert.deepEqual(floors.map((floor) => floor.children[0].material.opacity), [.86, .86, .86])
-  assert.deepEqual(floors.map((floor) => floor.children[1].material.opacity), [.18, .18, .18])
+  assert.deepEqual(floors.map((floor) => floor.children[1].material.opacity), [.1, .1, .1])
   assert.deepEqual(floors.map((floor) => floor.children[2].material.opacity), [.98, .98, .98])
 
   module.applyFloorView([building], { buildingId: null, exploded: false })

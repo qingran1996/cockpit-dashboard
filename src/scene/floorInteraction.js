@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 
-const EXPLODED_FLOOR_GAP = .95
+const EXPLODED_FLOOR_GAP = 1.25
 const FLOOR_OPACITY = .86
 
 function materialEntries(material) {
@@ -197,7 +197,7 @@ export function applyFloorView(buildings, { buildingId = null, exploded = false 
           return
         }
         const role = object.userData.layerRole
-        const opacity = role === 'floor-volume' ? .18 : role === 'interior-prop' ? .98 : FLOOR_OPACITY
+        const opacity = role === 'floor-volume' ? .10 : role === 'interior-prop' ? .98 : FLOOR_OPACITY
         setMeshOpacity(object, opacity, { emphasize: role !== 'floor-volume' })
       })
     })

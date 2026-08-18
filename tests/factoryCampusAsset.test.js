@@ -30,6 +30,15 @@ function makeCampus({ omitId = null } = {}) {
   shuttle.name = 'VEHICLE__gate-shuttle__root'
   shuttle.userData = { motionPath: 'gate-lane', motionDistance: 10, motionSpeed: .09 }
   root.add(shuttle)
+  const patrol = new THREE.Group()
+  patrol.name = 'PATROL__campus-01'
+  patrol.position.set(3, .1, -4)
+  patrol.userData = { motionPath: 'site-patrol', motionAxis: 'z', motionDistance: 6, motionSpeed: .08, motionPhase: .2 }
+  root.add(patrol)
+  const barrier = new THREE.Group()
+  barrier.name = 'GATE__barrier-inbound'
+  barrier.userData = { motionPath: 'gate-barrier', motionAxis: 'z', motionSpeed: .09, closedAngle: 0, openAngle: -1.22 }
+  root.add(barrier)
   const firstFloor = root.getObjectByName('FLOOR__main-production-hall__L01')
   const walker = new THREE.Group()
   walker.name = 'WALKER__main-production-hall__L01__01'
@@ -54,7 +63,7 @@ test('maps every required GLB building node to one interactive building id', () 
     buildingRegistry.map(({ id }) => id),
   )
   assert.equal(new Set(prepared.interactiveObjects).size, buildingRegistry.length)
-  assert.equal(prepared.animatedObjects?.length, 2)
+  assert.equal(prepared.animatedObjects?.length, 4)
   const vehicle = prepared.animatedObjects.find(({ object }) => object.name === 'VEHICLE__gate-shuttle__root')
   assert.equal(vehicle.kind, 'vehicle')
   assert.equal(vehicle.motionPath, 'gate-lane')
@@ -69,6 +78,16 @@ test('maps every required GLB building node to one interactive building id', () 
   assert.equal(person.baseY, .1)
   assert.equal(person.leftLeg?.name.endsWith('__leg-left'), true)
   assert.equal(person.rightLeg?.name.endsWith('__leg-right'), true)
+  const patrol = prepared.animatedObjects.find(({ object }) => object.name === 'PATROL__campus-01')
+  assert.equal(patrol.kind, 'person')
+  assert.equal(patrol.axis, 'z')
+  assert.equal(patrol.baseZ, -4)
+  const gate = prepared.animatedObjects.find(({ object }) => object.name === 'GATE__barrier-inbound')
+  assert.equal(gate.kind, 'gate')
+  assert.equal(gate.axis, 'z')
+  assert.equal(gate.speed, .09)
+  assert.equal(gate.closedAngle, 0)
+  assert.equal(gate.openAngle, -1.22)
   const preparedMaterials = prepared.interactiveObjects.map((building) => building.children[0].material)
   assert.equal(new Set(preparedMaterials).size, buildingRegistry.length)
   for (const building of prepared.interactiveObjects) {

@@ -170,6 +170,18 @@ def cylinder(name, radius, depth, location, mat, parent=None, rotation=(0, 0, 0)
     return obj
 
 
+def linked_mesh_instance(name, prototype, location, parent, scale=(1, 1, 1), rotation=(0, 0, 0)):
+    obj = prototype.copy()
+    obj.data = prototype.data
+    obj.name = name
+    bpy.context.scene.collection.objects.link(obj)
+    obj.parent = parent
+    obj.location = location
+    obj.scale = scale
+    obj.rotation_euler = rotation
+    return obj
+
+
 def mark_interior(obj, role="interior-prop"):
     obj["layerRole"] = role
     return obj
@@ -203,6 +215,53 @@ def create_low_poly_walker(building_id, floor_id, width, depth, floor_base, floo
     return walker
 
 
+def create_site_patrol_walker(index, location, axis, distance, speed, phase, mats, parent):
+    walker_name = f"PATROL__campus-{index:02d}"
+    walker = empty(walker_name, location, parent)
+    walker.scale = (1.65, 1.65, 1.65)
+    walker["motionPath"] = "site-patrol"
+    walker["motionAxis"] = axis
+    walker["motionDistance"] = distance
+    walker["motionSpeed"] = speed
+    walker["motionPhase"] = phase
+    walker["layerRole"] = "site-person"
+
+    box(f"{walker_name}__body", (0.12, 0.075, 0.20), (0, 0, 0.24), mats["workwear"], walker, 0.025)
+    box(f"{walker_name}__vest", (0.125, 0.082, 0.075), (0, 0.006, 0.27), mats["safety_vest"], walker, 0.012)
+    for side, label in ((-1, "left"), (1, "right")):
+        box(f"{walker_name}__leg-{label}", (0.045, 0.052, 0.15), (side * 0.032, 0, 0.09), mats["workwear"], walker, 0.012)
+        box(f"{walker_name}__arm-{label}", (0.038, 0.045, 0.17), (side * 0.082, 0, 0.235), mats["workwear"], walker, 0.012)
+    bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=1, radius=0.062, location=(0, 0, 0))
+    head = bpy.context.object
+    head.name = f"{walker_name}__head"
+    head.parent = walker
+    head.location = (0, 0, 0.405)
+    head.data.materials.append(mats["skin"])
+    cylinder(f"{walker_name}__helmet", 0.071, 0.045, (0, 0, 0.458), mats["hardhat"], walker, vertices=12)
+    box(f"{walker_name}__helmet-brim", (0.17, 0.10, 0.018), (0, 0.018, 0.438), mats["hardhat"], walker, 0.008)
+    return walker
+
+
+def create_chair(prefix, location, mats, parent, rotation=0):
+    chair = empty(prefix, location, parent)
+    chair.rotation_euler[2] = rotation
+    mark_interior(box(f"{prefix}__seat", (0.22, 0.22, 0.06), (0, 0, 0.15), mats["interior_storage"], chair, 0.025))
+    mark_interior(box(f"{prefix}__back", (0.22, 0.055, 0.25), (0, -0.085, 0.28), mats["interior_storage"], chair, 0.025))
+    for leg_index, (px, py) in enumerate(((-.075, -.07), (.075, -.07), (-.075, .07), (.075, .07)), start=1):
+        mark_interior(box(f"{prefix}__leg-{leg_index:02d}", (.025, .025, .14), (px, py, .07), mats["interior_equipment"], chair, .006))
+    return chair
+
+
+def create_sofa(prefix, location, width, mats, parent, rotation=0):
+    sofa = empty(prefix, location, parent)
+    sofa.rotation_euler[2] = rotation
+    mark_interior(box(prefix, (width, .34, .12), (0, 0, .16), mats["interior_storage"], sofa, .045))
+    mark_interior(box(f"{prefix}__back", (width, .10, .34), (0, -.13, .31), mats["interior_storage"], sofa, .045))
+    for side, px in enumerate((-width * .45, width * .45), start=1):
+        mark_interior(box(f"{prefix}__arm-{side:02d}", (.11, .34, .22), (px, 0, .23), mats["interior_storage"], sofa, .035))
+    return sofa
+
+
 def create_floor_interior(building_id, floor_id, usage, width, depth, floor_height, floor_base, floor_index, mats, floor_root):
     interior = empty(f"INTERIOR__{building_id}__{floor_id}", parent=floor_root)
     interior["buildingId"] = building_id
@@ -220,26 +279,39 @@ def create_floor_interior(building_id, floor_id, usage, width, depth, floor_heig
     elif building_id == "gatehouse":
         mark_interior(box(f"{prefix}__checkpoint-desk-01", (width * 0.42, depth * 0.18, 0.18), (-width * 0.12, -depth * 0.12, prop_z + 0.10), mats["interior_worktop"], interior, 0.025))
         mark_interior(box(f"{prefix}__access-console-01", (0.22, 0.12, 0.20), (width * 0.24, -depth * 0.12, prop_z + 0.12), mats["interior_equipment"], interior, 0.018))
+        create_chair(f"{prefix}__operator-chair-01", (-width * .12, depth * .10, prop_z), mats, interior, math.pi)
+        mark_interior(box(f"{prefix}__storage-cabinet-01", (.24, .16, max_height), (-width * .30, depth * .22, prop_z + max_height / 2), mats["interior_storage"], interior, .018))
     elif building_id == "administration":
         if floor_id == "L03":
             mark_interior(box(f"{prefix}__meeting-table-01", (width * 0.42, depth * 0.18, 0.16), (0, 0, prop_z + 0.09), mats["interior_worktop"], interior, 0.035))
             mark_interior(box(f"{prefix}__display-wall-01", (width * 0.30, 0.08, 0.30), (0, -depth * 0.28, prop_z + 0.24), mats["interior_equipment"], interior, 0.018))
+            for index, (px, py, rot) in enumerate(((-width*.22, 0, -math.pi/2), (width*.22, 0, math.pi/2), (0, depth*.18, math.pi)), start=1):
+                create_chair(f"{prefix}__meeting-chair-{index:02d}", (px, py, prop_z), mats, interior, rot)
         else:
             for index, px in enumerate((-width * 0.20, width * 0.10), start=1):
                 mark_interior(box(f"{prefix}__desk-{index:02d}", (width * 0.24, depth * 0.16, 0.15), (px, -depth * 0.12, prop_z + 0.09), mats["interior_worktop"], interior, 0.025))
+                create_chair(f"{prefix}__desk-chair-{index:02d}", (px, depth * .04, prop_z), mats, interior, math.pi)
             mark_interior(box(f"{prefix}__partition-01", (0.06, depth * 0.42, 0.28), (width * 0.30, 0, prop_z + 0.18), mats["interior_equipment"], interior, 0.015))
+            create_sofa(f"{prefix}__sofa-01", (width * .08, depth * .25, prop_z), width * .30, mats, interior)
+            mark_interior(box(f"{prefix}__coffee-table-01", (width * .22, depth * .14, .10), (-width * .18, depth * .25, prop_z + .06), mats["interior_worktop"], interior, .025))
     elif building_id == "laboratory":
         for index, py in enumerate((-depth * 0.16, depth * 0.16), start=1):
             mark_interior(box(f"{prefix}__lab-bench-{index:02d}", (width * 0.48, depth * 0.12, 0.18), (0, py, prop_z + 0.10), mats["interior_worktop"], interior, 0.025))
         mark_interior(box(f"{prefix}__analyzer-01", (0.22, 0.18, 0.22), (-width * 0.20, depth * 0.16, prop_z + 0.22), mats["interior_equipment"], interior, 0.025))
+        mark_interior(box(f"{prefix}__sample-cart-01", (.28, .20, .20), (width * .27, 0, prop_z + .11), mats["interior_storage"], interior, .018))
+        create_chair(f"{prefix}__lab-stool-01", (width * .18, -depth * .16, prop_z), mats, interior)
     elif "warehouse" in building_id:
         for index, py in enumerate((-depth * 0.18, depth * 0.18), start=1):
             mark_interior(box(f"{prefix}__rack-{index:02d}", (width * 0.50, 0.12, max_height), (-width * 0.04, py, prop_z + max_height / 2), mats["interior_storage"], interior, 0.018))
         mark_interior(box(f"{prefix}__pallet-01", (width * 0.18, depth * 0.18, 0.10), (width * 0.28, 0, prop_z + 0.05), mats["interior_worktop"], interior, 0.018))
+        mark_interior(box(f"{prefix}__packing-table-01", (width * .28, depth * .16, .18), (width * .16, 0, prop_z + .10), mats["interior_worktop"], interior, .025))
+        mark_interior(box(f"{prefix}__packing-bin-01", (width * .10, depth * .14, .14), (width * .34, depth * .20, prop_z + .08), mats["interior_storage"], interior, .018))
     else:
         for index, px in enumerate((-width * 0.20, width * 0.12), start=1):
             mark_interior(box(f"{prefix}__process-skid-{index:02d}", (width * 0.22, depth * 0.24, max_height), (px, -depth * 0.10, prop_z + max_height / 2), mats["interior_equipment"], interior, 0.035))
         mark_interior(box(f"{prefix}__control-cabinet-01", (width * 0.18, 0.14, max_height * 0.90), (width * 0.28, depth * 0.20, prop_z + max_height * 0.45), mats["interior_worktop"], interior, 0.018))
+        mark_interior(box(f"{prefix}__worktable-01", (width * .30, depth * .14, .18), (0, depth * .22, prop_z + .10), mats["interior_worktop"], interior, .025))
+        mark_interior(box(f"{prefix}__tool-cart-01", (width * .12, depth * .13, .20), (-width * .32, depth * .18, prop_z + .11), mats["interior_storage"], interior, .018))
 
     if floor_id != "RF":
         create_low_poly_walker(building_id, floor_id, width, depth, floor_base, floor_index, mats, interior)
@@ -271,17 +343,18 @@ def create_floor_spaces(building_id, width, depth, height, mats, building_root):
         slab["layerRole"] = "floor-slab"
         space = box(
             f"FLOOR_MESH__{building_id}__{floor_id}__space",
-            (width * 0.82, depth * 0.72, max(0.28, floor_height * 0.62)),
-            (0, 0, floor_base + floor_height * 0.46),
+            (width * 0.82, depth * 0.72, max(0.36, floor_height * 0.80)),
+            (0, 0, floor_base + floor_height * 0.50),
             mats["floor_space_orange"] if tone == "orange" else mats["floor_space_cyan"],
             floor_root,
             0.035,
         )
         space["layerRole"] = "floor-volume"
+        space["sectionHeightRatio"] = 0.80
         core = box(
             f"FLOOR_MESH__{building_id}__{floor_id}__core",
-            (max(0.22, width * 0.10), max(0.22, depth * 0.16), max(0.30, floor_height * 0.66)),
-            (-width * 0.31, -depth * 0.22, floor_base + floor_height * 0.48),
+            (max(0.22, width * 0.10), max(0.22, depth * 0.16), max(0.36, floor_height * 0.84)),
+            (-width * 0.31, -depth * 0.22, floor_base + floor_height * 0.50),
             mats["floor_core"],
             floor_root,
             0.025,
@@ -969,8 +1042,18 @@ def create_roads_and_site(mats, campus):
     for side, px in (("west", -1.65), ("east", 1.65)):
         box(f"GATE__post-{side}", (0.18, 0.18, 2.25), (px, 0, 1.12), mats["pipe"], gate, 0.025)
     box("GATE__canopy", (3.8, 1.15, 0.16), (0, 0, 2.25), mats["roof"], gate, 0.035)
-    box("GATE__barrier-inbound", (1.25, 0.09, 0.09), (-.88, -.55, 1.05), mats["stripe"], gate, 0.018, rotation=(0, math.radians(-62), 0))
-    box("GATE__barrier-outbound", (1.25, 0.09, 0.09), (.88, .55, .92), mats["stripe"], gate, 0.018)
+    inbound_barrier = empty("GATE__barrier-inbound", (-1.48, -.55, 1.05), gate)
+    inbound_barrier["motionPath"] = "gate-barrier"
+    inbound_barrier["motionAxis"] = "z"
+    inbound_barrier["motionSpeed"] = 0.09
+    inbound_barrier["closedAngle"] = 0.0
+    inbound_barrier["openAngle"] = -1.22
+    inbound_barrier["linkedVehicle"] = "VEHICLE__gate-shuttle__root"
+    box("GATE__barrier-inbound__arm", (1.25, 0.09, 0.09), (.62, 0, 0), mats["stripe"], inbound_barrier, 0.018)
+    box("GATE__barrier-inbound__tip", (.12, .12, .12), (1.21, 0, 0), mats["safety_yellow"], inbound_barrier, .018)
+
+    outbound_barrier = empty("GATE__barrier-outbound", (1.48, .55, .92), gate)
+    box("GATE__barrier-outbound__arm", (1.25, .09, .09), (-.62, 0, 0), mats["stripe"], outbound_barrier, .018)
     box("GATE__reader-inbound", (.16, .22, .82), (-1.35, -.55, .43), mats["accent"], gate, 0.025)
     box("GATE__reader-outbound", (.16, .22, .82), (1.35, .55, .43), mats["accent"], gate, 0.025)
     return site
@@ -1053,6 +1136,12 @@ def create_site_furnishings(mats, campus):
     shuttle["motionPath"] = "gate-lane"
     shuttle["motionDistance"] = 10.0
     shuttle["motionSpeed"] = 0.09
+
+    patrols = empty("SITE__patrol-routes", parent=group)
+    create_site_patrol_walker(1, (-18.0, 14.55, .12), "x", 8.0, .055, .05, mats, patrols)
+    create_site_patrol_walker(2, (1.0, 8.7, .12), "z", 6.0, .065, .36, mats, patrols)
+    create_site_patrol_walker(3, (7.0, 14.55, .12), "x", 6.0, .060, .68, mats, patrols)
+    create_site_patrol_walker(4, (-20.0, -15.8, .12), "x", 9.0, .048, .82, mats, patrols)
 
     for index, x in enumerate((-27, -21, -15, -9, -3, 3, 9, 15, 21, 27)):
         cylinder(f"LIGHT__boulevard-pole-{index + 1:02d}", 0.045, 1.9, (x, 18.1, 1.0), mats["pipe"], group, vertices=10)
@@ -1175,32 +1264,79 @@ def create_landscape(mats, campus):
 
 def create_environment(mats, campus):
     group = empty("ENV__background", parent=campus)
-    box("ENV__forest-backdrop", (70, 26, 0.28), (0, -32.0, -0.20), mats["forest_ground"], group, 0.10)
+    box("ENV__landscape-apron", (76, 62, 0.28), (0, -5.0, -0.30), mats["forest_ground"], group, 0.10)
+    box("ENV__forest-backdrop", (76, 26, 0.18), (0, -33.0, -0.16), mats["forest_ground"], group, 0.08)
+    box("ENV__forest-side-west", (12, 42, 0.16), (-34.0, -5.0, -0.17), mats["forest_ground"], group, 0.08)
+    box("ENV__forest-side-east", (12, 42, 0.16), (34.0, -5.0, -0.17), mats["forest_ground"], group, 0.08)
+
+    prototypes = {}
     tree_index = 0
-    for row, y in enumerate((-22.0, -25.5, -29.0, -32.8, -36.5, -40.0)):
-        spacing = 2.6 + row * 0.18
-        start_x = -32.0 - (row % 2) * 1.2
-        count = 25
-        for column in range(count):
-            x = start_x + column * spacing
+
+    def add_forest_tree(x, y, seed):
+        nonlocal tree_index
+        variant = seed % 3
+        height_scale = 0.92 + (seed % 5) * 0.045
+        crown_scale = 0.92 + ((seed * 3) % 7) * 0.025
+        rotation = (0, 0, math.radians((seed * 47) % 360))
+        trunk_location = (x, y, 0.42)
+        crown_location = (x, y, 1.24 + (seed % 4) * 0.055)
+
+        if variant not in prototypes:
             trunk = cylinder(
                 f"ENV__tree-trunk-{tree_index:03d}",
-                0.09,
-                0.75 + (column % 3) * 0.12,
-                (x, y, 0.40),
+                0.085 + variant * 0.008,
+                0.82 + variant * 0.08,
+                trunk_location,
                 mats["trunk"],
                 group,
-                vertices=7,
+                vertices=7 + variant,
             )
-            bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=1, radius=0.72 + ((column + row) % 4) * 0.08, location=(0, 0, 0))
+            bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=1, radius=0.76 + variant * 0.055, location=(0, 0, 0))
             crown = bpy.context.object
             crown.name = f"ENV__tree-crown-{tree_index:03d}"
             crown.parent = group
-            crown.location = (x, y, 1.25 + (column % 3) * 0.10)
-            crown.scale = (1.0, 1.0, 1.35)
-            crown.data.materials.append(mats["forest_foliage"])
-            trunk["instanceFamily"] = "background-tree"
-            tree_index += 1
+            crown.location = crown_location
+            crown.data.materials.append(mats["forest_foliage_light"] if variant == 1 else mats["forest_foliage"])
+            prototypes[variant] = (trunk, crown)
+        else:
+            trunk_source, crown_source = prototypes[variant]
+            trunk = linked_mesh_instance(
+                f"ENV__tree-trunk-{tree_index:03d}",
+                trunk_source,
+                trunk_location,
+                group,
+            )
+            crown = linked_mesh_instance(
+                f"ENV__tree-crown-{tree_index:03d}",
+                crown_source,
+                crown_location,
+                group,
+            )
+
+        trunk.scale = (1.0, 1.0, height_scale)
+        crown.scale = (crown_scale, crown_scale * (0.94 + variant * 0.035), 1.24 + variant * 0.10)
+        crown.rotation_euler = rotation
+        trunk["instanceFamily"] = "background-tree"
+        tree_index += 1
+
+    forest_width = 68.0
+    for row, y in enumerate((-22.0, -25.5, -29.0, -32.5, -36.0, -39.5)):
+        spacing = 2.75 + row * 0.14
+        count = math.floor(forest_width / spacing) + 1
+        start_x = -spacing * (count - 1) / 2
+        for column in range(count):
+            add_forest_tree(start_x + column * spacing, y, row * 31 + column)
+
+    side_y_min = -19.0
+    side_y_max = 15.0
+    side_spacing = 3.2
+    side_count = math.floor((side_y_max - side_y_min) / side_spacing) + 1
+    for side_index, x in enumerate((-35.2, -32.5, 32.5, 35.2)):
+        offset = side_spacing * 0.5 if side_index % 2 else 0.0
+        for row in range(side_count):
+            y = side_y_min + row * side_spacing + offset
+            if y <= side_y_max:
+                add_forest_tree(x, y, 300 + side_index * 37 + row)
     return group
 
 
@@ -1408,7 +1544,8 @@ def main() -> None:
         "shrub_deep": material("MAT__shrub-deep", (0.035, 0.16, 0.075, 1), 0.92),
         "tree_grate": material("MAT__tree-grate", (0.15, 0.18, 0.17, 1), 0.58, 0.52),
         "forest_ground": material("MAT__forest-ground", (0.10, 0.25, 0.11, 1), 0.96),
-        "forest_foliage": material("MAT__forest-foliage", (0.08, 0.29, 0.12, 1), 0.92),
+        "forest_foliage": material("MAT__forest-foliage", (0.075, 0.30, 0.12, 1), 0.92),
+        "forest_foliage_light": material("MAT__forest-foliage-light", (0.11, 0.36, 0.15, 1), 0.91),
     }
 
     campus = empty("FactoryCampusGraybox")

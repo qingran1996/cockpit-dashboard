@@ -65,4 +65,4 @@ export function BuildingFloorPanel({
   )
 }
 
-const EXPLODED_FLOOR_GAP_LABEL = '0.95m'
+const EXPLODED_FLOOR_GAP_LABEL = '1.25m'
