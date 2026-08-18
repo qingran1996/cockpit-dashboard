@@ -1,5 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import * as THREE from 'three'
 
 test('creates a close oblique camera pose aimed inside the selected floor', async () => {
   const module = await import('../src/scene/floorCamera.js').catch(() => ({}))
@@ -11,7 +12,7 @@ test('creates a close oblique camera pose aimed inside the selected floor', asyn
   })
 
   assert.deepEqual(pose.target.map((value) => Number(value.toFixed(3))), [10.36, 4.432, -5.52])
-  assert.deepEqual(pose.position.map((value) => Number(value.toFixed(3))), [8.314, 5.44, -9.24])
+  assert.deepEqual(pose.position.map((value) => Number(value.toFixed(3))), [7.39, 5.728, -10.92])
   assert.equal(pose.duration, 1050)
 })
 
@@ -20,5 +21,18 @@ test('keeps small floor inspection views outside the near clipping zone', async 
   const pose = createFloorCameraPose({ floorWorldPosition: [0, 0, 0], buildingSize: [1, .5, .8] })
 
   assert.deepEqual(pose.target, [.03, .18, .064])
-  assert.deepEqual(pose.position.map((value) => Number(value.toFixed(3))), [-.96, .78, -1.736])
+  assert.deepEqual(pose.position.map((value) => Number(value.toFixed(3))), [-.96, .98, -1.736])
+})
+
+test('anchors the inspection camera to floor content instead of the floor root origin', async () => {
+  const module = await import('../src/scene/floorCamera.js')
+  assert.equal(typeof module.getFloorInspectionAnchor, 'function', 'floor content anchor helper is missing')
+  const building = new THREE.Group()
+  building.position.set(9.5, 0, -11.3)
+  const floor = new THREE.Group()
+  floor.position.y = 1.25
+  floor.userData.contentCenterY = 1.267
+  building.add(floor)
+
+  assert.deepEqual(module.getFloorInspectionAnchor(floor).map((value) => Number(value.toFixed(3))), [9.5, 2.517, -11.3])
 })

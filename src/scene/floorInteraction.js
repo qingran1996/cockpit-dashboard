@@ -83,6 +83,41 @@ function makeFloorOutline(record, floor) {
   return outline
 }
 
+function makeFloorCutaway(record, floor, index) {
+  const width = Math.max(record.size?.[0] ?? 1, 1) * .82
+  const buildingHeight = Math.max(record.size?.[1] ?? 1, 1)
+  const depth = Math.max(record.size?.[2] ?? 1, 1) * .72
+  const floorHeight = buildingHeight / Math.max(record.floors?.length ?? 1, 1)
+  const wallHeight = Math.max(.48, floorHeight * .72)
+  const wallY = index * floorHeight + .10 + wallHeight / 2
+  const group = new THREE.Group()
+  group.name = `FLOOR_CUTAWAY__${record.id}__${floor.id}`
+  group.visible = false
+
+  const makeWall = (name, size, position) => {
+    const wall = new THREE.Mesh(
+      new THREE.BoxGeometry(...size),
+      new THREE.MeshStandardMaterial({
+        color: floor.tone === 'orange' ? 0x49342f : 0x28444b,
+        roughness: .72,
+        metalness: .08,
+        transparent: true,
+        opacity: .46,
+        depthWrite: true,
+      }),
+    )
+    wall.name = `${group.name}__${name}`
+    wall.position.fromArray(position)
+    wall.userData.layerRole = 'floor-cutaway'
+    group.add(wall)
+  }
+
+  makeWall('back', [width, wallHeight, .06], [0, wallY, depth / 2])
+  makeWall('left', [.06, wallHeight, depth], [-width / 2, wallY, 0])
+  makeWall('right', [.06, wallHeight, depth], [width / 2, wallY, 0])
+  return group
+}
+
 function makeBuildingFloorFx(building, record, floorRoots) {
   const fx = new THREE.Group()
   fx.name = `FLOOR_FX__${record.id}__spine`
@@ -138,6 +173,11 @@ export function prepareBuildingFloors(building, record) {
   const floorRoots = record.floors.map((floor, index) => {
     const floorRoot = byName.get(`FLOOR__${record.id}__${floor.id}`)
     if (!floorRoot) throw new Error(`missing required floor node: FLOOR__${record.id}__${floor.id}`)
+    floorRoot.updateWorldMatrix(true, true)
+    const contentBounds = new THREE.Box3().setFromObject(floorRoot)
+    const contentCenter = contentBounds.isEmpty()
+      ? new THREE.Vector3()
+      : floorRoot.worldToLocal(contentBounds.getCenter(new THREE.Vector3()))
     floorRoot.userData = {
       ...floorRoot.userData,
       ...floor,
@@ -149,10 +189,14 @@ export function prepareBuildingFloors(building, record) {
       targetY: floorRoot.position.y,
       animationDelay: 0,
       fxPhase: index * .7,
+      contentCenterY: contentCenter.y,
     }
     const outline = makeFloorOutline(record, floor)
+    const cutaway = makeFloorCutaway(record, floor, index)
     floorRoot.add(outline)
+    floorRoot.add(cutaway)
     floorRoot.userData.outline = outline
+    floorRoot.userData.cutaway = cutaway
     floorRoot.visible = false
     return floorRoot
   })
@@ -176,24 +220,27 @@ export function prepareBuildingFloors(building, record) {
 export function applyFloorView(buildings, { buildingId = null, exploded = false, focusedFloorId = null } = {}) {
   for (const building of buildings) {
     const selected = building.userData.buildingId === buildingId
+    const hasFocusedFloor = selected && Boolean(focusedFloorId)
     const floors = building.userData.floorRoots ?? []
     const exteriorMeshes = building.userData.exteriorMeshes ?? []
 
     exteriorMeshes.forEach((mesh) => {
-      if (selected) setMeshOpacity(mesh, .1)
-      else materialEntries(mesh.material).forEach(restoreMaterial)
+      mesh.visible = !hasFocusedFloor
+      if (selected && !hasFocusedFloor) setMeshOpacity(mesh, .1)
+      else if (!selected) materialEntries(mesh.material).forEach(restoreMaterial)
     })
 
     floors.forEach((floor, index) => {
       const focused = selected && floor.userData.floorId === focusedFloorId
       const adjacentToFocus = selected && Boolean(focusedFloorId) && !focused
-      floor.visible = selected
+      floor.visible = selected && (!hasFocusedFloor || focused)
       floor.userData.focused = focused
       floor.userData.adjacentToFocus = adjacentToFocus
       floor.userData.targetY = floor.userData.baseY + (selected && exploded ? index * EXPLODED_FLOOR_GAP : 0)
       floor.userData.animationDelay = selected && exploded ? index * .075 : 0
       if (!selected) floor.position.y = floor.userData.baseY
       if (floor.userData.outline) floor.userData.outline.visible = selected && exploded
+      if (floor.userData.cutaway) floor.userData.cutaway.visible = focused
       floor.traverse((object) => {
         if (!object.isMesh) return
         if (!selected) {
@@ -202,10 +249,14 @@ export function applyFloorView(buildings, { buildingId = null, exploded = false,
           return
         }
         const role = object.userData.layerRole
-        object.visible = !(focused && role === 'floor-volume')
+        object.visible = role === 'floor-cutaway' ? focused : !(focused && role === 'floor-volume')
         const opacity = adjacentToFocus
           ? role === 'floor-volume' ? .035 : role === 'interior-prop' ? .2 : .34
-          : role === 'floor-volume' ? .10 : role === 'interior-prop' ? .98 : FLOOR_OPACITY
+          : role === 'floor-volume' ? .10
+            : role === 'floor-cutaway' ? .46
+              : role === 'interior-prop' ? .98
+                : focused && role === 'floor-slab' ? 1
+                  : FLOOR_OPACITY
         setMeshOpacity(object, opacity, { emphasize: role !== 'floor-volume' })
       })
     })

@@ -262,6 +262,52 @@ def create_sofa(prefix, location, width, mats, parent, rotation=0):
     return sofa
 
 
+def create_zone(name, location, parent, usage, clear_aisle_width):
+    zone = empty(name, location, parent)
+    zone["layerRole"] = "interior-zone"
+    zone["usage"] = usage
+    zone["clearAisleWidth"] = clear_aisle_width
+    return zone
+
+
+def create_desk_cluster(prefix, width, depth, mats, parent):
+    for index, px in enumerate((-width * 0.16, width * 0.16), start=1):
+        mark_interior(box(
+            f"{prefix}__desk-{index:02d}",
+            (width * 0.25, depth * 0.18, 0.15),
+            (px, 0, 0.09),
+            mats["interior_worktop"],
+            parent,
+            0.025,
+        ))
+        create_chair(f"{prefix}__chair-{index:02d}", (px, depth * 0.16, 0), mats, parent, math.pi)
+
+
+def create_lounge_cluster(prefix, width, depth, mats, parent):
+    create_sofa(f"{prefix}__sofa-01", (width * 0.08, -depth * 0.08, 0), width * 0.38, mats, parent)
+    create_sofa(f"{prefix}__sofa-02", (-width * 0.24, depth * 0.12, 0), width * 0.28, mats, parent, math.pi / 2)
+    mark_interior(box(
+        f"{prefix}__coffee-table-01",
+        (width * 0.24, depth * 0.18, 0.10),
+        (-width * 0.08, depth * 0.10, 0.06),
+        mats["interior_worktop"],
+        parent,
+        0.025,
+    ))
+
+
+def create_factory_work_cell(prefix, width, depth, mats, parent):
+    mark_interior(box(f"{prefix}__worktable-01", (width * .34, depth * .16, .18), (0, 0, .10), mats["interior_worktop"], parent, .025))
+    mark_interior(box(f"{prefix}__tool-cart-01", (width * .12, depth * .15, .24), (-width * .27, 0, .13), mats["interior_storage"], parent, .018))
+    mark_interior(box(f"{prefix}__control-panel-01", (width * .13, .12, .38), (width * .27, -depth * .04, .20), mats["interior_equipment"], parent, .018))
+
+
+def create_packing_cell(prefix, width, depth, mats, parent):
+    mark_interior(box(f"{prefix}__packing-table-01", (width * .42, depth * .20, .18), (0, 0, .10), mats["interior_worktop"], parent, .025))
+    for index, px in enumerate((-width * .29, width * .29), start=1):
+        mark_interior(box(f"{prefix}__dispatch-bin-{index:02d}", (width * .14, depth * .18, .20), (px, 0, .11), mats["interior_storage"], parent, .018))
+
+
 def create_floor_interior(building_id, floor_id, usage, width, depth, floor_height, floor_base, floor_index, mats, floor_root):
     interior = empty(f"INTERIOR__{building_id}__{floor_id}", parent=floor_root)
     interior["buildingId"] = building_id
@@ -283,17 +329,17 @@ def create_floor_interior(building_id, floor_id, usage, width, depth, floor_heig
         mark_interior(box(f"{prefix}__storage-cabinet-01", (.24, .16, max_height), (-width * .30, depth * .22, prop_z + max_height / 2), mats["interior_storage"], interior, .018))
     elif building_id == "administration":
         if floor_id == "L03":
+            meeting_zone = create_zone(f"ZONE__{building_id}__{floor_id}__meeting", (0, 0, prop_z), interior, "meeting-command", .72)
             mark_interior(box(f"{prefix}__meeting-table-01", (width * 0.42, depth * 0.18, 0.16), (0, 0, prop_z + 0.09), mats["interior_worktop"], interior, 0.035))
             mark_interior(box(f"{prefix}__display-wall-01", (width * 0.30, 0.08, 0.30), (0, -depth * 0.28, prop_z + 0.24), mats["interior_equipment"], interior, 0.018))
             for index, (px, py, rot) in enumerate(((-width*.22, 0, -math.pi/2), (width*.22, 0, math.pi/2), (0, depth*.18, math.pi)), start=1):
                 create_chair(f"{prefix}__meeting-chair-{index:02d}", (px, py, prop_z), mats, interior, rot)
         else:
-            for index, px in enumerate((-width * 0.20, width * 0.10), start=1):
-                mark_interior(box(f"{prefix}__desk-{index:02d}", (width * 0.24, depth * 0.16, 0.15), (px, -depth * 0.12, prop_z + 0.09), mats["interior_worktop"], interior, 0.025))
-                create_chair(f"{prefix}__desk-chair-{index:02d}", (px, depth * .04, prop_z), mats, interior, math.pi)
+            office_zone = create_zone(f"ZONE__{building_id}__{floor_id}__open-office", (-width * .10, -depth * .16, prop_z), interior, "open-office", .68)
+            lounge_zone = create_zone(f"ZONE__{building_id}__{floor_id}__lounge", (width * .18, depth * .12, prop_z), interior, "reception-lounge", .62)
+            create_desk_cluster(prefix, width * .58, depth * .46, mats, office_zone)
+            create_lounge_cluster(prefix, width * .42, depth * .40, mats, lounge_zone)
             mark_interior(box(f"{prefix}__partition-01", (0.06, depth * 0.42, 0.28), (width * 0.30, 0, prop_z + 0.18), mats["interior_equipment"], interior, 0.015))
-            create_sofa(f"{prefix}__sofa-01", (width * .08, depth * .25, prop_z), width * .30, mats, interior)
-            mark_interior(box(f"{prefix}__coffee-table-01", (width * .22, depth * .14, .10), (-width * .18, depth * .25, prop_z + .06), mats["interior_worktop"], interior, .025))
     elif building_id == "laboratory":
         for index, py in enumerate((-depth * 0.16, depth * 0.16), start=1):
             mark_interior(box(f"{prefix}__lab-bench-{index:02d}", (width * 0.48, depth * 0.12, 0.18), (0, py, prop_z + 0.10), mats["interior_worktop"], interior, 0.025))
@@ -304,14 +350,17 @@ def create_floor_interior(building_id, floor_id, usage, width, depth, floor_heig
         for index, py in enumerate((-depth * 0.18, depth * 0.18), start=1):
             mark_interior(box(f"{prefix}__rack-{index:02d}", (width * 0.50, 0.12, max_height), (-width * 0.04, py, prop_z + max_height / 2), mats["interior_storage"], interior, 0.018))
         mark_interior(box(f"{prefix}__pallet-01", (width * 0.18, depth * 0.18, 0.10), (width * 0.28, 0, prop_z + 0.05), mats["interior_worktop"], interior, 0.018))
-        mark_interior(box(f"{prefix}__packing-table-01", (width * .28, depth * .16, .18), (width * .16, 0, prop_z + .10), mats["interior_worktop"], interior, .025))
-        mark_interior(box(f"{prefix}__packing-bin-01", (width * .10, depth * .14, .14), (width * .34, depth * .20, prop_z + .08), mats["interior_storage"], interior, .018))
+        packing_zone = create_zone(f"ZONE__{building_id}__{floor_id}__packing", (width * .18, 0, prop_z), interior, "packing-dispatch", .70)
+        create_packing_cell(prefix, width * .46, depth * .54, mats, packing_zone)
     else:
         for index, px in enumerate((-width * 0.20, width * 0.12), start=1):
             mark_interior(box(f"{prefix}__process-skid-{index:02d}", (width * 0.22, depth * 0.24, max_height), (px, -depth * 0.10, prop_z + max_height / 2), mats["interior_equipment"], interior, 0.035))
         mark_interior(box(f"{prefix}__control-cabinet-01", (width * 0.18, 0.14, max_height * 0.90), (width * 0.28, depth * 0.20, prop_z + max_height * 0.45), mats["interior_worktop"], interior, 0.018))
-        mark_interior(box(f"{prefix}__worktable-01", (width * .30, depth * .14, .18), (0, depth * .22, prop_z + .10), mats["interior_worktop"], interior, .025))
-        mark_interior(box(f"{prefix}__tool-cart-01", (width * .12, depth * .13, .20), (-width * .32, depth * .18, prop_z + .11), mats["interior_storage"], interior, .018))
+        process_zone = create_zone(f"ZONE__{building_id}__{floor_id}__process-line", (0, depth * .12, prop_z), interior, "process-operation", .72)
+        aisle_zone = create_zone(f"ZONE__{building_id}__{floor_id}__inspection-aisle", (0, depth * .31, prop_z), interior, "inspection-aisle", .78)
+        create_factory_work_cell(prefix, width * .64, depth * .52, mats, process_zone)
+        for stripe_index, px in enumerate((-width * .30, width * .30), start=1):
+            mark_interior(box(f"{prefix}__aisle-line-{stripe_index:02d}", (.035, depth * .56, .012), (px, 0, .018), mats["safety_vest"], aisle_zone, 0))
 
     if floor_id != "RF":
         create_low_poly_walker(building_id, floor_id, width, depth, floor_base, floor_index, mats, interior)

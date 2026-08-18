@@ -354,7 +354,9 @@ test('Blender floors contain use-specific interiors and walking staff', () => {
     "required=['PROP__main-production-hall__L01__process-skid-01','PROP__main-production-hall__L01__worktable-01','PROP__front-warehouse__L01__rack-01','PROP__front-warehouse__L01__packing-table-01','PROP__administration__L02__desk-01','PROP__administration__L02__sofa-01','PROP__administration__L02__coffee-table-01','PROP__laboratory__L02__lab-bench-01','PROP__main-production-hall__RF__hvac-01','PROP__gatehouse__L01__checkpoint-desk-01']",
     "patrols=[o for o in bpy.data.objects if o.name.startswith('PATROL__campus-') and o.get('motionPath')=='site-patrol']",
     "gate=bpy.data.objects.get('GATE__barrier-inbound')",
-    "result={'records':records,'required':{name:name in bpy.data.objects for name in required},'materials':[name for name in ['MAT__interior-equipment','MAT__interior-worktop','MAT__workwear','MAT__safety-vest','MAT__hardhat'] if name in bpy.data.materials],'patrols':[{'name':o.name,'motionPath':o.get('motionPath'),'motionAxis':o.get('motionAxis'),'distance':o.get('motionDistance')} for o in patrols],'gate':{k:gate.get(k) for k in ['motionPath','motionAxis','motionSpeed','closedAngle','openAngle']} if gate else None}",
+    "zoneNames=['ZONE__administration__L02__open-office','ZONE__administration__L02__lounge','ZONE__main-production-hall__L01__process-line','ZONE__main-production-hall__L01__inspection-aisle','ZONE__front-warehouse__L01__packing']",
+    "zones={name:{'exists':name in bpy.data.objects,'usage':bpy.data.objects[name].get('usage') if name in bpy.data.objects else None,'clearAisleWidth':bpy.data.objects[name].get('clearAisleWidth') if name in bpy.data.objects else None} for name in zoneNames}",
+    "result={'records':records,'required':{name:name in bpy.data.objects for name in required},'materials':[name for name in ['MAT__interior-equipment','MAT__interior-worktop','MAT__workwear','MAT__safety-vest','MAT__hardhat'] if name in bpy.data.materials],'patrols':[{'name':o.name,'motionPath':o.get('motionPath'),'motionAxis':o.get('motionAxis'),'distance':o.get('motionDistance')} for o in patrols],'gate':{k:gate.get(k) for k in ['motionPath','motionAxis','motionSpeed','closedAngle','openAngle']} if gate else None,'zones':zones}",
     `open(${JSON.stringify(interiorsPath)},'w').write(json.dumps(result))`,
   ].join(';')
   const inspected = spawnSync(BLENDER, [blendPath, '--background', '--python-expr', inspectExpression], {
@@ -386,6 +388,11 @@ test('Blender floors contain use-specific interiors and walking staff', () => {
   assert.ok(interiors.patrols.length >= 3, 'campus needs at least three outdoor patrol walkers')
   assert.ok(interiors.patrols.every((patrol) => patrol.motionPath === 'site-patrol' && patrol.distance > 0))
   assert.deepEqual(interiors.gate, { motionPath: 'gate-barrier', motionAxis: 'z', motionSpeed: .09, closedAngle: 0, openAngle: -1.22 })
+  for (const [name, zone] of Object.entries(interiors.zones)) {
+    assert.equal(zone.exists, true, `missing functional interior zone ${name}`)
+    assert.ok(zone.usage, `${name} needs explicit usage metadata`)
+    assert.ok(zone.clearAisleWidth >= .55, `${name} needs at least .55 clear aisle width`)
+  }
   assert.deepEqual(interiors.materials.sort(), ['MAT__hardhat', 'MAT__interior-equipment', 'MAT__interior-worktop', 'MAT__safety-vest', 'MAT__workwear'])
 })
 

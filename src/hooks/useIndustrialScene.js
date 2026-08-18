@@ -3,7 +3,7 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { createIndustrialScene } from '../scene/sceneFactory.js'
 import { applyFloorView, updateFloorAnimations } from '../scene/floorInteraction.js'
-import { createFloorCameraPose } from '../scene/floorCamera.js'
+import { createFloorCameraPose, getFloorInspectionAnchor } from '../scene/floorCamera.js'
 import { buildingById } from '../scene/buildingRegistry.js'
 import { cameraLimits, clampPixelRatio, initialCameraView, normalizePointer } from '../scene/sceneMath.js'
 import { updateVehicleAnimations } from '../scene/vehicleAnimation.js'
@@ -123,10 +123,8 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
       const floor = building?.userData.floorRoots?.find((item) => item.userData.floorId === floorId)
       const record = buildingById.get(buildingId)
       if (!floor || !record) return null
-      floor.updateWorldMatrix(true, false)
-      const worldPosition = floor.getWorldPosition(new THREE.Vector3())
       return createFloorCameraPose({
-        floorWorldPosition: worldPosition.toArray(),
+        floorWorldPosition: getFloorInspectionAnchor(floor),
         buildingSize: record.size,
       })
     }
@@ -139,8 +137,7 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
         inspectionLighting.update([0, 0, 0], false)
         return
       }
-      floor.updateWorldMatrix(true, false)
-      inspectionLighting.update(floor.getWorldPosition(new THREE.Vector3()).toArray(), true)
+      inspectionLighting.update(getFloorInspectionAnchor(floor), true)
     }
 
     const resize = () => {
