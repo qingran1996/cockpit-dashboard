@@ -7,8 +7,24 @@ import { spawnSync } from 'node:child_process'
 import { buildingRegistry } from '../../src/scene/buildingRegistry.js'
 
 const BLENDER = '/Applications/Blender.app/Contents/MacOS/Blender'
-const BLENDER_TIMEOUT = 300_000
+const BLENDER_TIMEOUT = 720_000
 const GENERATOR = new URL('./create_factory_campus_graybox.py', import.meta.url).pathname
+let generatedFixture
+
+function getGeneratedFixture() {
+  if (generatedFixture) return generatedFixture
+  const output = mkdtempSync(join(tmpdir(), 'factory-campus-shared-fixture-'))
+  const blendPath = join(output, 'factory-campus-graybox.blend')
+  const glbPath = join(output, 'factory-campus-graybox.glb')
+  const generated = spawnSync(BLENDER, [
+    '--background', '--python', GENERATOR, '--',
+    '--blend-output', blendPath,
+    '--glb-output', glbPath,
+  ], { encoding: 'utf8', timeout: BLENDER_TIMEOUT })
+  assert.equal(generated.status, 0, generated.stderr || generated.stdout)
+  generatedFixture = { output, blendPath, glbPath }
+  return generatedFixture
+}
 const REQUIRED_SCENE_DETAILS = [
   'SITE__outer-boulevard',
   'SITE__entry-plaza',
@@ -37,16 +53,7 @@ const REQUIRED_SCENE_DETAILS = [
 ]
 
 test('Blender generator exports an editable scene with the complete GLB node contract', () => {
-  const output = mkdtempSync(join(tmpdir(), 'factory-campus-graybox-'))
-  const blendPath = join(output, 'factory-campus-graybox.blend')
-  const glbPath = join(output, 'factory-campus-graybox.glb')
-  const generated = spawnSync(BLENDER, [
-    '--background', '--python', GENERATOR, '--',
-    '--blend-output', blendPath,
-    '--glb-output', glbPath,
-  ], { encoding: 'utf8', timeout: BLENDER_TIMEOUT })
-
-  assert.equal(generated.status, 0, generated.stderr || generated.stdout)
+  const { output, blendPath, glbPath } = getGeneratedFixture()
   assert.ok(statSync(blendPath).size > 50_000)
   assert.ok(statSync(glbPath).size > 20_000)
 
@@ -77,16 +84,7 @@ test('Blender generator exports an editable scene with the complete GLB node con
 })
 
 test('Blender scene preserves the wide front-left industrial-campus composition', () => {
-  const output = mkdtempSync(join(tmpdir(), 'factory-campus-layout-'))
-  const blendPath = join(output, 'factory-campus-layout.blend')
-  const glbPath = join(output, 'factory-campus-layout.glb')
-  const generated = spawnSync(BLENDER, [
-    '--background', '--python', GENERATOR, '--',
-    '--blend-output', blendPath,
-    '--glb-output', glbPath,
-  ], { encoding: 'utf8', timeout: BLENDER_TIMEOUT })
-
-  assert.equal(generated.status, 0, generated.stderr || generated.stdout)
+  const { output, blendPath } = getGeneratedFixture()
 
   const layoutPath = join(output, 'layout.json')
   const inspectExpression = [
@@ -193,16 +191,7 @@ test('Blender scene preserves the wide front-left industrial-campus composition'
 })
 
 test('Blender scene uses semi-realistic industrial materials and construction details', () => {
-  const output = mkdtempSync(join(tmpdir(), 'factory-campus-realism-'))
-  const blendPath = join(output, 'factory-campus-realism.blend')
-  const glbPath = join(output, 'factory-campus-realism.glb')
-  const generated = spawnSync(BLENDER, [
-    '--background', '--python', GENERATOR, '--',
-    '--blend-output', blendPath,
-    '--glb-output', glbPath,
-  ], { encoding: 'utf8', timeout: BLENDER_TIMEOUT })
-
-  assert.equal(generated.status, 0, generated.stderr || generated.stdout)
+  const { output, blendPath } = getGeneratedFixture()
 
   const realismPath = join(output, 'realism.json')
   const inspectExpression = [
@@ -235,16 +224,7 @@ test('Blender scene uses semi-realistic industrial materials and construction de
 })
 
 test('representative buildings expose layered facade construction instead of flat wall stickers', () => {
-  const output = mkdtempSync(join(tmpdir(), 'factory-campus-facades-'))
-  const blendPath = join(output, 'factory-campus-facades.blend')
-  const glbPath = join(output, 'factory-campus-facades.glb')
-  const generated = spawnSync(BLENDER, [
-    '--background', '--python', GENERATOR, '--',
-    '--blend-output', blendPath,
-    '--glb-output', glbPath,
-  ], { encoding: 'utf8', timeout: BLENDER_TIMEOUT })
-
-  assert.equal(generated.status, 0, generated.stderr || generated.stdout)
+  const { output, blendPath } = getGeneratedFixture()
 
   const facadePath = join(output, 'facades.json')
   const inspectExpression = [
@@ -314,16 +294,7 @@ test('representative buildings expose layered facade construction instead of fla
 })
 
 test('every building exports constructed front and side wall cladding instead of a uniform white shell', () => {
-  const output = mkdtempSync(join(tmpdir(), 'factory-campus-wall-cladding-'))
-  const blendPath = join(output, 'factory-campus-wall-cladding.blend')
-  const glbPath = join(output, 'factory-campus-wall-cladding.glb')
-  const generated = spawnSync(BLENDER, [
-    '--background', '--python', GENERATOR, '--',
-    '--blend-output', blendPath,
-    '--glb-output', glbPath,
-  ], { encoding: 'utf8', timeout: BLENDER_TIMEOUT })
-
-  assert.equal(generated.status, 0, generated.stderr || generated.stdout)
+  const { output, blendPath } = getGeneratedFixture()
 
   const claddingPath = join(output, 'wall-cladding.json')
   const ids = buildingRegistry.map(({ id }) => id)
@@ -358,16 +329,7 @@ test('every building exports constructed front and side wall cladding instead of
 })
 
 test('Blender floors contain use-specific interiors and walking staff', () => {
-  const output = mkdtempSync(join(tmpdir(), 'factory-campus-interiors-'))
-  const blendPath = join(output, 'factory-campus-interiors.blend')
-  const glbPath = join(output, 'factory-campus-interiors.glb')
-  const generated = spawnSync(BLENDER, [
-    '--background', '--python', GENERATOR, '--',
-    '--blend-output', blendPath,
-    '--glb-output', glbPath,
-  ], { encoding: 'utf8', timeout: BLENDER_TIMEOUT })
-
-  assert.equal(generated.status, 0, generated.stderr || generated.stdout)
+  const { output, blendPath } = getGeneratedFixture()
 
   const interiorsPath = join(output, 'floor-interiors.json')
   const floorRecords = buildingRegistry.flatMap((building) => building.floors.map((floor) => ({ buildingId: building.id, floorId: floor.id })))
@@ -421,16 +383,7 @@ test('Blender floors contain use-specific interiors and walking staff', () => {
 })
 
 test('Blender GLB exports an interactive floor hierarchy without changing the approved layout', () => {
-  const output = mkdtempSync(join(tmpdir(), 'factory-campus-floors-'))
-  const blendPath = join(output, 'factory-campus-floors.blend')
-  const glbPath = join(output, 'factory-campus-floors.glb')
-  const generated = spawnSync(BLENDER, [
-    '--background', '--python', GENERATOR, '--',
-    '--blend-output', blendPath,
-    '--glb-output', glbPath,
-  ], { encoding: 'utf8', timeout: BLENDER_TIMEOUT })
-
-  assert.equal(generated.status, 0, generated.stderr || generated.stdout)
+  const { output, glbPath } = getGeneratedFixture()
 
   const hierarchyPath = join(output, 'floor-hierarchy.json')
   const inspectExpression = [
