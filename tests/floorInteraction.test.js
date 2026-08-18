@@ -21,6 +21,18 @@ function makeFloorBuilding() {
       new THREE.BoxGeometry(3.4, .12, 2.4),
       new THREE.MeshStandardMaterial({ opacity: .62, transparent: true, depthWrite: true }),
     ))
+    const volume = new THREE.Mesh(
+      new THREE.BoxGeometry(3.1, .7, 2.1),
+      new THREE.MeshStandardMaterial({ opacity: .38, transparent: true, depthWrite: false }),
+    )
+    volume.userData.layerRole = 'floor-volume'
+    floor.add(volume)
+    const interior = new THREE.Mesh(
+      new THREE.BoxGeometry(.4, .3, .4),
+      new THREE.MeshStandardMaterial({ opacity: 1, transparent: false, depthWrite: true }),
+    )
+    interior.userData.layerRole = 'interior-prop'
+    floor.add(interior)
     building.add(floor)
     return floor
   })
@@ -44,6 +56,8 @@ test('explodes every floor as one synchronized building section and restores it'
   assert.equal(exterior.material.opacity, .1)
   assert.equal(exterior.material.depthWrite, false)
   assert.deepEqual(floors.map((floor) => floor.children[0].material.opacity), [.86, .86, .86])
+  assert.deepEqual(floors.map((floor) => floor.children[1].material.opacity), [.18, .18, .18])
+  assert.deepEqual(floors.map((floor) => floor.children[2].material.opacity), [.98, .98, .98])
 
   module.applyFloorView([building], { buildingId: null, exploded: false })
   module.updateFloorAnimations([building], 1, true)

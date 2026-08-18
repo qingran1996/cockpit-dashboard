@@ -24,6 +24,28 @@ export function prepareFactoryCampusModel(root) {
   const animatedObjects = []
   root.traverse((object) => {
     if (!object.userData.motionPath) return
+    if (object.userData.motionPath === 'floor-walk') {
+      let leftLeg = null
+      let rightLeg = null
+      object.traverse((child) => {
+        if (child.name.endsWith('__leg-left')) leftLeg = child
+        if (child.name.endsWith('__leg-right')) rightLeg = child
+      })
+      animatedObjects.push({
+        kind: 'person',
+        object,
+        motionPath: object.userData.motionPath,
+        distance: Number(object.userData.motionDistance) || 0,
+        speed: Number(object.userData.motionSpeed) || 0,
+        phase: Number(object.userData.motionPhase) || 0,
+        baseX: object.position.x,
+        baseY: object.position.y,
+        baseRotationY: object.rotation.y,
+        leftLeg,
+        rightLeg,
+      })
+      return
+    }
     animatedObjects.push({
       kind: 'vehicle',
       object,

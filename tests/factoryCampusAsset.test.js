@@ -30,6 +30,17 @@ function makeCampus({ omitId = null } = {}) {
   shuttle.name = 'VEHICLE__gate-shuttle__root'
   shuttle.userData = { motionPath: 'gate-lane', motionDistance: 10, motionSpeed: .09 }
   root.add(shuttle)
+  const firstFloor = root.getObjectByName('FLOOR__main-production-hall__L01')
+  const walker = new THREE.Group()
+  walker.name = 'WALKER__main-production-hall__L01__01'
+  walker.position.set(-2, .1, 0)
+  walker.userData = { motionPath: 'floor-walk', motionDistance: 4, motionSpeed: .12, motionPhase: .25 }
+  const leftLeg = new THREE.Mesh(new THREE.BoxGeometry(.08, .24, .08), sharedMaterial)
+  leftLeg.name = `${walker.name}__leg-left`
+  const rightLeg = leftLeg.clone()
+  rightLeg.name = `${walker.name}__leg-right`
+  walker.add(leftLeg, rightLeg)
+  if (firstFloor) firstFloor.add(walker)
   return root
 }
 
@@ -43,12 +54,21 @@ test('maps every required GLB building node to one interactive building id', () 
     buildingRegistry.map(({ id }) => id),
   )
   assert.equal(new Set(prepared.interactiveObjects).size, buildingRegistry.length)
-  assert.equal(prepared.animatedObjects?.length, 1)
-  assert.equal(prepared.animatedObjects?.[0].kind, 'vehicle')
-  assert.equal(prepared.animatedObjects?.[0].object, campus.getObjectByName('VEHICLE__gate-shuttle__root'))
-  assert.equal(prepared.animatedObjects?.[0].motionPath, 'gate-lane')
-  assert.equal(prepared.animatedObjects?.[0].distance, 10)
-  assert.equal(prepared.animatedObjects?.[0].speed, .09)
+  assert.equal(prepared.animatedObjects?.length, 2)
+  const vehicle = prepared.animatedObjects.find(({ object }) => object.name === 'VEHICLE__gate-shuttle__root')
+  assert.equal(vehicle.kind, 'vehicle')
+  assert.equal(vehicle.motionPath, 'gate-lane')
+  assert.equal(vehicle.distance, 10)
+  assert.equal(vehicle.speed, .09)
+  const person = prepared.animatedObjects.find(({ object }) => object.name === 'WALKER__main-production-hall__L01__01')
+  assert.equal(person.kind, 'person')
+  assert.equal(person.distance, 4)
+  assert.equal(person.speed, .12)
+  assert.equal(person.phase, .25)
+  assert.equal(person.baseX, -2)
+  assert.equal(person.baseY, .1)
+  assert.equal(person.leftLeg?.name.endsWith('__leg-left'), true)
+  assert.equal(person.rightLeg?.name.endsWith('__leg-right'), true)
   const preparedMaterials = prepared.interactiveObjects.map((building) => building.children[0].material)
   assert.equal(new Set(preparedMaterials).size, buildingRegistry.length)
   for (const building of prepared.interactiveObjects) {

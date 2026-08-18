@@ -11,7 +11,9 @@ test('renders an accessible industrial floor-section control for the selected bu
   const markup = renderToStaticMarkup(createElement(module.BuildingFloorPanel, {
     building,
     exploded: true,
+    focusedFloorId: 'L02',
     onToggleExploded: () => {},
+    onSelectFloor: () => {},
     onClose: () => {},
   }))
 
@@ -20,9 +22,10 @@ test('renders an accessible industrial floor-section control for the selected bu
   assert.match(markup, /L01/)
   assert.match(markup, /二层综合办公区/)
   assert.match(markup, /行政办公与协同空间/)
-  assert.match(markup, /3 个空间同步展开/)
-  assert.doesNotMatch(markup, /aria-label="查看 /)
-  assert.equal((markup.match(/aria-pressed=/g) ?? []).length, 1)
+  assert.match(markup, /正在查看 L02 · 二层综合办公区/)
+  assert.match(markup, /aria-label="进入 L02 二层综合办公区内部"/)
+  assert.equal((markup.match(/aria-pressed=/g) ?? []).length, 4)
+  assert.match(markup, /aria-pressed="true"[^>]*data-tone="cyan"/)
   assert.match(markup, /合拢楼层/)
   assert.match(markup, /关闭建筑分层详情/)
 })

@@ -49,12 +49,18 @@ npm run build
 
 ## Blender 模型
 
+厂区模型采用 Blender 参数化建模并导出为 glTF 2.0。当前模型不是单纯的白盒占位：在保留参考图总体布局的基础上，已经补充建筑墙板分缝、基座、檐口、窗带、装卸门、屋顶设备及管廊等工业建筑构造；主要建筑按楼层拆分，并在楼层内部布置生产设备、检修设施、办公家具和行走人员，供 Web 端爆炸分层及内部视角使用。
+
+室外场景包含环厂道路、内部车道、路缘石、排水沟、斑马线、方向标线、停车位与挡轮器、门卫闸机和动态车辆。绿化采用工业园区的秩序型设计，包括外围树列、内部乔木、树池、雨水花园、灌木和观赏草；闸门车辆通道及入口视线范围设有无树净空区。
+
 主要资产：
 
 - `assets/blender/factory-campus-graybox.blend`：可编辑 Blender 源文件
 - `public/models/factory-campus-graybox.glb`：Web 端加载的模型
 - `tools/blender/create_factory_campus_graybox.py`：确定性模型生成脚本
 - `docs/BLENDER_GRAYBOX.md`：模型结构和运行时约定
+
+生成脚本是模型结构的维护入口。需要修改建筑、道路或绿化时，应先更新生成脚本及场景合同测试，再重新生成 `.blend` 和 `.glb`，避免手工编辑结果在下一次导出时丢失。
 
 在 macOS 上重新生成模型：
 
@@ -73,7 +79,7 @@ GLB 中的可交互节点遵循以下命名规则：
 - 楼层：`FLOOR__<building-id>__<floor-id>`
 - 动态闸门车辆：`VEHICLE__gate-shuttle__root`
 
-楼层爆炸动画由 Web 端 Three.js 控制；Blender 负责提供可独立移动的楼层节点。车辆节点通过 `motionPath`、`motionDistance` 和 `motionSpeed` 元数据声明运动参数。
+楼层爆炸动画与内部视角切换由 Web 端 Three.js 控制；Blender 负责提供可独立移动的楼层节点、楼层内部物体和人员动画元数据。车辆节点通过 `motionPath`、`motionDistance` 和 `motionSpeed` 元数据声明运动参数。
 
 ## 测试
 
@@ -89,7 +95,7 @@ Blender 模型合同测试建议单并发运行，避免同时启动多个 Blend
 node --test --test-concurrency=1 tools/blender/create_factory_campus_graybox.test.js
 ```
 
-测试覆盖建筑节点、楼层元数据、建筑间距、道路与停车设施、车辆动画、相机方向和 GLB 加载回退。
+测试覆盖建筑节点、楼层元数据、内部设施、建筑间距、墙面构造、道路与停车设施、绿化层次、闸门入口净空、车辆动画、相机方向和 GLB 加载回退。
 
 ## 目录
 

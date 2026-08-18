@@ -196,7 +196,9 @@ export function applyFloorView(buildings, { buildingId = null, exploded = false 
           materialEntries(object.material).forEach(restoreMaterial)
           return
         }
-        setMeshOpacity(object, FLOOR_OPACITY, { emphasize: true })
+        const role = object.userData.layerRole
+        const opacity = role === 'floor-volume' ? .18 : role === 'interior-prop' ? .98 : FLOOR_OPACITY
+        setMeshOpacity(object, opacity, { emphasize: role !== 'floor-volume' })
       })
     })
 

@@ -3,8 +3,11 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { createIndustrialScene } from '../scene/sceneFactory.js'
 import { applyFloorView, updateFloorAnimations } from '../scene/floorInteraction.js'
+import { createFloorCameraPose } from '../scene/floorCamera.js'
+import { buildingById } from '../scene/buildingRegistry.js'
 import { cameraLimits, clampPixelRatio, initialCameraView, normalizePointer } from '../scene/sceneMath.js'
 import { updateVehicleAnimations } from '../scene/vehicleAnimation.js'
+import { updatePersonAnimations } from '../scene/personAnimation.js'
 
 const INITIAL_CAMERA = new THREE.Vector3(...initialCameraView.position)
 const INITIAL_TARGET = new THREE.Vector3(...initialCameraView.target)
@@ -39,10 +42,12 @@ function findBuildingGroup(object) {
 export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMotion, floorView }) {
   const [webglError, setWebglError] = useState(false)
   const resetRef = useRef(() => {})
+  const focusFloorRef = useRef(() => {})
   const parkRef = useRef(null)
   const floorViewRef = useRef(floorView)
 
   const resetView = useCallback(() => resetRef.current(), [])
+  const focusFloor = useCallback((buildingId, floorId) => focusFloorRef.current(buildingId, floorId), [])
 
   useEffect(() => {
     floorViewRef.current = floorView
@@ -106,7 +111,21 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
     let resetStart = 0
     let resetFromPosition = null
     let resetFromTarget = null
+    let focusTransition = null
     let previousFrameTime = 0
+
+    const resolveFloorPose = (buildingId, floorId) => {
+      const building = park.interactiveObjects.find((item) => item.userData.buildingId === buildingId)
+      const floor = building?.userData.floorRoots?.find((item) => item.userData.floorId === floorId)
+      const record = buildingById.get(buildingId)
+      if (!floor || !record) return null
+      floor.updateWorldMatrix(true, false)
+      const worldPosition = floor.getWorldPosition(new THREE.Vector3())
+      return createFloorCameraPose({
+        floorWorldPosition: worldPosition.toArray(),
+        buildingSize: record.size,
+      })
+    }
 
     const resize = () => {
       const { width, height } = container.getBoundingClientRect()
@@ -154,16 +173,39 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
     renderer.domElement.addEventListener('pointerleave', handlePointerLeave)
     renderer.domElement.addEventListener('click', handleClick)
     controls.addEventListener('start', () => {
+      focusTransition = null
       controls.autoRotate = false
       lastInteraction = performance.now()
     })
     controls.addEventListener('end', () => { lastInteraction = performance.now() })
 
     resetRef.current = () => {
+      focusTransition = null
+      controls.minDistance = cameraLimits.minDistance
+      controls.maxDistance = cameraLimits.maxDistance
       resetStart = performance.now()
       resetFromPosition = camera.position.clone()
       resetFromTarget = controls.target.clone()
       lastInteraction = performance.now()
+    }
+
+    focusFloorRef.current = (buildingId, floorId) => {
+      const pose = resolveFloorPose(buildingId, floorId)
+      if (!pose) return false
+      resetStart = 0
+      controls.autoRotate = false
+      controls.minDistance = 1.2
+      controls.maxDistance = Math.min(24, cameraLimits.maxDistance)
+      focusTransition = {
+        buildingId,
+        floorId,
+        startedAt: performance.now(),
+        duration: pose.duration,
+        fromPosition: camera.position.clone(),
+        fromTarget: controls.target.clone(),
+      }
+      lastInteraction = performance.now()
+      return true
     }
 
     const animate = (time) => {
@@ -174,6 +216,20 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
       controls.autoRotate = !reducedMotion && !resetStart && performance.now() - lastInteraction > 8000
       updateFloorAnimations(park.interactiveObjects, deltaSeconds, reducedMotion)
       updateVehicleAnimations(park.animated, seconds, reducedMotion)
+      updatePersonAnimations(park.animated, seconds, reducedMotion)
+
+      if (focusTransition) {
+        const pose = resolveFloorPose(focusTransition.buildingId, focusTransition.floorId)
+        if (!pose) {
+          focusTransition = null
+        } else {
+          const progress = reducedMotion ? 1 : Math.min((performance.now() - focusTransition.startedAt) / focusTransition.duration, 1)
+          const eased = 1 - (1 - progress) ** 3
+          camera.position.lerpVectors(focusTransition.fromPosition, new THREE.Vector3(...pose.position), eased)
+          controls.target.lerpVectors(focusTransition.fromTarget, new THREE.Vector3(...pose.target), eased)
+          if (progress === 1) focusTransition = null
+        }
+      }
 
       if (resetStart) {
         const progress = Math.min((performance.now() - resetStart) / 900, 1)
@@ -217,8 +273,9 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
       renderer.forceContextLoss()
       renderer.domElement.remove()
       resetRef.current = () => {}
+      focusFloorRef.current = () => false
     }
   }, [containerRef, onHover, onSelect, reducedMotion])
 
-  return { webglError, resetView }
+  return { webglError, resetView, focusFloor }
 }
