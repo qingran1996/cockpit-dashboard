@@ -70,6 +70,11 @@ export function prepareFactoryCampusModel(root) {
       motionPath: object.userData.motionPath,
       distance: Number(object.userData.motionDistance) || 0,
       speed: Number(object.userData.motionSpeed) || 0,
+      phase: Number(object.userData.motionPhase) || 0,
+      baseX: object.position.x,
+      baseY: object.position.y,
+      baseZ: object.position.z,
+      baseRotationY: object.rotation.y,
     })
   })
 

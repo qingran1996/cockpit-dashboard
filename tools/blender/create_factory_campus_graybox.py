@@ -1187,6 +1187,53 @@ def create_roads_and_site(mats, campus):
             wheel_stop_index += 1
 
     gate = empty("SITE__vehicle-gate", (20.5, 17.0, 0), site)
+    recognition = box(
+        "GATE__recognition-zone",
+        (1.15, 0.92, 0.028),
+        (-0.78, 2.05, 0.14),
+        mats["safety_yellow"],
+        gate,
+        0.015,
+    )
+    recognition["layerRole"] = "traffic-recognition"
+    recognition["vehicleClearance"] = 1.4
+    box("GATE__stop-line", (1.35, 0.13, 0.035), (-0.78, 1.24, 0.15), mats["stripe"], gate, 0.008)
+    box("GATE__speed-bump-01", (1.30, 0.30, 0.095), (-0.78, 3.10, 0.17), mats["safety_yellow"], gate, 0.035)
+
+    for name, px, py, direction in (
+        ("GATE__lane-arrow-inbound", -0.78, 2.62, -1),
+        ("GATE__lane-arrow-outbound", 0.78, -2.25, 1),
+    ):
+        box(name, (0.13, 0.68, 0.028), (px, py, 0.15), mats["stripe"], gate, 0.005)
+        for side in (-1, 1):
+            box(
+                f"{name}__head-{side:+d}",
+                (0.11, 0.38, 0.028),
+                (px + side * 0.12, py + direction * 0.30, 0.151),
+                mats["stripe"],
+                gate,
+                0.005,
+                rotation=(0, 0, math.radians(side * direction * 38)),
+            )
+
+    visitor_bay = box(
+        "GATE__visitor-bay",
+        (1.32, 2.55, 0.055),
+        (2.42, 2.15, 0.10),
+        mats["asphalt"],
+        gate,
+        0.018,
+    )
+    visitor_bay["usage"] = "visitor-pull-off"
+    for side in (-1, 1):
+        box(
+            f"GATE__visitor-bay-line-{side:+d}",
+            (0.055, 2.30, 0.024),
+            (2.42 + side * 0.58, 2.15, 0.145),
+            mats["stripe"],
+            gate,
+            0,
+        )
     for side, px in (("west", -1.65), ("east", 1.65)):
         box(f"GATE__post-{side}", (0.18, 0.18, 2.25), (px, 0, 1.12), mats["pipe"], gate, 0.025)
     box("GATE__canopy", (3.8, 1.15, 0.16), (0, 0, 2.25), mats["roof"], gate, 0.035)

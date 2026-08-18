@@ -1,20 +1,7 @@
-function smoothstep(value) {
-  const clamped = Math.max(0, Math.min(1, value))
-  return clamped * clamped * (3 - 2 * clamped)
-}
-
-function crossingWindow(cycle, center) {
-  const distance = Math.abs(cycle - center)
-  const holdRadius = .075
-  const rampRadius = .09
-  if (distance <= holdRadius) return 1
-  if (distance >= holdRadius + rampRadius) return 0
-  return 1 - smoothstep((distance - holdRadius) / rampRadius)
-}
+import { sampleGateTrafficCycle } from './gateTrafficCycle.js'
 
 export function gateOpenAmount(cycle) {
-  const normalized = ((cycle % 1) + 1) % 1
-  return Math.max(crossingWindow(normalized, .25), crossingWindow(normalized, .75))
+  return sampleGateTrafficCycle(cycle, 1).barrierOpen
 }
 
 export function updateGateAnimations(animatedItems, seconds, reducedMotion = false) {
@@ -24,7 +11,10 @@ export function updateGateAnimations(animatedItems, seconds, reducedMotion = fal
     const baseAngle = item[`baseRotation${axis.toUpperCase()}`] ?? item.closedAngle ?? 0
     const closedAngle = item.closedAngle ?? baseAngle
     const openAngle = item.openAngle ?? closedAngle
-    const amount = reducedMotion || !item.speed ? 0 : gateOpenAmount(seconds * item.speed + (item.phase ?? 0))
+    const phaseOffset = Number(item.phase) || 0
+    const amount = reducedMotion || !item.speed
+      ? 0
+      : sampleGateTrafficCycle(seconds + phaseOffset / item.speed, item.speed).barrierOpen
     item.object.rotation[axis] = closedAngle + (openAngle - closedAngle) * amount
   })
 }

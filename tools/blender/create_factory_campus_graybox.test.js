@@ -26,6 +26,12 @@ const REQUIRED_SCENE_DETAILS = [
   'PARKING__surface',
   'GATE__barrier-inbound',
   'GATE__barrier-inbound__arm',
+  'GATE__recognition-zone',
+  'GATE__stop-line',
+  'GATE__speed-bump-01',
+  'GATE__lane-arrow-inbound',
+  'GATE__lane-arrow-outbound',
+  'GATE__visitor-bay',
   'VEHICLE__gate-shuttle__root',
   'PATROL__campus-01',
 ]
