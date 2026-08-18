@@ -11,11 +11,11 @@ export function createFloorCameraPose({ floorWorldPosition, buildingSize }) {
   const distance = clamp(Math.min(Math.abs(width), Math.abs(depth)) * .62, MIN_DISTANCE, MAX_DISTANCE)
   const targetLift = clamp(Math.abs(height) * .12, .18, .55)
   const cameraLift = clamp(Math.abs(height) * .28, .6, 1.35)
-  const target = [x, y + targetLift, z]
+  const target = [x + Math.abs(width) * .03, y + targetLift, z + Math.abs(depth) * .08]
 
   return {
     target,
-    position: [x - distance * .55, target[1] + cameraLift, z - distance],
+    position: [target[0] - distance * .55, target[1] + cameraLift, target[2] - distance],
     duration: 1050,
   }
 }

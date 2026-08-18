@@ -68,3 +68,25 @@ test('explodes every floor as one synchronized building section and restores it'
   assert.equal(exterior.material.opacity, 1)
   assert.equal(exterior.material.depthWrite, true)
 })
+
+test('cuts away the focused floor volume and subdues adjacent floor interiors', async () => {
+  const { applyFloorView, updateFloorAnimations } = await import('../src/scene/floorInteraction.js')
+  const { building, floors } = makeFloorBuilding()
+
+  applyFloorView([building], {
+    buildingId: 'administration',
+    exploded: true,
+    focusedFloorId: 'L02',
+  })
+  updateFloorAnimations([building], 1, true)
+
+  assert.equal(floors[1].userData.focused, true)
+  assert.equal(floors[1].children[1].visible, false)
+  assert.equal(floors[1].children[2].material.opacity, .98)
+  assert.deepEqual([floors[0].userData.adjacentToFocus, floors[2].userData.adjacentToFocus], [true, true])
+  assert.deepEqual([floors[0].children[2].material.opacity, floors[2].children[2].material.opacity], [.2, .2])
+
+  applyFloorView([building], { buildingId: 'administration', exploded: true, focusedFloorId: null })
+  assert.equal(floors[1].children[1].visible, true)
+  assert.deepEqual(floors.map((floor) => floor.children[2].material.opacity), [.98, .98, .98])
+})

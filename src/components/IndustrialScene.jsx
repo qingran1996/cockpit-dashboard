@@ -35,7 +35,8 @@ export function IndustrialScene() {
   const floorView = useMemo(() => ({
     buildingId: selectedId,
     exploded: floorsExploded,
-  }), [selectedId, floorsExploded])
+    focusedFloorId,
+  }), [selectedId, floorsExploded, focusedFloorId])
   const { webglError, resetView, focusFloor } = useIndustrialScene({
     containerRef: canvasRef,
     onHover: handleHover,

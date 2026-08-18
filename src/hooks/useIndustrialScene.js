@@ -9,6 +9,7 @@ import { cameraLimits, clampPixelRatio, initialCameraView, normalizePointer } fr
 import { updateVehicleAnimations } from '../scene/vehicleAnimation.js'
 import { updatePersonAnimations } from '../scene/personAnimation.js'
 import { updateGateAnimations } from '../scene/gateAnimation.js'
+import { createFloorInspectionLighting } from '../scene/floorInspectionLighting.js'
 
 const INITIAL_CAMERA = new THREE.Vector3(...initialCameraView.position)
 const INITIAL_TARGET = new THREE.Vector3(...initialCameraView.target)
@@ -83,6 +84,8 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
     scene.fog = new THREE.FogExp2(0x020b14, initialCameraView.fogDensity)
     const camera = new THREE.PerspectiveCamera(initialCameraView.fov, 1, .1, 160)
     camera.position.copy(INITIAL_CAMERA)
+    const inspectionLighting = createFloorInspectionLighting()
+    scene.add(inspectionLighting.group)
 
     const controls = new OrbitControls(camera, renderer.domElement)
     controls.target.copy(INITIAL_TARGET)
@@ -126,6 +129,18 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
         floorWorldPosition: worldPosition.toArray(),
         buildingSize: record.size,
       })
+    }
+
+    const updateInspectionLighting = () => {
+      const { buildingId, focusedFloorId } = floorViewRef.current ?? {}
+      const building = park.interactiveObjects.find((item) => item.userData.buildingId === buildingId)
+      const floor = building?.userData.floorRoots?.find((item) => item.userData.floorId === focusedFloorId)
+      if (!floor) {
+        inspectionLighting.update([0, 0, 0], false)
+        return
+      }
+      floor.updateWorldMatrix(true, false)
+      inspectionLighting.update(floor.getWorldPosition(new THREE.Vector3()).toArray(), true)
     }
 
     const resize = () => {
@@ -219,6 +234,7 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
       updateVehicleAnimations(park.animated, seconds, reducedMotion)
       updatePersonAnimations(park.animated, seconds, reducedMotion)
       updateGateAnimations(park.animated, seconds, reducedMotion)
+      updateInspectionLighting()
 
       if (focusTransition) {
         const pose = resolveFloorPose(focusTransition.buildingId, focusTransition.floorId)
@@ -268,6 +284,7 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
       renderer.domElement.removeEventListener('click', handleClick)
       setBuildingHighlight(hovered, false)
       controls.dispose()
+      inspectionLighting.dispose()
       park.dispose()
       if (parkRef.current === park) parkRef.current = null
       scene.clear()

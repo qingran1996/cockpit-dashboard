@@ -173,7 +173,7 @@ export function prepareBuildingFloors(building, record) {
   return floorRoots
 }
 
-export function applyFloorView(buildings, { buildingId = null, exploded = false } = {}) {
+export function applyFloorView(buildings, { buildingId = null, exploded = false, focusedFloorId = null } = {}) {
   for (const building of buildings) {
     const selected = building.userData.buildingId === buildingId
     const floors = building.userData.floorRoots ?? []
@@ -185,7 +185,11 @@ export function applyFloorView(buildings, { buildingId = null, exploded = false 
     })
 
     floors.forEach((floor, index) => {
+      const focused = selected && floor.userData.floorId === focusedFloorId
+      const adjacentToFocus = selected && Boolean(focusedFloorId) && !focused
       floor.visible = selected
+      floor.userData.focused = focused
+      floor.userData.adjacentToFocus = adjacentToFocus
       floor.userData.targetY = floor.userData.baseY + (selected && exploded ? index * EXPLODED_FLOOR_GAP : 0)
       floor.userData.animationDelay = selected && exploded ? index * .075 : 0
       if (!selected) floor.position.y = floor.userData.baseY
@@ -193,11 +197,15 @@ export function applyFloorView(buildings, { buildingId = null, exploded = false 
       floor.traverse((object) => {
         if (!object.isMesh) return
         if (!selected) {
+          object.visible = true
           materialEntries(object.material).forEach(restoreMaterial)
           return
         }
         const role = object.userData.layerRole
-        const opacity = role === 'floor-volume' ? .10 : role === 'interior-prop' ? .98 : FLOOR_OPACITY
+        object.visible = !(focused && role === 'floor-volume')
+        const opacity = adjacentToFocus
+          ? role === 'floor-volume' ? .035 : role === 'interior-prop' ? .2 : .34
+          : role === 'floor-volume' ? .10 : role === 'interior-prop' ? .98 : FLOOR_OPACITY
         setMeshOpacity(object, opacity, { emphasize: role !== 'floor-volume' })
       })
     })
