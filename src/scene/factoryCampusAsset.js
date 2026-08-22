@@ -1,10 +1,13 @@
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { buildingRegistry } from './buildingRegistry.js'
 import { prepareBuildingFloors } from './floorInteraction.js'
+import { collectCampusRoutes } from './campusRouteRegistry.js'
+import { configureCampusMeshShadows } from './campusShadowQuality.js'
 
 export const FACTORY_CAMPUS_MODEL_URL = '/models/factory-campus-graybox.glb'
 
 export function prepareFactoryCampusModel(root) {
+  const routes = collectCampusRoutes(root)
   const interactiveObjects = buildingRegistry.map((record) => {
     const building = root.getObjectByName(record.nodeName)
     if (!building) throw new Error(`missing required building node: ${record.nodeName}`)
@@ -20,11 +23,28 @@ export function prepareFactoryCampusModel(root) {
     })
     return building
   })
+  configureCampusMeshShadows(root)
 
   const animatedObjects = []
   root.traverse((object) => {
     if (!object.userData.motionPath) return
-    if (object.userData.motionPath === 'floor-walk' || object.userData.motionPath === 'site-patrol') {
+    if (object.userData.motionPath === 'campus-route') {
+      const routeId = String(object.userData.linkedRoute || '')
+      const route = routes.get(routeId)
+      if (!route) throw new Error(`missing campus route for vehicle: ${object.name} -> ${routeId}`)
+      animatedObjects.push({
+        kind: 'route-vehicle',
+        object,
+        motionPath: 'campus-route',
+        route,
+        speed: Number(object.userData.motionSpeed) || 0,
+        phase: Number(object.userData.motionPhase) || 0,
+        basePosition: object.position.clone(),
+        baseRotationY: object.rotation.y,
+      })
+      return
+    }
+    if (object.userData.motionPath === 'floor-walk' || object.userData.motionPath === 'site-patrol' || object.userData.motionPath === 'task-route') {
       let leftLeg = null
       let rightLeg = null
       object.traverse((child) => {
@@ -39,6 +59,10 @@ export function prepareFactoryCampusModel(root) {
         distance: Number(object.userData.motionDistance) || 0,
         speed: Number(object.userData.motionSpeed) || 0,
         phase: Number(object.userData.motionPhase) || 0,
+        dwellFraction: Number(object.userData.dwellFraction) || 0,
+        taskRole: object.userData.taskRole || '',
+        taskStartAnchor: object.userData.taskStartAnchor || '',
+        taskEndAnchor: object.userData.taskEndAnchor || '',
         baseX: object.position.x,
         baseY: object.position.y,
         baseZ: object.position.z,
@@ -68,6 +92,7 @@ export function prepareFactoryCampusModel(root) {
       kind: 'vehicle',
       object,
       motionPath: object.userData.motionPath,
+      axis: object.userData.motionAxis === 'x' ? 'x' : 'z',
       distance: Number(object.userData.motionDistance) || 0,
       speed: Number(object.userData.motionSpeed) || 0,
       phase: Number(object.userData.motionPhase) || 0,
@@ -80,7 +105,7 @@ export function prepareFactoryCampusModel(root) {
 
   root.name ||= 'FactoryCampusGraybox'
   root.userData.assetSource = 'blender-glb'
-  return { root, interactiveObjects, animatedObjects }
+  return { root, interactiveObjects, animatedObjects, routes }
 }
 
 export async function loadFactoryCampusModel(loader = new GLTFLoader()) {

@@ -25,9 +25,22 @@ test('opening view observes the expanded campus from the reference front-left di
   assert.ok(module.initialCameraView, 'initial camera preset is missing')
   const [x, y, z] = module.initialCameraView.position
   const distance = Math.hypot(x, y, z)
+  const [, targetY, targetZ] = module.initialCameraView.target
+  const horizontalDistance = Math.hypot(x, z - targetZ)
   assert.ok(x < 0 && z < 0, `opening camera is reversed: ${module.initialCameraView.position}`)
-  assert.ok(distance >= 63, `opening camera does not leave a dashboard-safe perimeter margin: ${distance}`)
+  assert.ok(distance >= 76 && distance <= 84, `opening camera should present a closer hero composition: ${distance}`)
+  assert.ok((y - targetY) / horizontalDistance <= .40, `opening camera remains too top-down: ${module.initialCameraView.position}`)
   assert.ok(module.cameraLimits.maxDistance > distance, 'orbit controls cannot preserve the opening distance')
-  assert.ok(module.initialCameraView.fogDensity <= .014, 'expanded site is obscured by the old close-range fog')
-  assert.ok(module.initialCameraView.exposure >= 1.5, 'front-left view needs enough exposure to read road and parking details')
+  assert.ok(module.initialCameraView.fogDensity <= .006, 'expanded site is obscured by the old close-range fog')
+  assert.ok(module.initialCameraView.exposure >= 1.82, 'front-left view needs enough exposure to read rear walls and parking details')
+})
+
+test('focus view moves closer and aims lower so the campus fills the tall viewport', async () => {
+  const module = await import('../src/scene/sceneMath.js')
+  assert.ok(module.focusCameraView, 'focus camera preset is missing')
+  const openingDistance = Math.hypot(...module.initialCameraView.position)
+  const focusDistance = Math.hypot(...module.focusCameraView.position)
+  assert.ok(focusDistance < openingDistance, `focus camera did not move closer: ${focusDistance}`)
+  assert.ok(focusDistance >= 70 && focusDistance <= 78)
+  assert.ok(module.focusCameraView.target[1] < module.initialCameraView.target[1], 'focus camera must aim lower into the site apron')
 })

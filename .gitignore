@@ -1,14 +1,16 @@
-node_modules/
+node_modules
 dist/
+.vite/
 .playwright-cli/
 .DS_Store
+**/__pycache__/
+*.pyc
 
 # Local visual reference supplied for implementation
 disignpng.png
 
-# Local visual QA captures; keep only the README preview.
+# Local visual QA captures.
 output/playwright/*.png
-!output/playwright/factory-campus-expanded-traffic.png
 
 # Blender autosaves and superseded root-level exports.
 *.blend1

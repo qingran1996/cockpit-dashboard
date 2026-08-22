@@ -7,23 +7,92 @@ import math
 import os
 import sys
 
+import bmesh
 import bpy
 from mathutils import Vector
 
 
+PLAN_SCALE = math.sqrt(2.0)
+
+
+CANOPY_PROFILES = {
+    "broadleaf": (
+        (-0.42, -0.10, -0.10, 0.72, 0.62, 0.72),
+        (0.40, -0.14, -0.06, 0.70, 0.60, 0.76),
+        (-0.18, 0.36, 0.00, 0.68, 0.62, 0.78),
+        (0.22, 0.33, 0.06, 0.68, 0.60, 0.74),
+        (0.00, 0.02, 0.38, 0.64, 0.58, 0.72),
+        (-0.02, -0.02, -0.34, 0.82, 0.72, 0.60),
+        (-0.52, 0.18, 0.12, 0.46, 0.44, 0.56),
+        (0.50, 0.16, 0.18, 0.48, 0.42, 0.54),
+    ),
+    "spreading": (
+        (-0.58, -0.08, -0.12, 0.72, 0.54, 0.58),
+        (0.58, -0.05, -0.08, 0.70, 0.52, 0.60),
+        (-0.34, 0.34, 0.02, 0.66, 0.50, 0.58),
+        (0.34, 0.34, 0.04, 0.64, 0.48, 0.58),
+        (0.00, 0.04, 0.28, 0.74, 0.56, 0.60),
+        (0.00, -0.12, -0.30, 0.92, 0.66, 0.48),
+        (-0.72, 0.16, 0.04, 0.40, 0.38, 0.46),
+        (0.72, 0.12, 0.06, 0.40, 0.36, 0.44),
+    ),
+    "columnar": (
+        (-0.22, -0.10, -0.34, 0.48, 0.44, 0.72),
+        (0.22, -0.06, -0.28, 0.46, 0.42, 0.74),
+        (-0.18, 0.16, 0.06, 0.50, 0.44, 0.78),
+        (0.18, 0.14, 0.12, 0.48, 0.42, 0.76),
+        (0.00, -0.02, 0.48, 0.44, 0.40, 0.72),
+        (0.00, 0.00, 0.82, 0.34, 0.32, 0.54),
+        (-0.30, 0.02, 0.34, 0.36, 0.34, 0.56),
+        (0.30, 0.02, 0.30, 0.36, 0.34, 0.58),
+    ),
+    "ornamental": (
+        (-0.34, -0.18, -0.12, 0.58, 0.52, 0.62),
+        (0.34, -0.15, -0.10, 0.56, 0.50, 0.64),
+        (-0.28, 0.24, 0.00, 0.54, 0.50, 0.62),
+        (0.28, 0.26, 0.04, 0.54, 0.48, 0.62),
+        (0.00, 0.00, 0.34, 0.56, 0.50, 0.62),
+        (0.00, 0.00, -0.30, 0.70, 0.62, 0.52),
+        (-0.46, 0.08, 0.16, 0.38, 0.36, 0.44),
+        (0.46, 0.08, 0.14, 0.38, 0.34, 0.46),
+    ),
+    "woodland": (
+        (-0.44, -0.26, -0.18, 0.68, 0.58, 0.70),
+        (0.38, -0.24, -0.06, 0.62, 0.58, 0.74),
+        (-0.38, 0.28, 0.02, 0.64, 0.56, 0.72),
+        (0.36, 0.32, 0.16, 0.62, 0.54, 0.70),
+        (-0.10, 0.00, 0.42, 0.62, 0.56, 0.74),
+        (0.08, -0.04, -0.36, 0.80, 0.70, 0.56),
+        (-0.58, 0.02, 0.26, 0.42, 0.40, 0.50),
+        (0.56, 0.06, 0.28, 0.42, 0.38, 0.48),
+    ),
+    "conifer": (
+        (0.00, 0.00, -0.52, 0.82, 0.82, 0.36),
+        (0.00, 0.00, -0.18, 0.70, 0.70, 0.34),
+        (0.00, 0.00, 0.14, 0.58, 0.58, 0.32),
+        (0.00, 0.00, 0.42, 0.46, 0.46, 0.30),
+        (0.00, 0.00, 0.68, 0.32, 0.32, 0.28),
+        (-0.22, 0.05, -0.30, 0.46, 0.42, 0.26),
+        (0.22, -0.04, -0.02, 0.38, 0.36, 0.24),
+        (-0.14, 0.10, 0.30, 0.30, 0.28, 0.22),
+    ),
+}
+CANOPY_PROFILE_NAMES = tuple(CANOPY_PROFILES)
+
+
 BUILDINGS = [
-    ("main-production-hall", (10.0, 0.5), (15.0, 6.2, 3.4), "factory"),
-    ("central-processing-hall", (-2.5, -5.9), (11.5, 4.5, 3.1), "factory"),
-    ("rear-high-bay", (0.0, -13.0), (9.5, 4.0, 5.2), "factory"),
-    ("north-east-workshop", (-11.5, -12.5), (5.2, 3.0, 2.8), "factory"),
-    ("east-process-hall", (-14.0, -5.0), (6.0, 3.6, 3.0), "factory"),
-    ("far-east-utility", (-22.0, 3.2), (3.2, 2.4, 2.1), "factory"),
-    ("east-warehouse", (-14.0, 2.2), (7.0, 4.0, 2.7), "factory"),
-    ("front-warehouse", (-3.0, 10.0), (7.2, 3.0, 2.9), "factory"),
-    ("front-utility-annex", (-12.0, 10.5), (3.0, 2.0, 1.8), "factory"),
-    ("laboratory", (-19.0, 10.5), (3.2, 1.8, 3.6), "office"),
-    ("administration", (9.5, 11.3), (5.0, 3.5, 4.2), "administration"),
-    ("gatehouse", (23.2, 14.7), (2.0, 1.5, 1.8), "office"),
+    ("main-production-hall", (12.0, 0.5), (16.8, 7.0, 3.8), "factory"),
+    ("central-processing-hall", (-2.5, -5.9), (12.9, 5.1, 3.45), "factory"),
+    ("rear-high-bay", (0.0, -13.0), (10.7, 4.5, 5.7), "factory"),
+    ("north-east-workshop", (-11.5, -12.5), (5.9, 3.4, 3.1), "factory"),
+    ("east-process-hall", (-14.0, -5.0), (6.7, 4.1, 3.35), "factory"),
+    ("far-east-utility", (-22.0, 3.2), (3.6, 2.7, 2.3), "factory"),
+    ("east-warehouse", (-14.0, 2.2), (7.9, 4.5, 3.0), "factory"),
+    ("front-warehouse", (-3.0, 10.0), (8.1, 3.4, 3.2), "factory"),
+    ("front-utility-annex", (-12.2, 10.5), (8.1, 2.25, 2.0), "factory"),
+    ("laboratory", (-22.5, 10.5), (8.1, 2.0, 4.1), "office"),
+    ("administration", (9.5, 11.3), (8.4, 5.4, 6.2), "administration"),
+    ("gatehouse", (23.2, 14.7), (2.3, 1.7, 2.0), "office"),
 ]
 
 BUILDING_FLOORS = {
@@ -103,6 +172,12 @@ def reset_scene() -> None:
                 datablocks.remove(datablock)
 
 
+def remove_object_tree(obj) -> None:
+    for child in list(obj.children):
+        remove_object_tree(child)
+    bpy.data.objects.remove(obj, do_unlink=True)
+
+
 def material(
     name: str,
     color: tuple[float, float, float, float],
@@ -111,12 +186,19 @@ def material(
     transmission: float = 0.0,
     ior: float = 1.45,
     coat_weight: float = 0.0,
+    emission_color: tuple[float, float, float, float] | None = None,
+    emission_strength: float = 0.0,
 ):
     value = bpy.data.materials.new(name)
     value.diffuse_color = color
     value.use_nodes = True
     shader = next(node for node in value.node_tree.nodes if node.type == "BSDF_PRINCIPLED")
     shader.inputs["Base Color"].default_value = color
+    alpha_socket = shader.inputs.get("Alpha")
+    if alpha_socket is not None:
+        alpha_socket.default_value = color[3]
+    if color[3] < 1.0:
+        value.surface_render_method = "DITHERED"
     shader.inputs["Roughness"].default_value = roughness
     shader.inputs["Metallic"].default_value = metallic
     for socket_name, socket_value in (
@@ -127,7 +209,451 @@ def material(
         socket = shader.inputs.get(socket_name)
         if socket is not None:
             socket.default_value = socket_value
+    if emission_color is not None:
+        emission_socket = shader.inputs.get("Emission Color")
+        strength_socket = shader.inputs.get("Emission Strength")
+        if emission_socket is not None:
+            emission_socket.default_value = emission_color
+        if strength_socket is not None:
+            strength_socket.default_value = emission_strength
     return value
+
+
+def _clamp(value: float) -> float:
+    return max(0.0, min(1.0, value))
+
+
+def _surface_height(u: float, v: float, seed: int) -> float:
+    """Return a deterministic, tileable micro-height field for generated PBR maps."""
+    phase = seed * 0.173
+    broad = math.sin((u * 3.0 + phase) * math.tau) * math.cos((v * 4.0 - phase) * math.tau)
+    grain = math.sin((u * 17.0 + v * 11.0 + phase) * math.tau)
+    fleck = math.cos((u * 29.0 - v * 23.0 - phase) * math.tau)
+    return broad * 0.50 + grain * 0.32 + fleck * 0.18
+
+
+def generated_pbr_image(
+    family: str,
+    channel: str,
+    base_color: tuple[float, float, float],
+    roughness: float,
+    seed: int,
+    size: int = 256,
+):
+    image = bpy.data.images.new(
+        f"PBR__{family}__{channel}",
+        width=size,
+        height=size,
+        alpha=True,
+    )
+    if channel in {"normal", "roughness"}:
+        image.colorspace_settings.name = "Non-Color"
+    pixels = []
+    step = 1.0 / size
+    for y in range(size):
+        v = y * step
+        for x in range(size):
+            u = x * step
+            height = _surface_height(u, v, seed)
+            if channel == "base-color":
+                shade = 0.92 + height * 0.105
+                pixels.extend((*(_clamp(component * shade) for component in base_color), 1.0))
+            elif channel == "roughness":
+                value = _clamp(roughness + height * 0.055)
+                pixels.extend((value, value, value, 1.0))
+            else:
+                dx = _surface_height((u + step) % 1.0, v, seed) - height
+                dy = _surface_height(u, (v + step) % 1.0, seed) - height
+                pixels.extend((_clamp(0.5 - dx * 0.72), _clamp(0.5 - dy * 0.72), 1.0, 1.0))
+    image.pixels.foreach_set(pixels)
+    image.update()
+    image["pbrChannel"] = channel
+    image["pbrFamily"] = family
+    image.pack()
+    return image
+
+
+def apply_generated_pbr(
+    mat,
+    family: str,
+    base_color: tuple[float, float, float],
+    roughness: float,
+    seed: int,
+) -> None:
+    nodes = mat.node_tree.nodes
+    links = mat.node_tree.links
+    shader = next(node for node in nodes if node.type == "BSDF_PRINCIPLED")
+    channels = {
+        channel: generated_pbr_image(family, channel, base_color, roughness, seed)
+        for channel in ("base-color", "normal", "roughness")
+    }
+    base_node = nodes.new("ShaderNodeTexImage")
+    base_node.name = f"PBR__{family}__base-color"
+    base_node.image = channels["base-color"]
+    base_node.extension = "REPEAT"
+    base_node.location = (-620, 160)
+    links.new(base_node.outputs["Color"], shader.inputs["Base Color"])
+
+    roughness_node = nodes.new("ShaderNodeTexImage")
+    roughness_node.name = f"PBR__{family}__roughness"
+    roughness_node.image = channels["roughness"]
+    roughness_node.extension = "REPEAT"
+    roughness_node.location = (-620, -20)
+    links.new(roughness_node.outputs["Color"], shader.inputs["Roughness"])
+
+    normal_node = nodes.new("ShaderNodeTexImage")
+    normal_node.name = f"PBR__{family}__normal"
+    normal_node.image = channels["normal"]
+    normal_node.extension = "REPEAT"
+    normal_node.location = (-620, -210)
+    normal_map = nodes.new("ShaderNodeNormalMap")
+    normal_map.name = f"PBR__{family}__normal-map"
+    normal_map.inputs["Strength"].default_value = 0.34
+    normal_map.location = (-350, -190)
+    links.new(normal_node.outputs["Color"], normal_map.inputs["Color"])
+    links.new(normal_map.outputs["Normal"], shader.inputs["Normal"])
+    mat["pbrFamily"] = family
+
+
+def configure_ground_pbr_materials(mats) -> None:
+    specs = (
+        ("asphalt", "asphalt", (0.075, 0.085, 0.092), 0.93, 11, "new-asphalt", 2.0),
+        ("aged_asphalt", "aged-asphalt", (0.105, 0.105, 0.098), 0.95, 17, "aged-asphalt", 2.0),
+        ("concrete", "concrete", (0.54, 0.56, 0.55), 0.86, 23),
+        ("loading_concrete", "loading-concrete", (0.46, 0.47, 0.45), 0.90, 29, "loading-concrete", 2.4),
+        ("paving", "entry-paving", (0.58, 0.55, 0.49), 0.82, 31, "entry-paving", 1.6),
+        ("parking_surface", "parking-surface", (0.105, 0.115, 0.118), 0.92, 37, "parking-surface", 2.0),
+        ("walkway", "walkway", (0.60, 0.61, 0.58), 0.88, 41, "walkway", 1.4),
+        ("lawn", "lawn", (0.08, 0.20, 0.10), 0.95, 43, "lawn", 2.2),
+        ("bioswale_soil", "bioswale-soil", (0.105, 0.075, 0.045), 0.96, 59, "bare-soil", 1.7),
+        ("planting_mulch", "planting-mulch", (0.115, 0.068, 0.038), 0.97, 67, "mulch", 1.3),
+        ("forest_ground", "forest-ground", (0.10, 0.25, 0.11), 0.96, 71),
+    )
+    for spec in specs:
+        key, family, color, roughness, seed, *ground_contract = spec
+        if key not in mats:
+            continue
+        apply_generated_pbr(mats[key], family, color, roughness, seed)
+        if ground_contract:
+            role, tile_size = ground_contract
+            mats[key]["groundMaterialRole"] = role
+            mats[key]["groundTileSize"] = tile_size
+
+
+def configure_vegetation_pbr_materials(mats) -> None:
+    specs = (
+        ("trunk", "tree-bark", (0.145, 0.082, 0.040), 0.96, 79, None),
+        ("foliage", "foliage-deep", (0.040, 0.175, 0.065), 0.94, 83, "deep"),
+        ("foliage_light", "foliage-mid", (0.075, 0.255, 0.095), 0.92, 89, "mid"),
+        ("foliage_sunlit", "foliage-sunlit", (0.155, 0.335, 0.105), 0.90, 93, "sunlit"),
+        ("foliage_warm", "foliage-warm", (0.185, 0.265, 0.065), 0.93, 97, "warm"),
+        ("forest_foliage", "forest-foliage", (0.052, 0.215, 0.075), 0.95, 101, "forest-deep"),
+        ("forest_foliage_light", "forest-foliage-light", (0.105, 0.305, 0.105), 0.93, 103, "forest-light"),
+    )
+    for key, family, color, roughness, seed, layer in specs:
+        apply_generated_pbr(mats[key], family, color, roughness, seed)
+        mats[key].use_backface_culling = False
+        if layer:
+            mats[key]["vegetationPbrLayer"] = layer
+
+
+ARCHITECTURAL_PBR_FAMILIES = {
+    "industrial-coated-metal": (
+        "coated-metal",
+        ("factory_wall", "factory_panel_light", "factory_panel_mid", "process_wall", "process_panel_light", "process_panel_mid", "utility_wall", "utility_panel_light", "utility_panel_mid", "laboratory_wall", "laboratory_panel_light", "laboratory_panel_mid"),
+        0.65,
+        0.05,
+        0.08,
+        131,
+    ),
+    "warehouse-sandwich-panel": (
+        "warehouse-panel",
+        ("warehouse_wall", "warehouse_panel_light", "warehouse_panel_mid"),
+        0.72,
+        0.03,
+        0.09,
+        149,
+    ),
+    "administration-limestone": (
+        "limestone",
+        ("admin_wall", "admin_stone_light", "admin_stone_dark"),
+        0.78,
+        0.0,
+        0.10,
+        167,
+    ),
+    "architectural-concrete": (
+        "concrete",
+        ("plinth", "curb", "sidewalk"),
+        0.82,
+        0.0,
+        0.11,
+        181,
+    ),
+    "galvanized-roof": (
+        "galvanized",
+        ("roof", "roof_rib", "gutter", "corner_flashing"),
+        0.62,
+        0.10,
+        0.10,
+        199,
+    ),
+}
+
+
+def _architectural_height(u: float, v: float, seed: int, pattern: str) -> float:
+    phase = seed * 0.071
+    # Keep authored variation below the dashboard camera's minification limit.
+    # Physical cladding joints carry the close-range detail, so a broad texture
+    # field reads as material variation without producing moving interference.
+    grain = math.sin((u * 3.0 + v * 2.0 + phase) * math.tau) * 0.035
+    macro = math.sin((u + phase) * math.tau) * math.cos((v * 2.0 - phase) * math.tau) * 0.35
+    if pattern == "coated-metal":
+        return macro + math.sin((u * 2.0 + phase) * math.tau) * 0.10 + math.cos((v * 2.0 - phase) * math.tau) * 0.035 + grain
+    if pattern == "warehouse-panel":
+        return macro + math.sin((u * 2.0 + phase) * math.tau) * 0.09 + math.cos((v + phase) * math.tau) * 0.05 + grain * 0.62
+    if pattern == "limestone":
+        cloud = math.sin((u * 2.0 + phase) * math.tau) * math.cos((v * 2.0 - phase) * math.tau)
+        vein = math.sin((u * 2.0 + v + phase) * math.tau)
+        return macro * 0.72 + cloud * 0.40 + vein * 0.10 + grain * 0.40
+    if pattern == "concrete":
+        cloud = math.sin((u * 2.0 + phase) * math.tau) * math.cos((v * 2.0 - phase) * math.tau)
+        pores = abs(math.sin((u * 4.0 + phase) * math.tau) * math.cos((v * 3.0 - phase) * math.tau)) ** 7
+        return macro * 0.68 + cloud * 0.31 + grain * 0.48 - pores * 0.20
+    brushed = math.sin((u * 3.0 + phase) * math.tau) * 0.10 + math.sin((u * 5.0 - phase) * math.tau) * 0.035
+    return macro * 0.42 + brushed + math.cos((v * 2.0 + phase) * math.tau) * 0.06 + grain * 0.30
+
+
+def generated_architectural_image(
+    family: str,
+    variant: str,
+    channel: str,
+    base_color: tuple[float, float, float],
+    roughness: float,
+    seed: int,
+    pattern: str,
+    size: int = 256,
+):
+    suffix = variant if channel == "base-color" else "shared"
+    image = bpy.data.images.new(
+        f"PBR__architectural__{family}__{suffix}__{channel}",
+        width=size,
+        height=size,
+        alpha=True,
+    )
+    if channel in {"normal", "roughness", "occlusion"}:
+        image.colorspace_settings.name = "Non-Color"
+    pixels = []
+    step = 1.0 / size
+    for y in range(size):
+        v = y * step
+        for x in range(size):
+            u = x * step
+            height = _architectural_height(u, v, seed, pattern)
+            if channel == "base-color":
+                amplitude = {
+                    "coated-metal": 0.10,
+                    "warehouse-panel": 0.11,
+                    "limestone": 0.09,
+                    "concrete": 0.09,
+                    "galvanized": 0.07,
+                }[pattern]
+                bounded_height = max(-0.75, min(0.75, height))
+                shade = 0.985 + bounded_height * amplitude
+                temperature = math.sin((u * 2.0 + v + seed * 0.031) * math.tau) * 0.014
+                pixels.extend((
+                    _clamp(base_color[0] * shade + temperature),
+                    _clamp(base_color[1] * shade + temperature * 0.35),
+                    _clamp(base_color[2] * shade - temperature * 0.45),
+                    1.0,
+                ))
+            elif channel == "roughness":
+                value = _clamp(roughness + height * (0.065 if pattern == "galvanized" else 0.11))
+                pixels.extend((value, value, value, 1.0))
+            elif channel == "occlusion":
+                value = _clamp(0.94 + min(0.0, height) * 0.14)
+                pixels.extend((value, value, value, 1.0))
+            else:
+                dx = _architectural_height((u + step) % 1.0, v, seed, pattern) - height
+                dy = _architectural_height(u, (v + step) % 1.0, seed, pattern) - height
+                strength = 0.56 if pattern in {"limestone", "concrete"} else 0.38
+                pixels.extend((_clamp(0.5 - dx * strength), _clamp(0.5 - dy * strength), 1.0, 1.0))
+    image.pixels.foreach_set(pixels)
+    image.update()
+    image["pbrChannel"] = channel
+    image["pbrFamily"] = family
+    image["architecturalPbr"] = True
+    image.pack()
+    return image
+
+
+def ensure_gltf_material_output_group():
+    group = bpy.data.node_groups.get("glTF Material Output")
+    if group is not None:
+        return group
+    group = bpy.data.node_groups.new("glTF Material Output", "ShaderNodeTree")
+    group.interface.new_socket("Occlusion", socket_type="NodeSocketFloat")
+    group.nodes.new("NodeGroupInput")
+    group.nodes.new("NodeGroupOutput")
+    return group
+
+
+def apply_architectural_pbr(
+    mat,
+    family: str,
+    variant: str,
+    base_image,
+    shared_images,
+    roughness: float,
+    metallic: float,
+    normal_strength: float,
+) -> None:
+    nodes = mat.node_tree.nodes
+    links = mat.node_tree.links
+    shader = next(node for node in nodes if node.type == "BSDF_PRINCIPLED")
+    shader.inputs["Roughness"].default_value = roughness
+    shader.inputs["Metallic"].default_value = metallic
+
+    base_node = nodes.new("ShaderNodeTexImage")
+    base_node.name = f"PBR__{family}__{variant}__base-color"
+    base_node.image = base_image
+    base_node.extension = "REPEAT"
+    base_node.location = (-760, 220)
+    links.new(base_node.outputs["Color"], shader.inputs["Base Color"])
+
+    roughness_node = nodes.new("ShaderNodeTexImage")
+    roughness_node.name = f"PBR__{family}__roughness"
+    roughness_node.image = shared_images["roughness"]
+    roughness_node.extension = "REPEAT"
+    roughness_node.location = (-760, 20)
+    links.new(roughness_node.outputs["Color"], shader.inputs["Roughness"])
+
+    normal_node = nodes.new("ShaderNodeTexImage")
+    normal_node.name = f"PBR__{family}__normal"
+    normal_node.image = shared_images["normal"]
+    normal_node.extension = "REPEAT"
+    normal_node.location = (-760, -180)
+    normal_map = nodes.new("ShaderNodeNormalMap")
+    normal_map.name = f"PBR__{family}__normal-map"
+    normal_map.inputs["Strength"].default_value = normal_strength
+    normal_map.location = (-460, -160)
+    links.new(normal_node.outputs["Color"], normal_map.inputs["Color"])
+    links.new(normal_map.outputs["Normal"], shader.inputs["Normal"])
+
+    occlusion_node = nodes.new("ShaderNodeTexImage")
+    occlusion_node.name = f"PBR__{family}__occlusion"
+    occlusion_node.image = shared_images["occlusion"]
+    occlusion_node.extension = "REPEAT"
+    occlusion_node.location = (-760, -390)
+    separate = nodes.new("ShaderNodeSeparateColor")
+    separate.name = f"PBR__{family}__occlusion-red"
+    separate.location = (-480, -390)
+    settings = nodes.new("ShaderNodeGroup")
+    settings.name = f"PBR__{family}__gltf-output"
+    settings.node_tree = ensure_gltf_material_output_group()
+    settings.location = (-220, -390)
+    links.new(occlusion_node.outputs["Color"], separate.inputs["Color"])
+    links.new(separate.outputs["Red"], settings.inputs["Occlusion"])
+    mat["architecturalPbrFamily"] = family
+    mat["architecturalPbrVariant"] = variant
+
+
+def configure_architectural_pbr_materials(mats) -> None:
+    for family, (pattern, keys, roughness, metallic, normal_strength, seed) in ARCHITECTURAL_PBR_FAMILIES.items():
+        shared_images = {
+            channel: generated_architectural_image(
+                family,
+                "shared",
+                channel,
+                (0.5, 0.5, 0.5),
+                roughness,
+                seed,
+                pattern,
+            )
+            for channel in ("normal", "roughness", "occlusion")
+        }
+        for variant_index, key in enumerate(keys):
+            mat = mats[key]
+            color = tuple(mat.diffuse_color[:3])
+            base_image = generated_architectural_image(
+                family,
+                key,
+                "base-color",
+                color,
+                roughness,
+                seed + variant_index * 3,
+                pattern,
+            )
+            apply_architectural_pbr(
+                mat,
+                family,
+                key,
+                base_image,
+                shared_images,
+                roughness,
+                metallic,
+                normal_strength,
+            )
+
+
+def configure_ground_uv_tiling() -> None:
+    tile_sizes = {
+        "MAT__asphalt": 2.0,
+        "MAT__aged-asphalt": 2.0,
+        "MAT__concrete": 2.4,
+        "MAT__loading-concrete": 2.4,
+        "MAT__entry-paving": 1.6,
+        "MAT__parking-surface": 2.0,
+        "MAT__walkway": 1.4,
+        "MAT__lawn": 2.2,
+        "MAT__bioswale-soil": 1.7,
+        "MAT__planting-mulch": 1.3,
+        "MAT__forest-ground": 3.4,
+    }
+    seen_meshes = set()
+    for obj in bpy.context.scene.objects:
+        if obj.type != "MESH" or obj.data in seen_meshes or not obj.data.materials:
+            continue
+        mat = obj.data.materials[0]
+        tile_size = tile_sizes.get(mat.name if mat else "")
+        if tile_size is None or not obj.data.uv_layers:
+            continue
+        if obj.data.get("pbrUvRepeat"):
+            seen_meshes.add(obj.data)
+            continue
+        repeat_x = max(1.0, obj.dimensions.x / tile_size)
+        repeat_y = max(1.0, obj.dimensions.y / tile_size)
+        for loop_uv in obj.data.uv_layers.active.data:
+            loop_uv.uv.x *= repeat_x
+            loop_uv.uv.y *= repeat_y
+        obj.data["pbrUvRepeat"] = (repeat_x, repeat_y)
+        seen_meshes.add(obj.data)
+
+
+def configure_architectural_uv_tiling() -> None:
+    tile_sizes = {
+        "industrial-coated-metal": 4.5,
+        "warehouse-sandwich-panel": 4.5,
+        "administration-limestone": 3.2,
+        "architectural-concrete": 3.2,
+        "galvanized-roof": 5.0,
+    }
+    seen_meshes = set()
+    for obj in bpy.context.scene.objects:
+        if obj.type != "MESH" or obj.data in seen_meshes or not obj.data.materials or not obj.data.uv_layers:
+            continue
+        mat = obj.data.materials[0]
+        family = mat.get("architecturalPbrFamily") if mat else None
+        tile_size = tile_sizes.get(family)
+        if tile_size is None:
+            continue
+        repeat_x = max(1.0, obj.dimensions.x / tile_size)
+        repeat_y = max(1.0, obj.dimensions.y / tile_size)
+        for loop_uv in obj.data.uv_layers.active.data:
+            loop_uv.uv.x *= repeat_x
+            loop_uv.uv.y *= repeat_y
+        obj.data["architecturalPbrUvRepeat"] = (repeat_x, repeat_y)
+        seen_meshes.add(obj.data)
 
 
 def empty(name: str, location=(0.0, 0.0, 0.0), parent=None):
@@ -154,7 +680,7 @@ def box(name, size, location, mat, parent=None, bevel=0.04, rotation=(0, 0, 0)):
     if bevel:
         modifier = obj.modifiers.new(name="EdgeSoftening", type="BEVEL")
         modifier.width = bevel
-        modifier.segments = 2
+        modifier.segments = 1
     return obj
 
 
@@ -168,6 +694,270 @@ def cylinder(name, radius, depth, location, mat, parent=None, rotation=(0, 0, 0)
     obj.rotation_euler = rotation
     obj.data.materials.append(mat)
     return obj
+
+
+def tapered_trunk(name, base_radius, top_radius, depth, location, mat, parent=None, vertices=9):
+    bpy.ops.mesh.primitive_cone_add(
+        vertices=vertices,
+        radius1=base_radius,
+        radius2=top_radius,
+        depth=depth,
+        location=(0, 0, 0) if parent else location,
+    )
+    obj = bpy.context.object
+    obj.name = name
+    obj.parent = parent
+    if parent:
+        obj.location = location
+    obj.data.materials.append(mat)
+    obj["vegetationForm"] = "tapered-trunk"
+    obj["baseRadius"] = base_radius
+    obj["topRadius"] = top_radius
+    return obj
+
+
+def clustered_crown(
+    name,
+    radius,
+    location,
+    mat,
+    parent=None,
+    variant=0,
+    species="broadleaf",
+    tier="mid",
+    layer_materials=(),
+):
+    mesh = bpy.data.meshes.new(f"{name}__clustered-mesh")
+    bm = bmesh.new()
+    lobe_specs = CANOPY_PROFILES.get(species, CANOPY_PROFILES["broadleaf"])
+    angle = math.radians(variant * 17)
+    cosine = math.cos(angle)
+    sine = math.sin(angle)
+    materials = []
+    for candidate in (mat, *layer_materials):
+        if candidate is not None and candidate not in materials:
+            materials.append(candidate)
+    subdivisions = 2
+    lobe_scale_factor = 0.62 if tier in {"near", "mid"} else 1.0
+    offset_scale_factor = 1.08 if tier in {"near", "mid"} else 1.0
+    for lobe_index, (offset_x, offset_y, offset_z, scale_x, scale_y, scale_z) in enumerate(lobe_specs):
+        created = bmesh.ops.create_icosphere(bm, subdivisions=subdivisions, radius=radius)
+        material_index = (lobe_index * 5 + variant) % max(1, len(materials))
+        for face in created.get("faces", ()):
+            face.material_index = material_index
+        for vertex in created["verts"]:
+            local_x = vertex.co.x * scale_x * lobe_scale_factor + offset_x * radius * offset_scale_factor
+            local_y = vertex.co.y * scale_y * lobe_scale_factor + offset_y * radius * offset_scale_factor
+            vertex.co.x = local_x * cosine - local_y * sine
+            vertex.co.y = local_x * sine + local_y * cosine
+            vertex.co.z = vertex.co.z * scale_z * lobe_scale_factor + offset_z * radius * offset_scale_factor
+    bm.to_mesh(mesh)
+    bm.free()
+    for polygon in mesh.polygons:
+        polygon.use_smooth = True
+    obj = bpy.data.objects.new(name, mesh)
+    bpy.context.scene.collection.objects.link(obj)
+    obj.parent = parent
+    obj.location = location
+    for material_value in materials:
+        obj.data.materials.append(material_value)
+    obj["vegetationForm"] = "clustered-canopy"
+    obj["crownVariant"] = variant
+    obj["vegetationSpecies"] = species
+    obj["vegetationTier"] = tier
+    bpy.context.view_layer.objects.active = obj
+    obj.select_set(True)
+    bpy.ops.object.mode_set(mode="EDIT")
+    bpy.ops.uv.smart_project(island_margin=0.025)
+    bpy.ops.object.mode_set(mode="OBJECT")
+    obj.select_set(False)
+    return obj
+
+
+def create_branch_structure(name, location, radius, mat, parent=None, variant=0):
+    branch_root = empty(name, location, parent)
+    branch_root["vegetationDetail"] = "branch-group"
+    for branch_index in range(4):
+        azimuth = math.radians((variant * 29 + branch_index * 91) % 360)
+        length = radius * (0.72 + branch_index * 0.06)
+        branch = cylinder(
+            f"{name}__limb-{branch_index + 1:02d}",
+            radius * (0.045 - branch_index * 0.004),
+            length,
+            (
+                math.cos(azimuth) * radius * 0.16,
+                math.sin(azimuth) * radius * 0.16,
+                branch_index * radius * 0.055,
+            ),
+            mat,
+            branch_root,
+            rotation=(math.radians(58), math.radians(12), azimuth),
+            vertices=7,
+        )
+        branch["vegetationDetail"] = "branch-structure"
+        branch["vegetationTier"] = "near"
+        branch["branchOrder"] = 1
+        branch["branchParent"] = name
+        for fork_index in range(2):
+            fork_azimuth = azimuth + math.radians(-24 if fork_index == 0 else 28)
+            fork = cylinder(
+                f"{name}__limb-{branch_index + 1:02d}__fork-{fork_index + 1:02d}",
+                radius * (0.021 - branch_index * 0.0015),
+                radius * (0.32 + fork_index * 0.045),
+                (
+                    math.cos(azimuth) * radius * 0.42 + math.cos(fork_azimuth) * radius * 0.08,
+                    math.sin(azimuth) * radius * 0.42 + math.sin(fork_azimuth) * radius * 0.08,
+                    radius * (0.18 + branch_index * 0.055 + fork_index * 0.045),
+                ),
+                mat,
+                branch_root,
+                rotation=(math.radians(64 - fork_index * 5), math.radians(16), fork_azimuth),
+                vertices=6,
+            )
+            fork["vegetationDetail"] = "branch-structure"
+            fork["vegetationTier"] = "near"
+            fork["branchOrder"] = 2
+            fork["branchParent"] = branch.name
+    return branch_root
+
+
+def create_vegetation_ecology(mats, campus):
+    """Integrate near tree bases and the forest edge without changing tree positions."""
+    existing = bpy.data.objects.get("SITE__vegetation-ecology")
+    if existing:
+        remove_object_tree(existing)
+    group = empty("SITE__vegetation-ecology", parent=campus)
+    group["ecologySystem"] = "anchored-near-tree-and-forest-understory"
+
+    def tag(obj, role, anchor_name, zone):
+        obj["ecologyRole"] = role
+        obj["anchorName"] = anchor_name
+        obj["ecologyZone"] = zone
+        obj["layerRole"] = "vegetation-ecology"
+        return obj
+
+    near_trunks = sorted(
+        [obj for obj in bpy.data.objects if obj.name.startswith("LANDSCAPE__inner-tree-trunk-")],
+        key=lambda obj: obj.name,
+    )
+    for index, trunk in enumerate(near_trunks, start=1):
+        x, y = trunk.matrix_world.translation.x, trunk.matrix_world.translation.y
+        soil = cylinder(
+            f"VEGETATION_ECOLOGY__tree-soil-{index:02d}",
+            0.49,
+            0.025,
+            (x, y, 0.087),
+            mats["bioswale_soil"],
+            group,
+            vertices=18,
+        )
+        soil.scale = (1.0, 0.92 + (index % 3) * 0.035, 1.0)
+        tag(soil, "bare-soil-transition", trunk.name, "near-tree-base")
+        for tuft_index in range(2):
+            angle = math.radians(index * 67 + tuft_index * 154)
+            bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=1, radius=0.085, location=(0, 0, 0))
+            tuft = bpy.context.object
+            tuft.name = f"VEGETATION_ECOLOGY__tree-grass-{index:02d}-{tuft_index + 1:02d}"
+            tuft.parent = group
+            tuft.location = (x + math.cos(angle) * 0.43, y + math.sin(angle) * 0.40, 0.17)
+            tuft.scale = (0.62, 0.48, 1.35 + (index % 3) * 0.12)
+            tuft.rotation_euler[2] = angle
+            tuft.data.materials.append(mats["ornamental_grass"])
+            tag(tuft, "sparse-grass", trunk.name, "near-tree-base")
+
+    forest_anchor = bpy.data.objects.get("ENV__forest-backdrop")
+    anchor_name = forest_anchor.name if forest_anchor else "ENV__background"
+    shrub_prototype = None
+    for index in range(18):
+        x = -30.2 + index * 3.55 + math.sin(index * 1.71) * 0.42
+        leaf_y = -25.35 + math.sin(index * 1.19) * 0.36
+        litter = cylinder(
+            f"VEGETATION_ECOLOGY__leaf-litter-{index + 1:02d}",
+            0.34,
+            0.025,
+            (x, leaf_y, 0.040),
+            mats["planting_mulch"],
+            group,
+            vertices=12,
+        )
+        litter.scale = (1.25 + (index % 3) * 0.14, 0.58 + (index % 4) * 0.07, 1.0)
+        litter.rotation_euler[2] = math.radians((index * 37) % 180)
+        tag(litter, "leaf-litter", anchor_name, "forest-edge")
+
+        shrub_y = -26.15 + math.sin(index * 1.47 + 0.8) * 0.52
+        if shrub_prototype is None:
+            bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=1, radius=0.24, location=(0, 0, 0))
+            shrub = bpy.context.object
+            shrub_prototype = shrub
+            shrub.name = "VEGETATION_ECOLOGY__understory-01"
+            shrub.parent = group
+            shrub.location = (x + 0.52, shrub_y, 0.22)
+            shrub.data.materials.append(mats["understory_deep"])
+        else:
+            shrub = linked_mesh_instance(
+                f"VEGETATION_ECOLOGY__understory-{index + 1:02d}",
+                shrub_prototype,
+                (x + 0.52, shrub_y, 0.22),
+                group,
+            )
+        shrub.scale = (1.24 + (index % 5) * 0.11, 0.72 + (index % 3) * 0.09, 0.62 + (index % 4) * 0.07)
+        shrub.rotation_euler[2] = math.radians((index * 53) % 360)
+        tag(shrub, "low-understory", anchor_name, "forest-edge")
+    return group
+
+
+def create_vegetation_transition_realism(mats, campus):
+    """Break the planted perimeter into an irregular tree, shrub, and meadow gradient."""
+    existing = bpy.data.objects.get("VEGETATION__transition-realism")
+    if existing:
+        remove_object_tree(existing)
+    group = empty("VEGETATION__transition-realism", parent=campus)
+    group["ecologySystem"] = "irregular-forest-edge"
+    group["designIntent"] = "soft boundary with shared-mesh ecological layers"
+
+    for obj in bpy.data.objects:
+        if obj.name.startswith("ENV__edge-shrub-"):
+            if "ecologyRole" in obj:
+                del obj["ecologyRole"]
+            obj["ecologyTransitionRole"] = "forest-edge-shrub"
+            obj["ecologyZone"] = "forest-transition"
+        elif obj.name.startswith("VEGETATION_ECOLOGY__understory-"):
+            obj["ecologyTransitionRole"] = "forest-edge-shrub"
+        elif obj.name.startswith("ENV__transition-meadow-"):
+            if "ecologyRole" in obj:
+                del obj["ecologyRole"]
+            obj["ecologyTransitionRole"] = "meadow-transition"
+            obj["ecologyZone"] = "forest-transition"
+
+    for obj in bpy.data.objects:
+        if not obj.name.startswith(("ENV__tree-trunk-", "ENV__tree-crown-")):
+            continue
+        suffix = obj.name.rsplit("-", 1)[-1].split(".", 1)[0]
+        if not suffix.isdigit():
+            continue
+        index = int(suffix)
+        if "transitionBaseLocation" not in obj:
+            obj["transitionBaseLocation"] = tuple(obj.location)
+        base = obj["transitionBaseLocation"]
+        offset_x = math.sin(index * 2.31 + 0.4) * 0.52
+        offset_y = math.cos(index * 1.73 + 0.8) * 0.44
+        obj.location.x = base[0] + offset_x
+        obj.location.y = base[1] + offset_y
+        if obj.name.startswith("ENV__tree-crown-"):
+            if "transitionBaseScale" not in obj:
+                obj["transitionBaseScale"] = tuple(obj.scale)
+            base_scale = obj["transitionBaseScale"]
+            width_variation = 0.88 + (index % 7) * 0.045
+            height_variation = 0.92 + ((index * 3) % 6) * 0.055
+            obj.scale = (
+                base_scale[0] * width_variation,
+                base_scale[1] * (0.94 + (index % 5) * 0.035),
+                base_scale[2] * height_variation,
+            )
+            if "ecologyRole" in obj:
+                del obj["ecologyRole"]
+            obj["ecologyTransitionRole"] = "canopy-gradient"
+    return group
 
 
 def linked_mesh_instance(name, prototype, location, parent, scale=(1, 1, 1), rotation=(0, 0, 0)):
@@ -184,6 +974,17 @@ def linked_mesh_instance(name, prototype, location, parent, scale=(1, 1, 1), rot
 
 def mark_interior(obj, role="interior-prop"):
     obj["layerRole"] = role
+    return obj
+
+
+def mark_construction(obj, role, bevel_width=None, opening_depth=None):
+    """Attach GLB-safe architectural construction semantics to visible geometry."""
+    obj["constructionRole"] = role
+    obj["layerRole"] = f"architectural-{role}"
+    if bevel_width is not None:
+        obj["bevelWidth"] = bevel_width
+    if opening_depth is not None:
+        obj["openingDepth"] = opening_depth
     return obj
 
 
@@ -215,8 +1016,8 @@ def create_low_poly_walker(building_id, floor_id, width, depth, floor_base, floo
     return walker
 
 
-def create_site_patrol_walker(index, location, axis, distance, speed, phase, mats, parent):
-    walker_name = f"PATROL__campus-{index:02d}"
+def create_site_patrol_walker(index, location, axis, distance, speed, phase, mats, parent, name=None):
+    walker_name = name or f"PATROL__campus-{index:02d}"
     walker = empty(walker_name, location, parent)
     walker.scale = (1.65, 1.65, 1.65)
     walker["motionPath"] = "site-patrol"
@@ -240,6 +1041,222 @@ def create_site_patrol_walker(index, location, axis, distance, speed, phase, mat
     cylinder(f"{walker_name}__helmet", 0.071, 0.045, (0, 0, 0.458), mats["hardhat"], walker, vertices=12)
     box(f"{walker_name}__helmet-brim", (0.17, 0.10, 0.018), (0, 0.018, 0.438), mats["hardhat"], walker, 0.008)
     return walker
+
+
+def create_operational_roof_and_services(building_id, width, depth, height, mats, root):
+    """Add compact, maintainable roof plant and facade-mounted utility services."""
+    if building_id not in {
+        "main-production-hall",
+        "central-processing-hall",
+        "east-process-hall",
+        "far-east-utility",
+        "east-warehouse",
+        "front-warehouse",
+    }:
+        return
+
+    roof_z = height + 0.31
+    walkway = box(
+        f"ROOF_OPS__{building_id}__maintenance-walkway",
+        (width * 0.68, 0.48, 0.075),
+        (0, -depth * 0.18, roof_z),
+        mats["gutter"],
+        root,
+        0.015,
+    )
+    walkway["layerRole"] = "roof-maintenance-walkway"
+    walkway["surfaceType"] = "anti-slip-grating"
+    for index, side in enumerate((-1, 1), start=1):
+        rail = box(
+            f"ROOF_OPS__{building_id}__guardrail-{index:02d}",
+            (width * 0.69, 0.035, 0.045),
+            (0, -depth * 0.18 + side * 0.27, roof_z + 0.48),
+            mats["safety_yellow"],
+            root,
+            0.006,
+        )
+        rail["layerRole"] = "roof-safety-rail"
+        box(
+            f"ROOF_OPS__{building_id}__guardrail-mid-{index:02d}",
+            (width * 0.69, 0.03, 0.035),
+            (0, -depth * 0.18 + side * 0.27, roof_z + 0.25),
+            mats["safety_yellow"],
+            root,
+            0.005,
+        )["layerRole"] = "roof-safety-rail"
+        for post_index in range(5):
+            post_x = -width * 0.34 + post_index * width * 0.17
+            box(
+                f"ROOF_OPS__{building_id}__guardrail-post-{index:02d}-{post_index + 1:02d}",
+                (0.04, 0.04, 0.50),
+                (post_x, -depth * 0.18 + side * 0.27, roof_z + 0.25),
+                mats["safety_yellow"],
+                root,
+                0.005,
+            )["layerRole"] = "roof-safety-rail"
+
+    hvac_count = 2 if width >= 7 else 1
+    for index in range(hvac_count):
+        px = (index - (hvac_count - 1) / 2) * min(2.2, width * 0.28)
+        unit = box(
+            f"ROOF_OPS__{building_id}__hvac-unit-{index + 1:02d}",
+            (1.25, 0.82, 0.64),
+            (px, depth * 0.16, height + 0.62),
+            mats["interior_equipment"],
+            root,
+            0.055,
+        )
+        unit["layerRole"] = "roof-hvac"
+        for slat in range(5):
+            box(
+                f"ROOF_OPS__{building_id}__hvac-unit-{index + 1:02d}__louver-{slat + 1:02d}",
+                (0.88, 0.035, 0.045),
+                (px, depth * 0.16 + 0.43, height + 0.43 + slat * 0.09),
+                mats["vent"],
+                root,
+                0.004,
+            )
+
+    duct = box(
+        f"ROOF_OPS__{building_id}__duct-run",
+        (max(1.4, width * 0.36), 0.34, 0.30),
+        (0, 0, height + 0.52),
+        mats["gutter"],
+        root,
+        0.035,
+    )
+    duct["layerRole"] = "roof-duct"
+    for side in (-1, 1):
+        ladder_rail = box(
+            f"ROOF_OPS__{building_id}__access-ladder-rail-{side:+d}",
+            (0.045, 0.055, min(2.2, height * 0.68)),
+            (width * 0.38 + side * 0.17, -depth / 2 - 0.06, height * 0.52),
+            mats["pipe"],
+            root,
+            0.006,
+        )
+        ladder_rail["layerRole"] = "roof-access-ladder"
+    for rung in range(6):
+        ladder_rung = box(
+            f"ROOF_OPS__{building_id}__access-ladder-rung-{rung + 1:02d}",
+            (0.39, 0.06, 0.035),
+            (width * 0.38, -depth / 2 - 0.08, 0.42 + rung * min(0.32, height * 0.095)),
+            mats["pipe"],
+            root,
+            0.004,
+        )
+        ladder_rung["layerRole"] = "roof-access-ladder"
+
+    fire_cabinet = box(
+        f"SERVICE_OPS__{building_id}__fire-cabinet",
+        (0.48, 0.12, 0.72),
+        (-width * 0.34, depth / 2 + 0.10, 0.84),
+        mats["fire_red"],
+        root,
+        0.025,
+    )
+    fire_cabinet["layerRole"] = "fire-service"
+    electrical_panel = box(
+        f"SERVICE_OPS__{building_id}__electrical-panel",
+        (0.62, 0.13, 0.86),
+        (width * 0.34, depth / 2 + 0.10, 0.92),
+        mats["interior_storage"],
+        root,
+        0.025,
+    )
+    electrical_panel["layerRole"] = "electrical-service"
+    box(
+        f"SERVICE_OPS__{building_id}__electrical-warning",
+        (0.22, 0.035, 0.20),
+        (width * 0.34, depth / 2 + 0.18, 1.02),
+        mats["safety_yellow"],
+        root,
+        0.008,
+    )["layerRole"] = "electrical-warning"
+
+    for index, px in enumerate((-width * 0.18, width * 0.04), start=1):
+        entry = cylinder(
+            f"SERVICE_OPS__{building_id}__pipe-entry-{index:02d}",
+            0.085,
+            0.42,
+            (px, depth / 2 + 0.16, 0.62 + index * 0.24),
+            mats["pipe_accent"],
+            root,
+            rotation=(math.pi / 2, 0, 0),
+            vertices=12,
+        )
+        entry["layerRole"] = "utility-pipe-entry"
+
+
+def create_warehouse_loading_activity(building_id, width, depth, mats, root):
+    """Create a small working loading scene on each warehouse apron."""
+    if building_id not in {"front-warehouse", "east-warehouse"}:
+        return
+
+    apron_y = depth / 2 + 0.82
+    phase = 0.18 if building_id == "front-warehouse" else 0.62
+    for stack_index, px in enumerate((-width * 0.31, -width * 0.20), start=1):
+        stack = empty(f"LOGISTICS_OPS__{building_id}__pallet-stack-{stack_index:02d}", (px, apron_y, 0), root)
+        stack["layerRole"] = "warehouse-staging"
+        for level in range(2):
+            box(
+                f"LOGISTICS_OPS__{building_id}__pallet-stack-{stack_index:02d}__load-{level + 1:02d}",
+                (0.56, 0.42, 0.25),
+                (0, 0, 0.18 + level * 0.27),
+                mats["interior_worktop"],
+                stack,
+                0.012,
+            )
+            for runner in (-0.15, 0.15):
+                box(
+                    f"LOGISTICS_OPS__{building_id}__pallet-stack-{stack_index:02d}__runner-{level + 1:02d}-{runner:+.2f}",
+                    (0.50, 0.05, 0.045),
+                    (0, runner, 0.055 + level * 0.27),
+                    mats["plinth"],
+                    stack,
+                    0.003,
+                )
+
+    forklift = empty(f"LOGISTICS_OPS__{building_id}__forklift", (width * 0.03, apron_y, 0.10), root)
+    forklift["vehicleType"] = "forklift"
+    forklift["layerRole"] = "warehouse-vehicle"
+    forklift["motionPath"] = "yard-shuttle"
+    forklift["motionAxis"] = "x"
+    forklift["motionDistance"] = min(2.1, width * 0.27)
+    forklift["motionSpeed"] = 0.052
+    forklift["motionPhase"] = phase
+    box(f"{forklift.name}__body", (0.92, 0.62, 0.46), (0, 0, 0.31), mats["safety_yellow"], forklift, 0.07)
+    box(f"{forklift.name}__counterweight", (0.34, 0.68, 0.58), (-0.36, 0, 0.40), mats["safety_yellow"], forklift, 0.09)
+    for side in (-1, 1):
+        cylinder(f"{forklift.name}__wheel-{side:+d}", 0.17, 0.10, (-0.24, side * 0.34, 0.19), mats["tire"], forklift, rotation=(math.pi / 2, 0, 0), vertices=12)
+        box(f"{forklift.name}__mast-{side:+d}", (0.07, 0.07, 1.18), (0.43, side * 0.20, 0.70), mats["pipe"], forklift, 0.007)
+        box(f"{forklift.name}__fork-{side:+d}", (0.78, 0.06, 0.055), (0.76, side * 0.18, 0.10), mats["pipe"], forklift, 0.005)
+    box(f"{forklift.name}__overhead-guard", (0.66, 0.62, 0.07), (-0.05, 0, 1.04), mats["pipe"], forklift, 0.012)
+
+    loader = create_site_patrol_walker(
+        1,
+        (-width * 0.05, apron_y + 0.62, 0.12),
+        "x",
+        min(1.5, width * 0.18),
+        0.048,
+        phase + 0.14,
+        mats,
+        root,
+        name=f"LOGISTICS_OPS__{building_id}__loader-01",
+    )
+    loader["layerRole"] = "warehouse-loading-crew"
+
+    for index, px in enumerate((-width * 0.43, width * 0.43), start=1):
+        bollard = cylinder(
+            f"LOGISTICS_OPS__{building_id}__dock-bollard-{index:02d}",
+            0.065,
+            0.72,
+            (px, depth / 2 + 0.26, 0.42),
+            mats["safety_yellow"],
+            root,
+            vertices=12,
+        )
+        bollard["layerRole"] = "loading-safety"
 
 
 def create_chair(prefix, location, mats, parent, rotation=0):
@@ -647,58 +1664,291 @@ def create_main_production_facade(width, depth, height, mats, root):
             0.004,
         )
 
+    monitor_width = width * 0.42
+    monitor_depth = depth * 0.42
+    box(
+        "MAIN__roof-monitor",
+        (monitor_width, monitor_depth, 0.58),
+        (-width * 0.10, 0, height + 0.48),
+        mats["wall_secondary"],
+        root,
+        0.035,
+    )
+    for side, label in ((-1, "rear"), (1, "front")):
+        for index in range(6):
+            px = -width * 0.10 - monitor_width * 0.40 + index * monitor_width * 0.80 / 5
+            box(
+                f"MAIN__roof-monitor-window-{label}-{index + 1:02d}",
+                (monitor_width * 0.115, 0.08, 0.26),
+                (px, side * (monitor_depth / 2 + 0.045), height + 0.50),
+                mats["skylight"],
+                root,
+                0.008,
+            )
+    box(
+        "MAIN__roof-monitor-cap",
+        (monitor_width + 0.18, monitor_depth + 0.18, 0.12),
+        (-width * 0.10, 0, height + 0.82),
+        mats["roof"],
+        root,
+        0.018,
+    )
+
+    annex_x = -width / 2 - 0.32
+    annex = box(
+        "MAIN__service-annex",
+        (0.90, depth * 0.50, 1.68),
+        (annex_x, -depth * 0.08, 0.84),
+        mats["wall_secondary"],
+        root,
+        0.045,
+    )
+    annex["facadeType"] = "production-service-annex"
+    for index, py in enumerate((-depth * 0.22, depth * 0.06), start=1):
+        box(
+            f"MAIN__service-annex-louver-{index:02d}",
+            (0.10, 0.92, 0.58),
+            (annex_x - 0.47, py, 1.00),
+            mats["interior_equipment"],
+            root,
+            0.012,
+        )
+        for slat in range(5):
+            box(
+                f"MAIN__service-annex-louver-slat-{index:02d}-{slat + 1:02d}",
+                (0.055, 0.80, 0.035),
+                (annex_x - 0.53, py, 0.78 + slat * 0.11),
+                mats["gutter"],
+                root,
+                0.004,
+            )
+    box(
+        "MAIN__service-annex-canopy",
+        (0.98, 0.92, 0.10),
+        (annex_x, depth * 0.22, 1.52),
+        mats["roof"],
+        root,
+        0.018,
+    )
+
 
 def create_administration_facade(width, depth, height, mats, root):
-    """Layer stone reveals and metal mullions over the approved administration massing."""
+    """Create a grand stone-and-glass landmark facade for the campus administration center."""
     front_y = depth / 2
-    bay_xs = (-1.35, -0.45, 0.45, 1.35)
+    atrium_width = width * 0.32
+    atrium_height = height * 0.78
+    atrium_z = height * 0.50
+    glass_y = front_y + 0.58
+
+    box(
+        "ADMIN__grand-atrium-reveal",
+        (atrium_width + 0.34, 0.24, atrium_height + 0.28),
+        (0, front_y + 0.14, atrium_z),
+        mats["facade_frame"],
+        root,
+        0.025,
+    )
+    atrium = box(
+        "ADMIN__grand-atrium",
+        (atrium_width, 0.11, atrium_height),
+        (0, glass_y, atrium_z),
+        mats["admin_glass"],
+        root,
+        0.018,
+    )
+    atrium["layerRole"] = "landmark-atrium"
+
+    # A compact showcase lobby sits between the original shell and the glazing. It is
+    # intentionally shallow so the landmark keeps the approved footprint while gaining
+    # parallax, warm depth, and recognizable human-scale furniture from the Web camera.
+    lobby_backdrop = box(
+        "ADMIN__lobby-backdrop",
+        (atrium_width * 0.88, 0.07, atrium_height * 0.66),
+        (0, front_y + 0.27, atrium_z * 0.93),
+        mats["lobby_glow"],
+        root,
+        0.018,
+    )
+    lobby_backdrop["lightRole"] = "lobby-warm"
+    lobby_backdrop["layerRole"] = "building-lighting"
+    box(
+        "ADMIN__lobby-floor",
+        (atrium_width * 0.92, 0.66, 0.08),
+        (0, front_y + 0.32, 0.20),
+        mats["admin_stone_dark"],
+        root,
+        0.012,
+    )
+    box(
+        "ADMIN__reception-desk",
+        (1.18, 0.18, 0.48),
+        (0, front_y + 0.40, 0.66),
+        mats["architectural_bronze"],
+        root,
+        0.035,
+    )
+    box(
+        "ADMIN__reception-counter",
+        (1.34, 0.24, 0.10),
+        (0, front_y + 0.42, 0.93),
+        mats["admin_stone_light"],
+        root,
+        0.022,
+    )
+    for label, px in (("left", -0.82), ("right", 0.82)):
+        box(
+            f"ADMIN__lobby-sofa-{label}",
+            (0.72, 0.24, 0.34),
+            (px, front_y + 0.42, 0.47),
+            mats["interior_storage"],
+            root,
+            0.055,
+        )
+        cylinder(
+            f"ADMIN__lobby-planter-{label}",
+            0.15,
+            0.28,
+            (px * 1.38, front_y + 0.42, 0.33),
+            mats["architectural_bronze"],
+            root,
+            vertices=16,
+        )
+        cylinder(
+            f"ADMIN__lobby-plant-{label}",
+            0.12,
+            0.42,
+            (px * 1.38, front_y + 0.42, 0.68),
+            mats["foliage"],
+            root,
+            vertices=12,
+        )
+
+    door_width = atrium_width * 0.28
+    for label, px in (("left", -door_width * 0.53), ("right", door_width * 0.53)):
+        box(
+            f"ADMIN__entry-door-{label}",
+            (door_width, 0.075, height * 0.29),
+            (px, glass_y + 0.07, height * 0.165),
+            mats["admin_glass"],
+            root,
+            0.010,
+        )
+        box(
+            f"ADMIN__entry-door-handle-{label}",
+            (0.035, 0.09, 0.42),
+            (px + (-0.12 if label == "left" else 0.12), glass_y + 0.13, height * 0.17),
+            mats["architectural_bronze"],
+            root,
+            0.008,
+        )
+    for index, px in enumerate((-atrium_width * 0.40, -atrium_width * 0.20, 0, atrium_width * 0.20, atrium_width * 0.40), start=1):
+        box(
+            f"ADMIN__atrium-mullion-{index:02d}",
+            (0.065, 0.17, atrium_height + 0.10),
+            (px, glass_y + 0.06, atrium_z),
+            mats["architectural_bronze"],
+            root,
+            0.008,
+        )
+    for index, pz in enumerate((height * 0.33, height * 0.66), start=1):
+        box(
+            f"ADMIN__atrium-transom-{index:02d}",
+            (atrium_width + 0.08, 0.17, 0.075),
+            (0, glass_y + 0.06, pz),
+            mats["architectural_bronze"],
+            root,
+            0.008,
+        )
+
+    wing_width = (width - atrium_width) / 2
+    for side, label in ((-1, "left"), (1, "right")):
+        wing_x = side * (atrium_width / 2 + wing_width / 2)
+        box(
+            f"ADMIN__stone-wing-{label}",
+            (wing_width - 0.12, 0.15, height * 0.84),
+            (wing_x, front_y + 0.075, height * 0.46),
+            mats["admin_stone_light"],
+            root,
+            0.025,
+        )
+        for joint_index, joint_z in enumerate((height * 0.20, height * 0.36, height * 0.52, height * 0.68), start=1):
+            box(
+                f"ADMIN__stone-joint-{label}-horizontal-{joint_index:02d}",
+                (wing_width - 0.24, 0.035, 0.025),
+                (wing_x, front_y + 0.165, joint_z),
+                mats["admin_stone_dark"],
+                root,
+                0.004,
+            )
+        for joint_index, offset in enumerate((-0.28, 0.28), start=1):
+            box(
+                f"ADMIN__stone-joint-{label}-vertical-{joint_index:02d}",
+                (0.025, 0.035, height * 0.74),
+                (wing_x + offset * wing_width, front_y + 0.165, height * 0.46),
+                mats["admin_stone_dark"],
+                root,
+                0.004,
+            )
+
+    bay_xs = (-width * 0.38, -width * 0.25, width * 0.25, width * 0.38)
+    window_height = height * 0.54
+    window_z = height * 0.47
     for index, px in enumerate(bay_xs, start=1):
         box(
             f"ADMIN__window-reveal-{index:02d}",
-            (0.86, 0.16, 2.53),
-            (px, front_y + 0.105, 1.68),
-            mats["wall_secondary"],
+            (1.02, 0.21, window_height + 0.22),
+            (px, front_y + 0.18, window_z),
+            mats["admin_stone_dark"],
             root,
             0.018,
         )
         box(
+            f"ADMIN__wing-glass-{index:02d}",
+            (0.84, 0.10, window_height),
+            (px, front_y + 0.32, window_z),
+            mats["admin_glass"],
+            root,
+            0.012,
+        )
+        box(
             f"ADMIN__window-frame-top-{index:02d}",
-            (0.78, 0.21, 0.09),
-            (px, front_y + 0.19, 2.90),
-            mats["facade_frame"],
+            (0.90, 0.22, 0.09),
+            (px, front_y + 0.34, window_z + window_height / 2),
+            mats["architectural_bronze"],
             root,
             0.008,
         )
         box(
             f"ADMIN__window-frame-bottom-{index:02d}",
-            (0.78, 0.21, 0.09),
-            (px, front_y + 0.19, 0.46),
-            mats["facade_frame"],
+            (0.90, 0.22, 0.09),
+            (px, front_y + 0.34, window_z - window_height / 2),
+            mats["architectural_bronze"],
             root,
             0.008,
         )
         for side in (-1, 1):
             box(
                 f"ADMIN__window-frame-side-{index:02d}-{side:+d}",
-                (0.08, 0.21, 2.50),
-                (px + side * 0.39, front_y + 0.19, 1.68),
-                mats["facade_frame"],
+                (0.075, 0.22, window_height),
+                (px + side * 0.43, front_y + 0.34, window_z),
+                mats["architectural_bronze"],
                 root,
                 0.008,
             )
-        for level in (1.25, 2.05):
+        for level in (height * 0.33, height * 0.66):
             box(
                 f"ADMIN__window-transom-{index:02d}-{int(level * 100)}",
-                (0.72, 0.20, 0.055),
-                (px, front_y + 0.19, level),
-                mats["facade_frame"],
+                (0.84, 0.22, 0.060),
+                (px, front_y + 0.34, level),
+                mats["architectural_bronze"],
                 root,
                 0.005,
             )
 
     for index, (step_width, step_depth, step_height, y_offset) in enumerate([
-        (1.70, 0.66, 0.12, 0.38),
-        (1.38, 0.44, 0.12, 0.72),
+        (4.80, 0.72, 0.14, 0.42),
+        (4.20, 0.64, 0.14, 0.76),
+        (3.60, 0.56, 0.14, 1.06),
     ], start=1):
         box(
             f"ADMIN__entrance-step-{index:02d}",
@@ -708,12 +1958,137 @@ def create_administration_facade(width, depth, height, mats, root):
             root,
             0.018,
         )
-    for side in (-1, 1):
+
+    column_height = height * 0.42
+    for index, px in enumerate((-1.65, -0.62, 0.62, 1.65), start=1):
+        cylinder(
+            f"ADMIN__portico-column-{index:02d}",
+            0.15,
+            column_height,
+            (px, front_y + 0.88, column_height / 2 + 0.18),
+            mats["admin_stone_light"],
+            root,
+            vertices=16,
+        )
         box(
-            f"ADMIN__canopy-support-{side:+d}",
-            (0.09, 0.09, 0.78),
-            (side * 0.52, front_y + 0.61, 0.47),
-            mats["facade_frame"],
+            f"ADMIN__portico-column-base-{index:02d}",
+            (0.42, 0.42, 0.18),
+            (px, front_y + 0.88, 0.18),
+            mats["admin_stone_dark"],
+            root,
+            0.035,
+        )
+
+    box(
+        "ADMIN__grand-canopy",
+        (width * 0.58, 1.48, 0.22),
+        (0, front_y + 0.76, column_height + 0.24),
+        mats["admin_stone_light"],
+        root,
+        0.035,
+    )
+    box(
+        "ADMIN__grand-canopy-bronze-edge",
+        (width * 0.60, 0.12, 0.16),
+        (0, front_y + 1.48, column_height + 0.22),
+        mats["architectural_bronze"],
+        root,
+        0.018,
+    )
+    box(
+        "ADMIN__grand-canopy-soffit",
+        (width * 0.54, 1.30, 0.055),
+        (0, front_y + 0.76, column_height + 0.105),
+        mats["architectural_bronze"],
+        root,
+        0.012,
+    )
+    for index, px in enumerate((-width * 0.17, 0, width * 0.17), start=1):
+        canopy_light = box(
+            f"ADMIN__canopy-linear-light-{index:02d}",
+            (0.92, 0.56, 0.028),
+            (px, front_y + 0.83, column_height + 0.070),
+            mats["lobby_glow"],
+            root,
+            0.008,
+        )
+        canopy_light["lightRole"] = "lobby-warm"
+        canopy_light["layerRole"] = "building-lighting"
+    box(
+        "ADMIN__crown-band",
+        (width + 0.28, 0.20, 0.46),
+        (0, front_y + 0.10, height - 0.22),
+        mats["admin_stone_light"],
+        root,
+        0.028,
+    )
+    box(
+        "ADMIN__crown-bronze-line",
+        (width * 0.84, 0.10, 0.075),
+        (0, front_y + 0.23, height - 0.18),
+        mats["architectural_bronze"],
+        root,
+        0.010,
+    )
+    box(
+        "ADMIN__roof-lantern",
+        (atrium_width * 0.72, depth * 0.38, 0.58),
+        (0, 0, height + 0.42),
+        mats["admin_glass"],
+        root,
+        0.045,
+    )
+
+    box(
+        "ADMIN__dropoff-porte-cochere",
+        (width * 0.62, 1.02, 0.20),
+        (0, front_y + 1.38, 2.34),
+        mats["admin_stone_light"],
+        root,
+        0.035,
+    )
+    box(
+        "ADMIN__dropoff-bronze-edge",
+        (width * 0.65, 0.12, 0.16),
+        (0, front_y + 1.91, 2.32),
+        mats["architectural_bronze"],
+        root,
+        0.016,
+    )
+    for index, px in enumerate((-2.05, -0.72, 0.72, 2.05), start=1):
+        cylinder(
+            f"ADMIN__dropoff-column-{index:02d}",
+            0.12,
+            2.18,
+            (px, front_y + 1.48, 1.13),
+            mats["architectural_bronze"],
+            root,
+            vertices=16,
+        )
+        box(
+            f"ADMIN__dropoff-column-base-{index:02d}",
+            (0.34, 0.34, 0.14),
+            (px, front_y + 1.48, 0.07),
+            mats["admin_stone_dark"],
+            root,
+            0.025,
+        )
+
+    sign_z = height * 0.86
+    box(
+        "ADMIN__corporate-sign-backplate",
+        (atrium_width * 0.92, 0.16, 0.52),
+        (0, front_y + 0.40, sign_z),
+        mats["admin_stone_dark"],
+        root,
+        0.018,
+    )
+    for index, px in enumerate((-0.72, -0.36, 0, 0.36, 0.72), start=1):
+        box(
+            f"ADMIN__corporate-sign-bar-{index:02d}",
+            (0.20, 0.08, 0.18 + (index % 2) * 0.08),
+            (px, front_y + 0.50, sign_z),
+            mats["architectural_bronze"],
             root,
             0.012,
         )
@@ -748,77 +2123,233 @@ def create_gatehouse_facade(width, depth, height, mats, root):
         )
 
 
-def create_wall_cladding(building_id, width, depth, height, mats, root):
-    """Break the white mass into GLB-safe insulated-panel bays on the visible faces."""
-    front_y = depth / 2
-    front_count = max(2, min(9, round(width / 1.55)))
-    front_panel_width = width / front_count
+def building_art_palette(building_id, kind, mats):
+    """Resolve a restrained material identity from each building's campus function."""
+    if building_id == "administration":
+        return {
+            "direction": "executive-stone",
+            "shell": mats["admin_wall"],
+            "panel_light": mats["admin_stone_light"],
+            "panel_mid": mats["admin_stone_dark"],
+        }
+    if building_id in {"front-warehouse", "east-warehouse"}:
+        return {
+            "direction": "warm-logistics",
+            "shell": mats["warehouse_wall"],
+            "panel_light": mats["warehouse_panel_light"],
+            "panel_mid": mats["warehouse_panel_mid"],
+        }
+    if building_id == "east-process-hall":
+        return {
+            "direction": "process-blue-gray",
+            "shell": mats["process_wall"],
+            "panel_light": mats["process_panel_light"],
+            "panel_mid": mats["process_panel_mid"],
+        }
+    if building_id in {"far-east-utility", "front-utility-annex"}:
+        return {
+            "direction": "dark-utility",
+            "shell": mats["utility_wall"],
+            "panel_light": mats["utility_panel_light"],
+            "panel_mid": mats["utility_panel_mid"],
+        }
+    if building_id in {"laboratory", "gatehouse"} or kind == "office":
+        return {
+            "direction": "clean-technical",
+            "shell": mats["laboratory_wall"],
+            "panel_light": mats["laboratory_panel_light"],
+            "panel_mid": mats["laboratory_panel_mid"],
+        }
+    return {
+        "direction": "modern-production",
+        "shell": mats["factory_wall"],
+        "panel_light": mats["factory_panel_light"],
+        "panel_mid": mats["factory_panel_mid"],
+    }
+
+
+def create_wall_cladding(building_id, width, depth, height, mats, root, art_palette):
+    """Wrap every elevation in GLB-safe insulated panels and physical trims."""
+    half_width = width / 2
+    half_depth = depth / 2
     cladding_height = max(0.72, height - 0.46)
     cladding_z = 0.34 + cladding_height / 2
-    for index in range(front_count):
-        px = -width / 2 + front_panel_width * (index + 0.5)
-        box(
+
+    horizontal_count = max(2, min(9, round(width / 1.55)))
+    horizontal_panel_width = width / horizontal_count
+    for index in range(horizontal_count):
+        px = -half_width + horizontal_panel_width * (index + 0.5)
+        front_panel = box(
             f"CLADDING__{building_id}__front-panel-{index + 1:02d}",
-            (front_panel_width - 0.032, 0.052, cladding_height),
-            (px, front_y + 0.030, cladding_z),
-            mats["wall_panel_light"] if index % 3 != 1 else mats["wall_panel_mid"],
+            (horizontal_panel_width - 0.032, 0.052, cladding_height),
+            (px, half_depth + 0.030, cladding_z),
+            art_palette["panel_light"] if index % 3 != 1 else art_palette["panel_mid"],
             root,
             0.004,
         )
+        linked_mesh_instance(
+            f"CLADDING__{building_id}__rear-panel-{index + 1:02d}",
+            front_panel,
+            (px, -half_depth - 0.030, cladding_z),
+            root,
+        )
+        if index:
+            joint_x = -half_width + horizontal_panel_width * index
+            front_joint = box(
+                f"CLADDING__{building_id}__front-shadow-joint-{index:02d}",
+                (0.030, 0.030, cladding_height - 0.06),
+                (joint_x, half_depth + 0.067, cladding_z),
+                mats["facade_shadow_joint"],
+                root,
+                0.003,
+            )
+            front_joint["layerRole"] = "facade-shadow-joint"
+            rear_joint = linked_mesh_instance(
+                f"CLADDING__{building_id}__rear-shadow-joint-{index:02d}",
+                front_joint,
+                (joint_x, -half_depth - 0.067, cladding_z),
+                root,
+            )
+            rear_joint["layerRole"] = "facade-shadow-joint"
 
-    visible_side_x = -width / 2
-    side_count = max(2, min(5, round(depth / 1.45)))
-    side_panel_depth = depth / side_count
-    for index in range(side_count):
-        py = -depth / 2 + side_panel_depth * (index + 0.5)
-        box(
-            f"CLADDING__{building_id}__side-panel-{index + 1:02d}",
-            (0.052, side_panel_depth - 0.032, cladding_height),
-            (visible_side_x - 0.030, py, cladding_z),
-            mats["wall_panel_light"] if index % 3 != 1 else mats["wall_panel_mid"],
+    vertical_count = max(2, min(5, round(depth / 1.45)))
+    vertical_panel_depth = depth / vertical_count
+    for index in range(vertical_count):
+        py = -half_depth + vertical_panel_depth * (index + 0.5)
+        left_panel = box(
+            f"CLADDING__{building_id}__left-panel-{index + 1:02d}",
+            (0.052, vertical_panel_depth - 0.032, cladding_height),
+            (-half_width - 0.030, py, cladding_z),
+            art_palette["panel_light"] if index % 3 != 1 else art_palette["panel_mid"],
             root,
             0.004,
         )
+        linked_mesh_instance(
+            f"CLADDING__{building_id}__right-panel-{index + 1:02d}",
+            left_panel,
+            (half_width + 0.030, py, cladding_z),
+            root,
+        )
+        if index:
+            joint_y = -half_depth + vertical_panel_depth * index
+            left_joint = box(
+                f"CLADDING__{building_id}__left-shadow-joint-{index:02d}",
+                (0.030, 0.030, cladding_height - 0.06),
+                (-half_width - 0.067, joint_y, cladding_z),
+                mats["facade_shadow_joint"],
+                root,
+                0.003,
+            )
+            left_joint["layerRole"] = "facade-shadow-joint"
+            right_joint = linked_mesh_instance(
+                f"CLADDING__{building_id}__right-shadow-joint-{index:02d}",
+                left_joint,
+                (half_width + 0.067, joint_y, cladding_z),
+                root,
+            )
+            right_joint["layerRole"] = "facade-shadow-joint"
 
-    box(
+    for level, z in (("low", max(0.48, height * 0.28)), ("high", min(height - 0.34, height * 0.76))):
+        front_batten = box(
+            f"CLADDING__{building_id}__pressed-batten-front-{level}",
+            (width - 0.16, 0.045, 0.050),
+            (0, half_depth + 0.073, z),
+            mats["wall_batten"],
+            root,
+            0.005,
+        )
+        linked_mesh_instance(
+            f"CLADDING__{building_id}__pressed-batten-rear-{level}",
+            front_batten,
+            (0, -half_depth - 0.073, z),
+            root,
+        )
+        left_batten = box(
+            f"CLADDING__{building_id}__pressed-batten-left-{level}",
+            (0.045, depth - 0.16, 0.050),
+            (-half_width - 0.073, 0, z),
+            mats["wall_batten"],
+            root,
+            0.005,
+        )
+        linked_mesh_instance(
+            f"CLADDING__{building_id}__pressed-batten-right-{level}",
+            left_batten,
+            (half_width + 0.073, 0, z),
+            root,
+        )
+
+    front_skirt = mark_construction(box(
         f"CLADDING__{building_id}__wall-skirt-front",
         (width - 0.10, 0.10, 0.32),
-        (0, front_y + 0.095, 0.16),
+        (0, half_depth + 0.095, 0.16),
         mats["plinth"],
         root,
-        0.012,
+        0.030,
+    ), "wall-plinth", 0.030)
+    linked_mesh_instance(
+        f"CLADDING__{building_id}__wall-skirt-rear",
+        front_skirt,
+        (0, -half_depth - 0.095, 0.16),
+        root,
     )
-    box(
-        f"CLADDING__{building_id}__wall-skirt-side",
+    left_skirt = mark_construction(box(
+        f"CLADDING__{building_id}__wall-skirt-left",
         (0.10, depth - 0.10, 0.32),
-        (visible_side_x - 0.095, 0, 0.16),
+        (-half_width - 0.095, 0, 0.16),
         mats["plinth"],
         root,
-        0.012,
+        0.030,
+    ), "wall-plinth", 0.030)
+    linked_mesh_instance(
+        f"CLADDING__{building_id}__wall-skirt-right",
+        left_skirt,
+        (half_width + 0.095, 0, 0.16),
+        root,
     )
-    box(
+
+    front_left_corner = mark_construction(box(
         f"CLADDING__{building_id}__corner-trim-left",
         (0.12, 0.12, height - 0.14),
-        (visible_side_x - 0.055, front_y + 0.055, height / 2),
+        (-half_width - 0.055, half_depth + 0.055, height / 2),
         mats["corner_flashing"],
         root,
-        0.012,
-    )
-    box(
+        0.035,
+    ), "corner-flashing", 0.035)
+    for name, location in (
+        ("corner-trim-right", (half_width + 0.055, half_depth + 0.055, height / 2)),
+        ("corner-trim-rear-left", (-half_width - 0.055, -half_depth - 0.055, height / 2)),
+        ("corner-trim-rear-right", (half_width + 0.055, -half_depth - 0.055, height / 2)),
+    ):
+        linked_mesh_instance(f"CLADDING__{building_id}__{name}", front_left_corner, location, root)
+
+    front_datum = box(
         f"CLADDING__{building_id}__front-datum-band",
         (width - 0.18, 0.075, 0.065),
-        (0, front_y + 0.068, min(height - 0.42, max(0.72, height * 0.48))),
+        (0, half_depth + 0.068, min(height - 0.42, max(0.72, height * 0.48))),
         mats["corner_flashing"],
         root,
         0.006,
     )
-    box(
-        f"CLADDING__{building_id}__side-datum-band",
+    linked_mesh_instance(
+        f"CLADDING__{building_id}__rear-datum-band",
+        front_datum,
+        (0, -half_depth - 0.068, min(height - 0.42, max(0.72, height * 0.48))),
+        root,
+    )
+    left_datum = box(
+        f"CLADDING__{building_id}__left-datum-band",
         (0.075, depth - 0.18, 0.065),
-        (visible_side_x - 0.068, 0, min(height - 0.42, max(0.72, height * 0.48))),
+        (-half_width - 0.068, 0, min(height - 0.42, max(0.72, height * 0.48))),
         mats["corner_flashing"],
         root,
         0.006,
+    )
+    linked_mesh_instance(
+        f"CLADDING__{building_id}__right-datum-band",
+        left_datum,
+        (half_width + 0.068, 0, min(height - 0.42, max(0.72, height * 0.48))),
+        root,
     )
 
 
@@ -831,43 +2362,71 @@ def create_constructed_envelope(building_id, width, depth, height, kind, mats, r
     opening_z = min(height - 0.54, max(0.78, height * 0.62))
     span = width * 0.70
 
+    opening_depth = 0.11
     for index in range(bay_count):
         px = -span / 2 + (index + 0.5) * span / bay_count
-        reveal = box(
+        reveal = empty(
             f"FACADE__{building_id}__reveal-{index + 1:02d}",
-            (bay_width + 0.15, 0.16, opening_height + 0.16),
-            (px, front_y + 0.09, opening_z),
-            mats["wall_secondary"],
+            (px, front_y + 0.13, opening_z),
             root,
-            0.012,
         )
+        mark_construction(reveal, "opening-reveal", opening_depth=opening_depth)
         reveal["layerRole"] = "facade-reveal"
+        reveal_y = front_y + 0.13
+        reveal_width = bay_width + 0.17
+        reveal_height = opening_height + 0.17
+        for part, size, location in (
+            ("top", (reveal_width, 0.16, 0.085), (px, reveal_y, opening_z + reveal_height / 2)),
+            ("bottom", (reveal_width, 0.16, 0.085), (px, reveal_y, opening_z - reveal_height / 2)),
+            ("left", (0.085, 0.16, opening_height), (px - reveal_width / 2, reveal_y, opening_z)),
+            ("right", (0.085, 0.16, opening_height), (px + reveal_width / 2, reveal_y, opening_z)),
+        ):
+            return_piece = box(
+                f"FACADE__{building_id}__reveal-return-{index + 1:02d}-{part}",
+                size,
+                location,
+                mats["wall_secondary"],
+                root,
+                0.026,
+            )
+            return_piece["layerRole"] = "facade-reveal-return"
         glass = box(
             f"FACADE__{building_id}__glass-{index + 1:02d}",
-            (bay_width, 0.07, opening_height),
-            (px, front_y + 0.19, opening_z),
+            (bay_width, 0.04, opening_height),
+            (px, front_y + 0.075, opening_z),
             mats["glass"],
             root,
             0.008,
         )
         glass["layerRole"] = "facade-glazing"
+        glass["openingDepth"] = opening_depth
         frame = box(
             f"FACADE__{building_id}__frame-{index + 1:02d}",
             (0.055, 0.12, opening_height + 0.12),
-            (px - bay_width / 2 - 0.045, front_y + 0.225, opening_z),
+            (px - bay_width / 2 - 0.045, front_y + 0.155, opening_z),
             mats["facade_frame"],
             root,
             0.006,
         )
         frame["layerRole"] = "facade-frame"
-        box(
+        sill = box(
             f"FACADE__{building_id}__sill-{index + 1:02d}",
             (bay_width + 0.16, 0.17, 0.065),
-            (px, front_y + 0.225, opening_z - opening_height / 2 - 0.055),
+            (px, front_y + 0.155, opening_z - opening_height / 2 - 0.055),
             mats["corner_flashing"],
             root,
-            0.006,
+            0.030,
         )
+        mark_construction(sill, "window-sill", 0.030)
+        drip_edge = box(
+            f"FACADE__{building_id}__drip-edge-{index + 1:02d}",
+            (bay_width + 0.20, 0.22, 0.055),
+            (px, front_y + 0.17, opening_z + opening_height / 2 + 0.075),
+            mats["corner_flashing"],
+            root,
+            0.030,
+        )
+        mark_construction(drip_edge, "drip-edge", 0.030)
 
     parapet_height = height + 0.16
     for edge, size, location in (
@@ -876,15 +2435,16 @@ def create_constructed_envelope(building_id, width, depth, height, kind, mats, r
         ("left", (0.12, depth, 0.24), (-width / 2 - 0.02, 0, parapet_height)),
         ("right", (0.12, depth, 0.24), (width / 2 + 0.02, 0, parapet_height)),
     ):
-        box(f"ROOF__{building_id}__parapet-{edge}", size, location, mats["corner_flashing"], root, 0.012)
-    box(
-        f"ROOF__{building_id}__gutter-front",
-        (width - 0.18, 0.10, 0.10),
-        (0, front_y + 0.15, height + 0.02),
-        mats["gutter"],
-        root,
-        0.01,
-    )
+        parapet = box(f"ROOF__{building_id}__parapet-{edge}", size, location, mats["corner_flashing"], root, 0.035)
+        mark_construction(parapet, "roof-parapet", 0.035)
+    for face, size, location in (
+        ("front", (width - 0.18, 0.10, 0.10), (0, front_y + 0.15, height + 0.02)),
+        ("rear", (width - 0.18, 0.10, 0.10), (0, -front_y - 0.15, height + 0.02)),
+        ("left", (0.10, depth - 0.18, 0.10), (-width / 2 - 0.15, 0, height + 0.02)),
+        ("right", (0.10, depth - 0.18, 0.10), (width / 2 + 0.15, 0, height + 0.02)),
+    ):
+        gutter = box(f"ROOF__{building_id}__gutter-{face}", size, location, mats["gutter"], root, 0.025)
+        mark_construction(gutter, "roof-drainage", 0.025)
 
     for index, px in enumerate((-width * 0.43, width * 0.43), start=1):
         pipe = cylinder(
@@ -897,9 +2457,92 @@ def create_constructed_envelope(building_id, width, depth, height, kind, mats, r
             vertices=10,
         )
         pipe["layerRole"] = "facade-service"
+        mark_construction(pipe, "roof-drainage")
+        rear_pipe = cylinder(
+            f"SERVICE__{building_id}__downpipe-rear-{index:02d}",
+            0.045,
+            max(0.65, height - 0.20),
+            (px, -front_y - 0.17, height / 2),
+            mats["gutter"],
+            root,
+            vertices=10,
+        )
+        rear_pipe["layerRole"] = "facade-service"
+        mark_construction(rear_pipe, "roof-drainage")
+
+    rear_door_x = width * 0.40
+    rear_door_height = min(1.42, height * 0.58)
+    rear_reveal = box(
+        f"SERVICE__{building_id}__rear-door-reveal",
+        (0.86, 0.20, rear_door_height + 0.18),
+        (rear_door_x, -front_y - 0.08, rear_door_height / 2),
+        mats["facade_frame"],
+        root,
+        0.030,
+    )
+    mark_construction(rear_reveal, "opening-reveal", 0.030, opening_depth)
+    rear_door = box(
+        f"SERVICE__{building_id}__rear-door",
+        (0.68, 0.10, rear_door_height),
+        (rear_door_x, -front_y - 0.20, rear_door_height / 2),
+        mats["wall_secondary"],
+        root,
+        0.014,
+    )
+    rear_door["layerRole"] = "facade-service-access"
+    rear_door["openingDepth"] = opening_depth
+    rear_drip = box(
+        f"SERVICE__{building_id}__rear-door-canopy",
+        (1.05, 0.52, 0.10),
+        (rear_door_x, -front_y - 0.28, rear_door_height + 0.16),
+        mats["roof"],
+        root,
+        0.030,
+    )
+    mark_construction(rear_drip, "drip-edge", 0.030)
 
     service_width = min(1.10, width * 0.32)
     service_z = min(height - 0.48, max(0.72, height * 0.34))
+    side_feature_y = -depth * 0.10
+    if kind == "factory":
+        louver_depth = min(1.30, depth * 0.46)
+        box(
+            f"SERVICE__{building_id}__right-louver-bank",
+            (0.16, louver_depth, 0.72),
+            (width / 2 + 0.18, side_feature_y, service_z),
+            mats["interior_equipment"],
+            root,
+            0.014,
+        )
+        for index in range(5):
+            box(
+                f"SERVICE__{building_id}__right-louver-slat-{index + 1:02d}",
+                (0.055, louver_depth * 0.86, 0.035),
+                (width / 2 + 0.28, side_feature_y, service_z - 0.23 + index * 0.115),
+                mats["gutter"],
+                root,
+                0.004,
+            )
+    else:
+        side_window_height = min(0.82, height * 0.28)
+        box(
+            f"SERVICE__{building_id}__right-window-reveal-01",
+            (0.16, 0.96, side_window_height + 0.16),
+            (width / 2 + 0.09, side_feature_y, opening_z),
+            mats["facade_frame"],
+            root,
+            0.012,
+        )
+        side_window = box(
+            f"SERVICE__{building_id}__right-window-01",
+            (0.08, 0.80, side_window_height),
+            (width / 2 + 0.20, side_feature_y, opening_z),
+            mats["glass"],
+            root,
+            0.008,
+        )
+        side_window["layerRole"] = "facade-glazing"
+
     box(
         f"SERVICE__{building_id}__panel",
         (service_width, 0.13, 0.54),
@@ -920,19 +2563,466 @@ def create_constructed_envelope(building_id, width, depth, height, kind, mats, r
         )
 
 
+def create_specialized_building_facade(building_id, width, depth, height, mats, root):
+    """Give warehouse, laboratory, and utility buildings an unmistakable use identity."""
+    front_y = depth / 2
+    if building_id == "front-warehouse":
+        box("WAREHOUSE__identity-band", (width - 0.35, 0.16, 0.46), (0, front_y + 0.18, height - 0.56), mats["facade_frame"], root, 0.018)
+        loading_y = -front_y
+        box("WAREHOUSE__protective-plinth", (width - 0.22, 0.18, 0.46), (0, loading_y - 0.10, 0.25), mats["plinth"], root, 0.018)
+        box("WAREHOUSE__dock-platform", (width * 0.88, 0.72, 0.32), (0, loading_y - 0.38, 0.16), mats["concrete"], root, 0.028)
+        box("WAREHOUSE__dock-canopy", (width * 0.91, 0.82, 0.14), (0, loading_y - 0.43, 2.48), mats["roof"], root, 0.024)
+        for index, px in enumerate((-width * 0.38, -width * 0.13, width * 0.13, width * 0.38), start=1):
+            box(
+                f"WAREHOUSE__dock-canopy-bracket-{index:02d}",
+                (0.10, 0.58, 0.10),
+                (px, loading_y - 0.26, 2.20),
+                mats["facade_frame"],
+                root,
+                0.008,
+                rotation=(math.radians(34), 0, 0),
+            )
+        for index, px in enumerate((-2.45, 0.0, 2.45), start=1):
+            box(f"WAREHOUSE__loading-door-reveal-{index:02d}", (1.88, 0.24, 2.08), (px, loading_y - 0.11, 1.04), mats["facade_frame"], root, 0.028)
+            box(f"WAREHOUSE__loading-door-{index:02d}", (1.62, 0.13, 1.82), (px, loading_y - 0.19, 0.94), mats["interior_storage"], root, 0.025)
+            box(f"WAREHOUSE__door-header-{index:02d}", (1.96, 0.22, 0.28), (px, loading_y - 0.18, 2.16), mats["safety_yellow"], root, 0.018)
+            for slat in range(5):
+                box(
+                    f"WAREHOUSE__door-slat-{index:02d}-{slat + 1:02d}",
+                    (1.46, 0.045, 0.035),
+                    (px, loading_y - 0.27, 0.30 + slat * 0.30),
+                    mats["gutter"],
+                    root,
+                    0.004,
+                )
+            box(f"WAREHOUSE__dock-light-{index:02d}", (0.34, 0.22, 0.10), (px, loading_y - 0.28, 2.28), mats["white"], root, 0.018)
+            box(f"WAREHOUSE__high-vent-{index:02d}", (1.30, 0.12, 0.32), (px, loading_y - 0.20, height - 0.44), mats["gutter"], root, 0.012)
+            box(f"WAREHOUSE__dock-leveler-{index:02d}", (1.30, 0.58, 0.08), (px, loading_y - 0.58, 0.36), mats["gutter"], root, 0.012)
+            for side in (-1, 1):
+                cylinder(
+                    f"WAREHOUSE__dock-bollard-{index:02d}-{side:+d}",
+                    0.065,
+                    0.68,
+                    (px + side * 0.82, loading_y - 0.72, 0.36),
+                    mats["safety_yellow"],
+                    root,
+                    vertices=12,
+                )
+
+    elif building_id == "east-warehouse":
+        box("FINISHED__identity-band", (width - 0.28, 0.15, 0.38), (0, front_y + 0.16, height - 0.48), mats["accent"], root, 0.018)
+        box("FINISHED__dock-platform", (width * 0.72, 0.70, 0.30), (0, front_y + 0.38, 0.15), mats["concrete"], root, 0.028)
+        box("FINISHED__dock-canopy", (width * 0.76, 0.82, 0.13), (0, front_y + 0.42, 2.32), mats["roof"], root, 0.022)
+        for index, px in enumerate((-2.05, 2.05), start=1):
+            box(f"FINISHED__door-reveal-{index:02d}", (1.92, 0.22, 2.10), (px, front_y + 0.10, 1.05), mats["facade_frame"], root, 0.026)
+            box(f"FINISHED__sectional-door-{index:02d}", (1.66, 0.12, 1.84), (px, front_y + 0.20, 0.95), mats["wall_secondary"], root, 0.022)
+            for slat in range(6):
+                box(
+                    f"FINISHED__door-slat-{index:02d}-{slat + 1:02d}",
+                    (1.48, 0.045, 0.032),
+                    (px, front_y + 0.28, 0.28 + slat * 0.29),
+                    mats["gutter"],
+                    root,
+                    0.004,
+                )
+            for side in (-1, 1):
+                box(
+                    f"FINISHED__dock-bumper-{index:02d}-{side:+d}",
+                    (0.13, 0.17, 0.38),
+                    (px + side * 0.68, front_y + 0.66, 0.42),
+                    mats["dock_rubber"],
+                    root,
+                    0.022,
+                )
+            box(f"FINISHED__high-vent-{index:02d}", (1.30, 0.13, 0.30), (px, front_y + 0.23, height - 0.44), mats["gutter"], root, 0.012)
+
+    elif building_id == "east-process-hall":
+        box("PROCESS_HALL__louver-strip", (width * 0.72, 0.16, 0.76), (0, front_y + 0.18, height * 0.48), mats["interior_equipment"], root, 0.018)
+        for slat in range(7):
+            box(
+                f"PROCESS_HALL__louver-slat-{slat + 1:02d}",
+                (width * 0.68, 0.055, 0.040),
+                (0, front_y + 0.28, height * 0.25 + slat * 0.105),
+                mats["gutter"],
+                root,
+                0.004,
+            )
+        frame_x = width * 0.24
+        box("PROCESS_HALL__pipe-entry-frame", (2.25, 0.20, 0.18), (frame_x, front_y + 0.30, 2.56), mats["facade_frame"], root, 0.016)
+        for side in (-1, 1):
+            box(
+                f"PROCESS_HALL__pipe-entry-post-{side:+d}",
+                (0.14, 0.20, 1.82),
+                (frame_x + side * 1.04, front_y + 0.30, 1.62),
+                mats["facade_frame"],
+                root,
+                0.014,
+            )
+        for index, px in enumerate((frame_x - 0.62, frame_x, frame_x + 0.62), start=1):
+            cylinder(
+                f"PROCESS_HALL__pipe-penetration-{index:02d}",
+                0.085,
+                0.62,
+                (px, front_y + 0.34, 1.82),
+                mats["pipe_band" if index == 2 else "pipe"],
+                root,
+                rotation=(math.pi / 2, 0, 0),
+                vertices=12,
+            )
+        box("PROCESS_HALL__scrubber-plinth", (1.28, 1.18, 0.18), (width * 0.22, -depth * 0.10, height + 0.28), mats["concrete"], root, 0.022)
+        cylinder("PROCESS_HALL__roof-scrubber", 0.40, 1.18, (width * 0.22, -depth * 0.10, height + 0.94), mats["gutter"], root, vertices=20)
+        cylinder("PROCESS_HALL__roof-scrubber-cap", 0.47, 0.13, (width * 0.22, -depth * 0.10, height + 1.59), mats["roof"], root, vertices=20)
+
+    elif building_id == "far-east-utility":
+        box("POWER__louver-bank", (width * 0.78, 0.16, 1.02), (0, front_y + 0.18, height * 0.45), mats["interior_equipment"], root, 0.020)
+        for slat in range(8):
+            box(
+                f"POWER__louver-slat-{slat + 1:02d}",
+                (width * 0.72, 0.055, 0.040),
+                (0, front_y + 0.28, height * 0.22 + slat * 0.105),
+                mats["gutter"],
+                root,
+                0.004,
+            )
+        box("POWER__roof-equipment-skid", (width * 0.80, depth * 0.62, 0.18), (0, 0, height + 0.28), mats["concrete"], root, 0.022)
+        for index, px in enumerate((-width * 0.22, width * 0.22), start=1):
+            box(
+                f"POWER__roof-equipment-{index:02d}",
+                (0.92, depth * 0.40, 0.62),
+                (px, 0, height + 0.66),
+                mats["interior_equipment"],
+                root,
+                0.035,
+            )
+            cylinder(
+                f"POWER__exhaust-stack-{index:02d}",
+                0.10,
+                0.92,
+                (px, -depth * 0.30, height + 0.86),
+                mats["pipe"],
+                root,
+                vertices=12,
+            )
+            cylinder(
+                f"POWER__exhaust-cap-{index:02d}",
+                0.16,
+                0.09,
+                (px, -depth * 0.30, height + 1.36),
+                mats["gutter"],
+                root,
+                vertices=12,
+            )
+
+    elif building_id == "laboratory":
+        curtain = box("LAB__curtain-wall", (width * 0.72, 0.18, height * 0.64), (0, front_y + 0.18, height * 0.47), mats["glass"], root, 0.02)
+        curtain["facadeType"] = "laboratory-curtain-wall"
+        for index in range(7):
+            px = -width * 0.34 + index * width * 0.68 / 6
+            box(f"LAB__curtain-mullion-{index + 1:02d}", (0.07, 0.12, height * 0.68), (px, front_y + 0.30, height * 0.47), mats["facade_frame"], root, 0.006)
+        box("LAB__entrance-canopy", (2.2, 0.78, 0.14), (0, front_y + 0.55, 1.35), mats["roof"], root, 0.02)
+        box("LAB__recessed-entry-frame", (1.70, 0.28, 2.10), (0, front_y + 0.11, 1.06), mats["facade_frame"], root, 0.025)
+        box("LAB__parapet-band", (width + 0.18, 0.20, 0.36), (0, front_y + 0.10, height - 0.18), mats["wall_secondary"], root, 0.02)
+        for index, px in enumerate((-2.6, 0.0, 2.6), start=1):
+            cylinder(f"LAB__exhaust-stack-{index:02d}", 0.11, 1.05, (px, 0, height + 0.70), mats["pipe"], root, vertices=12)
+            cylinder(f"LAB__exhaust-cap-{index:02d}", 0.18, 0.09, (px, 0, height + 1.24), mats["gutter"], root, vertices=12)
+
+    elif building_id == "front-utility-annex":
+        box("UTILITY__equipment-plinth", (width - 0.18, 0.20, 0.54), (0, front_y + 0.10, 0.28), mats["plinth"], root, 0.018)
+        box("UTILITY__service-canopy", (width * 0.88, 0.62, 0.13), (0, front_y + 0.40, height * 0.66), mats["roof"], root, 0.02)
+        for index, px in enumerate((-2.55, 0.0, 2.55), start=1):
+            bank = box(f"UTILITY__louver-bank-{index:02d}", (1.55, 0.16, 0.86), (px, front_y + 0.20, height * 0.43), mats["interior_equipment"], root, 0.02)
+            bank["facadeType"] = "utility-louver"
+            for slat in range(6):
+                box(
+                    f"UTILITY__louver-slat-{index:02d}-{slat + 1:02d}",
+                    (1.38, 0.055, 0.045),
+                    (px, front_y + 0.30, height * 0.16 + slat * 0.12),
+                    mats["gutter"],
+                    root,
+                    0.004,
+                )
+        box("UTILITY__cable-tray", (width * 0.82, 0.20, 0.16), (0, front_y + 0.30, height - 0.22), mats["pipe"], root, 0.012)
+        box("UTILITY__hazard-sign", (0.72, 0.08, 0.58), (width * 0.39, front_y + 0.30, 1.18), mats["safety_yellow"], root, 0.018)
+
+
+def create_building_lighting_and_wayfinding(building_id, width, depth, height, kind, mats, root, art_palette):
+    """Add restrained entry, task, and identity lighting with Web-readable roles."""
+    front_y = depth / 2
+    entry_z = min(1.58, height * 0.58)
+    entry_span = min(width * 0.23, 1.72)
+
+    for index, px in enumerate((-entry_span, entry_span), start=1):
+        box(
+            f"LIGHT__{building_id}__entry-housing-{index:02d}",
+            (0.38, 0.16, 0.25),
+            (px, front_y + 0.15, entry_z),
+            mats["facade_frame"],
+            root,
+            0.025,
+        )
+        fixture = box(
+            f"LIGHT__{building_id}__entry-{index:02d}",
+            (0.27, 0.07, 0.12),
+            (px, front_y + 0.255, entry_z - 0.025),
+            mats["entry_light_warm"],
+            root,
+            0.018,
+        )
+        fixture["lightRole"] = "entry-warm"
+        fixture["layerRole"] = "building-lighting"
+
+    sign_width = min(1.08, max(0.58, width * 0.18))
+    sign_x = min(width * 0.34, width / 2 - sign_width / 2 - 0.16)
+    sign_z = min(height * 0.74, height - 0.42)
+    box(
+        f"WAYFINDING__{building_id}__identity-frame",
+        (sign_width + 0.16, 0.15, 0.52),
+        (sign_x, front_y + 0.16, sign_z),
+        mats["facade_frame"],
+        root,
+        0.025,
+    )
+    sign = box(
+        f"WAYFINDING__{building_id}__identity-panel",
+        (sign_width, 0.065, 0.38),
+        (sign_x, front_y + 0.275, sign_z),
+        mats["wayfinding_amber"],
+        root,
+        0.018,
+    )
+    sign["lightRole"] = "wayfinding-amber"
+    sign["layerRole"] = "building-wayfinding"
+    sign["buildingId"] = building_id
+    for index, scale in enumerate((0.62, 0.42, 0.76), start=1):
+        box(
+            f"WAYFINDING__{building_id}__code-bar-{index:02d}",
+            (sign_width * scale * 0.22, 0.035, 0.055),
+            (sign_x - sign_width * 0.30 + index * sign_width * 0.15, front_y + 0.325, sign_z),
+            art_palette["panel_mid"],
+            root,
+            0.006,
+        )
+
+    task_buildings = {"main-production-hall", "front-warehouse", "east-warehouse", "east-process-hall"}
+    if building_id in task_buildings:
+        task_z = min(height * 0.72, height - 0.48)
+        for index, px in enumerate((-width * 0.28, width * 0.28), start=1):
+            box(
+                f"LIGHT__{building_id}__task-hood-{index:02d}",
+                (0.54, 0.26, 0.14),
+                (px, front_y + 0.18, task_z + 0.10),
+                mats["facade_frame"],
+                root,
+                0.025,
+            )
+            fixture = box(
+                f"LIGHT__{building_id}__task-{index:02d}",
+                (0.42, 0.09, 0.10),
+                (px, front_y + 0.33, task_z),
+                mats["task_light_cool"],
+                root,
+                0.015,
+            )
+            fixture["lightRole"] = "task-cool"
+            fixture["layerRole"] = "building-lighting"
+
+
+def create_building_surface_age(building_id, width, depth, height, kind, mats, root):
+    """Add restrained, GLB-safe facade weathering without changing building massing."""
+    detail = empty(f"SURFACE_DETAIL__{building_id}", parent=root)
+    detail["layerRole"] = "building-surface-age"
+    detail["designIntent"] = "subtle four-sided use marks and roof patina"
+    half_width = width / 2
+    half_depth = depth / 2
+    facade_mat = mats["facade_weathering_light"] if kind == "administration" else mats["facade_weathering"]
+
+    base_specs = (
+        ("front", (width - 0.22, 0.018, 0.24), (0, half_depth + 0.061, 0.18)),
+        ("rear", (width - 0.22, 0.018, 0.24), (0, -half_depth - 0.061, 0.18)),
+        ("left", (0.018, depth - 0.22, 0.24), (-half_width - 0.061, 0, 0.18)),
+        ("right", (0.018, depth - 0.22, 0.24), (half_width + 0.061, 0, 0.18)),
+    )
+    for side_name, size, location in base_specs:
+        band = box(
+            f"SURFACE_DETAIL__{building_id}__base-{side_name}",
+            size,
+            location,
+            facade_mat,
+            detail,
+            0.003,
+        )
+        band["layerRole"] = "facade-base-weathering"
+        band["detailTier"] = "micro"
+
+    streak_height = max(0.44, min(0.82, height * 0.16))
+    streak_z = min(height - streak_height * 0.45, height * 0.66)
+    streak_specs = [
+        ("front", (0.10, 0.014, streak_height), (-width * 0.31, half_depth + 0.071, streak_z)),
+        ("rear", (0.13, 0.014, streak_height * 0.78), (width * 0.24, -half_depth - 0.071, streak_z * 0.94)),
+    ]
+    if kind != "administration":
+        streak_specs.extend((
+            ("left", (0.014, 0.11, streak_height * 0.86), (-half_width - 0.071, -depth * 0.18, streak_z * 0.97)),
+            ("right", (0.014, 0.09, streak_height * 0.68), (half_width + 0.071, depth * 0.22, streak_z * 0.91)),
+        ))
+    for index, (side_name, size, location) in enumerate(streak_specs, start=1):
+        streak = box(
+            f"SURFACE_DETAIL__{building_id}__streak-{index:02d}-{side_name}",
+            size,
+            location,
+            facade_mat,
+            detail,
+            0.003,
+        )
+        streak["layerRole"] = "facade-rain-streak"
+        streak["detailTier"] = "micro"
+
+    for index, x_ratio in enumerate((-0.22, 0.23), start=1):
+        patina = box(
+            f"SURFACE_DETAIL__{building_id}__roof-patina-{index:02d}",
+            (max(0.72, width * 0.30), max(0.42, depth * 0.18), 0.012),
+            (width * x_ratio, depth * (-0.14 if index == 1 else 0.16), height + 0.227),
+            mats["roof_patina"],
+            detail,
+            0.006,
+        )
+        patina["layerRole"] = "roof-patina"
+        patina["detailTier"] = "micro"
+
+
+def create_recessed_entry_doors(building_id, width, depth, height, mats, root):
+    opening_depth = 0.11
+    door_count = 3 if width > 7 else 2
+    for index in range(door_count):
+        px = (index - (door_count - 1) / 2) * min(1.5, width / 3.4)
+        door_height = min(1.15, height * 0.46)
+        door_z = min(0.58, height * 0.23)
+        door = box(
+            f"{building_id}__door-{index + 1:02d}",
+            (0.72, 0.04, door_height),
+            (px, depth / 2 + 0.075, door_z),
+            mats["accent"],
+            root,
+            0.015,
+        )
+        door["openingDepth"] = opening_depth
+        for side in (-1, 1):
+            jamb = box(
+                f"FACADE__{building_id}__door-jamb-{index + 1:02d}-{side:+d}",
+                (0.085, 0.16, door_height + 0.10),
+                (px + side * 0.405, depth / 2 + 0.13, door_z),
+                mats["wall_secondary"],
+                root,
+                0.026,
+            )
+            jamb["layerRole"] = "facade-door-return"
+        door_head = box(
+            f"FACADE__{building_id}__door-head-{index + 1:02d}",
+            (0.89, 0.18, 0.10),
+            (px, depth / 2 + 0.14, door_z + door_height / 2 + 0.05),
+            mats["corner_flashing"],
+            root,
+            0.030,
+        )
+        mark_construction(door_head, "drip-edge", 0.030)
+
+
+def create_rear_service_envelope(building_id, width, depth, height, mats, root):
+    """Give every building a restrained, functional rear elevation and roof service cue."""
+    rear_y = -depth / 2
+    service = empty(f"SERVICE_ENVELOPE__{building_id}", parent=root)
+    service["buildingId"] = building_id
+    service["realismSystem"] = "rear-and-roof-operations"
+
+    def tag(obj, role):
+        obj["buildingId"] = building_id
+        obj["serviceEnvelopeRole"] = role
+        obj["layerRole"] = "building-service-envelope"
+        return obj
+
+    pad_width = min(max(2.2, width * 0.52), 5.2)
+    pad_depth = min(1.22, max(0.82, depth * 0.30))
+    tag(box(
+        f"SERVICE_ENVELOPE__{building_id}__pad",
+        (pad_width, pad_depth, 0.10),
+        (0, rear_y - pad_depth / 2 - 0.10, 0.065),
+        mats["loading_concrete"], service, 0.035,
+    ), "rear-service-pad")
+
+    door_x = -min(width * 0.22, 1.25)
+    door_width = min(0.82, width * 0.30)
+    door_height = min(1.36, max(0.92, height * 0.42))
+    tag(box(
+        f"SERVICE_ENVELOPE__{building_id}__door",
+        (door_width, 0.10, door_height),
+        (door_x, rear_y - 0.085, door_height / 2 + 0.12),
+        mats["gutter"], service, 0.025,
+    ), "rear-service-door")
+    for side in (-1, 1):
+        box(
+            f"SERVICE_ENVELOPE__{building_id}__door-jamb-{side:+d}",
+            (0.075, 0.15, door_height + 0.14),
+            (door_x + side * (door_width / 2 + 0.055), rear_y - 0.12, door_height / 2 + 0.12),
+            mats["facade_frame"], service, 0.018,
+        )
+    box(
+        f"SERVICE_ENVELOPE__{building_id}__canopy",
+        (door_width + 0.42, 0.62, 0.09),
+        (door_x, rear_y - 0.31, door_height + 0.27),
+        mats["corner_flashing"], service, 0.025,
+    )
+
+    vent_x = min(width * 0.22, 1.25)
+    vent_width = min(1.12, width * 0.34)
+    vent_height = min(0.62, max(0.40, height * 0.18))
+    tag(box(
+        f"SERVICE_ENVELOPE__{building_id}__vent-back",
+        (vent_width, 0.075, vent_height),
+        (vent_x, rear_y - 0.075, min(height - 0.46, 1.22)),
+        mats["facade_frame"], service, 0.018,
+    ), "rear-ventilation")
+    for louver_index in range(4):
+        box(
+            f"SERVICE_ENVELOPE__{building_id}__vent-louver-{louver_index + 1:02d}",
+            (vent_width * 0.86, 0.075, 0.045),
+            (vent_x, rear_y - 0.135, min(height - 0.67, 1.01) + louver_index * vent_height * 0.22),
+            mats["vent"], service, 0.006,
+        )
+
+    for bollard_index, side in enumerate((-1, 1), start=1):
+        bollard = cylinder(
+            f"SERVICE_ENVELOPE__{building_id}__bollard-{bollard_index:02d}",
+            0.055, 0.58,
+            (door_x + side * (door_width / 2 + 0.32), rear_y - pad_depth * 0.55, 0.34),
+            mats["safety_yellow"], service, vertices=10,
+        )
+        tag(bollard, "rear-impact-protection")
+
+    marker = box(
+        f"SERVICE_ENVELOPE__{building_id}__roof-zone",
+        (min(2.6, max(1.2, width * 0.28)), 0.12, 0.035),
+        (0, -depth * 0.18, height + 0.27),
+        mats["roof_rib"], service, 0.008,
+    )
+    tag(marker, "roof-maintenance-zone")
+    return service
+
+
 def create_building(record, mats, campus):
     building_id, (x, y), (width, depth, height), kind = record
     root = empty(f"BLDG__{building_id}", (x, y, 0), campus)
     root["buildingId"] = building_id
     root["interactive"] = True
     root["source"] = "bgtp-single-view-graybox"
+    art_palette = building_art_palette(building_id, kind, mats)
+    root["artDirection"] = art_palette["direction"]
 
-    wall = mats["admin_wall"] if kind == "administration" else mats["wall"]
-    box(f"{building_id}__wall-shell", (width, depth, height), (0, 0, height / 2), wall, root, 0.07)
+    box(f"{building_id}__wall-shell", (width, depth, height), (0, 0, height / 2), art_palette["shell"], root, 0.07)
     box(f"{building_id}__roof", (width + 0.12, depth + 0.12, 0.22), (0, 0, height + 0.11), mats["roof"], root, 0.025)
     box(f"{building_id}__blue-trim", (width + 0.08, 0.10, 0.13), (0, depth / 2 + 0.03, height - 0.18), mats["accent"], root, 0.01)
-    create_wall_cladding(building_id, width, depth, height, mats, root)
+    create_wall_cladding(building_id, width, depth, height, mats, root, art_palette)
     create_constructed_envelope(building_id, width, depth, height, kind, mats, root)
+    create_building_surface_age(building_id, width, depth, height, kind, mats, root)
 
     bay_count = max(2, min(8, round(width / 1.35)))
     for index in range(bay_count):
@@ -943,38 +3033,28 @@ def create_building(record, mats, campus):
             f"{building_id}__window-{index + 1:02d}",
             (0.52, 0.07, window_height),
             (px, depth / 2 + 0.055, window_z),
-            mats["glass"],
+            mats["admin_glass"] if kind == "administration" else mats["glass"],
             root,
             0.01,
         )
 
-    door_count = 3 if width > 7 else 2
-    for index in range(door_count):
-        px = (index - (door_count - 1) / 2) * min(1.5, width / 3.4)
-        box(
-            f"{building_id}__door-{index + 1:02d}",
-            (0.72, 0.08, min(1.15, height * 0.46)),
-            (px, depth / 2 + 0.06, min(0.58, height * 0.23)),
-            mats["accent"],
-            root,
-            0.015,
-        )
+    create_recessed_entry_doors(building_id, width, depth, height, mats, root)
 
     if kind == "administration":
-        for index in range(4):
-            px = -1.35 + index * 0.9
+        admin_bay_count = 6
+        for index in range(admin_bay_count):
+            px = -width * 0.40 + index * width * 0.80 / (admin_bay_count - 1)
             box(
                 f"ADMIN__glass-bay-{index + 1:02d}",
-                (0.68, 0.10, 2.35),
-                (px, depth / 2 + 0.075, 1.68),
-                mats["glass"],
+                (0.78, 0.10, height * 0.58),
+                (px, depth / 2 + 0.075, height * 0.48),
+                mats["admin_glass"],
                 root,
                 0.015,
             )
-        for index in range(6):
-            px = -width * 0.45 + index * width * 0.18
-            box(f"{building_id}__facade-pier-{index + 1:02d}", (0.17, 0.24, height * 0.9), (px, depth / 2 + 0.15, height * 0.48), mats["admin_wall"], root, 0.018)
-        box(f"{building_id}__entrance-canopy", (1.25, 0.62, 0.12), (0, depth / 2 + 0.34, 0.92), mats["concrete"], root, 0.025)
+        for index in range(8):
+            px = -width * 0.46 + index * width * 0.92 / 7
+            box(f"{building_id}__facade-pier-{index + 1:02d}", (0.19, 0.28, height * 0.88), (px, depth / 2 + 0.15, height * 0.47), mats["admin_wall"], root, 0.018)
     else:
         vent_count = max(2, min(7, round(width / 1.8)))
         for index in range(vent_count):
@@ -991,25 +3071,140 @@ def create_building(record, mats, campus):
         create_administration_facade(width, depth, height, mats, root)
     elif building_id == "gatehouse":
         create_gatehouse_facade(width, depth, height, mats, root)
+    create_specialized_building_facade(building_id, width, depth, height, mats, root)
+    create_building_lighting_and_wayfinding(building_id, width, depth, height, kind, mats, root, art_palette)
     create_floor_spaces(building_id, width, depth, height, mats, root)
+    create_operational_roof_and_services(building_id, width, depth, height, mats, root)
+    create_rear_service_envelope(building_id, width, depth, height, mats, root)
+    create_warehouse_loading_activity(building_id, width, depth, mats, root)
     return root
+
+
+def create_sports_wire_panel(prefix, size, location, mats, parent):
+    """Build a sparse but readable wire rhythm over a transparent sports-fence backing."""
+    horizontal_run = size[0] >= size[1]
+    run_length = size[0] if horizontal_run else size[1]
+    wire_count = 6 if run_length >= 5.0 else 4
+    for wire_index in range(wire_count):
+        along = -run_length * 0.42 + wire_index * run_length * 0.84 / max(1, wire_count - 1)
+        if horizontal_run:
+            wire_size = (0.026, 0.075, size[2] * 0.92)
+            wire_location = (location[0] + along, location[1], location[2])
+        else:
+            wire_size = (0.075, 0.026, size[2] * 0.92)
+            wire_location = (location[0], location[1] + along, location[2])
+        wire = box(
+            f"{prefix}__vertical-{wire_index + 1:02d}",
+            wire_size,
+            wire_location,
+            mats["court_wire"],
+            parent,
+            0.004,
+        )
+        wire["layerRole"] = "sports-wire-mesh"
+
+    for rail_index, z_ratio in enumerate((-0.32, -0.05, 0.22, 0.47), start=1):
+        if horizontal_run:
+            rail_size = (run_length * 0.96, 0.075, 0.026)
+        else:
+            rail_size = (0.075, run_length * 0.96, 0.026)
+        rail = box(
+            f"{prefix}__horizontal-{rail_index:02d}",
+            rail_size,
+            (location[0], location[1], location[2] + size[2] * z_ratio),
+            mats["court_wire"],
+            parent,
+            0.004,
+        )
+        rail["layerRole"] = "sports-wire-mesh"
+
+
+def create_sports_gate(prefix, fence_y, mats, parent):
+    """Create a visibly ajar pedestrian swing gate in a split sports fence run."""
+    for label, px in (("left", -0.75), ("right", 0.75)):
+        cylinder(
+            f"{prefix}__gate-post-{label}",
+            0.065,
+            2.22,
+            (px, fence_y, 1.12),
+            mats["facade_frame"],
+            parent,
+            vertices=12,
+        )
+    gate = empty(f"{prefix}__gate", (-0.68, fence_y, 0), parent)
+    gate["interactive"] = True
+    gate["motionAxis"] = "z"
+    gate["closedAngle"] = 0.0
+    gate["openAngle"] = -1.42
+    gate.rotation_euler[2] = math.radians(-24)
+    leaf = box(
+        f"{prefix}__gate-leaf",
+        (1.30, 0.07, 1.82),
+        (0.65, 0, 1.02),
+        mats["court_fence"],
+        gate,
+        0.008,
+    )
+    leaf["layerRole"] = "sports-gate"
+    for wire_index in range(4):
+        wire = box(
+            f"{prefix}__gate-wire-vertical-{wire_index + 1:02d}",
+            (0.025, 0.078, 1.55),
+            (0.22 + wire_index * 0.29, 0, 1.02),
+            mats["court_wire"],
+            gate,
+            0.003,
+        )
+        wire["layerRole"] = "sports-gate-wire"
+    for wire_index, pz in enumerate((0.45, 0.83, 1.21, 1.57), start=1):
+        wire = box(
+            f"{prefix}__gate-wire-horizontal-{wire_index:02d}",
+            (1.18, 0.078, 0.025),
+            (0.65, 0, pz),
+            mats["court_wire"],
+            gate,
+            0.003,
+        )
+        wire["layerRole"] = "sports-gate-wire"
+    box(
+        f"{prefix}__gate-kickplate",
+        (1.26, 0.09, 0.22),
+        (0.65, 0, 0.22),
+        mats["facade_frame"],
+        gate,
+        0.008,
+    )
+    return gate
 
 
 def create_roads_and_site(mats, campus):
     site = empty("SITE__ground-and-roads", parent=campus)
+    road_thickness = 0.08
+    horizontal_road_top = 0.09
+    vertical_road_top = 0.07
+
+    def road_location(x, y, width, depth):
+        top = horizontal_road_top if width >= depth else vertical_road_top
+        return (x, y, top - road_thickness / 2)
+
+    def road_marking_z(horizontal):
+        top = horizontal_road_top if horizontal else vertical_road_top
+        return top + 0.0175
+
     box("SITE__ground", (58, 42, 0.45), (0, 0, -0.225), mats["lawn"], site, 0.08)
     box("SITE__outer-boulevard", (64, 3.4, 0.10), (0, 23.0, 0.04), mats["asphalt"], site, 0.02)
     box("SITE__front-sidewalk", (58, 0.72, 0.12), (0, 18.15, 0.08), mats["sidewalk"], site, 0.02)
     box("SITE__entry-plaza", (7.0, 3.3, 0.10), (20.5, 17.0, 0.10), mats["paving"], site, 0.025)
 
     perimeter_roads = [
-        ("ROAD__perimeter-front", (56.4, 2.5, 0.08), (0, 20.0, 0.04)),
-        ("ROAD__perimeter-rear", (56.4, 2.5, 0.08), (0, -20.0, 0.04)),
-        ("ROAD__perimeter-west", (2.5, 37.5, 0.08), (-27.0, 0, 0.04)),
-        ("ROAD__perimeter-east", (2.5, 37.5, 0.08), (27.0, 0, 0.04)),
+        ("ROAD__perimeter-front", (56.4, 2.5, road_thickness), (0, 20.0)),
+        ("ROAD__perimeter-rear", (56.4, 2.5, road_thickness), (0, -20.0)),
+        ("ROAD__perimeter-west", (2.5, 37.5, road_thickness), (-27.0, 0)),
+        ("ROAD__perimeter-east", (2.5, 37.5, road_thickness), (27.0, 0)),
     ]
-    for name, size, location in perimeter_roads:
-        box(name, size, location, mats["asphalt"], site, 0.025)
+    for name, size, (x, y) in perimeter_roads:
+        road = box(name, size, road_location(x, y, size[0], size[1]), mats["asphalt"], site, 0.025)
+        road["depthLayer"] = "horizontal-primary" if size[0] >= size[1] else "vertical-secondary"
 
     for index, (x, y, width, depth) in enumerate([
         (0, 17.1, 53.0, 1.8),
@@ -1020,21 +3215,29 @@ def create_roads_and_site(mats, campus):
         (5.1, -3.0, 1.7, 13.0),
         (-18.8, 2.2, 1.7, 29.0),
     ]):
-        box(f"ROAD__segment-{index + 1:02d}", (width, depth, 0.08), (x, y, 0.04), mats["asphalt"], site, 0.02)
+        road = box(
+            f"ROAD__segment-{index + 1:02d}",
+            (width, depth, road_thickness),
+            road_location(x, y, width, depth),
+            mats["asphalt"],
+            site,
+            0.02,
+        )
+        road["depthLayer"] = "horizontal-primary" if width >= depth else "vertical-secondary"
 
     for road_y, prefix in ((20.0, "front"), (-20.0, "rear"), (6.4, "inner")):
         for index, x in enumerate(range(-25, 26, 2)):
-            box(f"ROAD__{prefix}-dash-{index + 1:02d}", (0.88, 0.07, 0.025), (x, road_y, 0.105), mats["stripe"], site, 0)
+            box(f"ROAD__{prefix}-dash-{index + 1:02d}", (0.88, 0.07, 0.025), (x, road_y, road_marking_z(True)), mats["stripe"], site, 0)
     for road_x, prefix in ((-27.0, "west"), (27.0, "east"), (20.5, "entry")):
         for index, y in enumerate(range(-17, 18, 2)):
-            box(f"ROAD__{prefix}-dash-{index + 1:02d}", (0.07, 0.88, 0.025), (road_x, y, 0.105), mats["stripe"], site, 0)
+            box(f"ROAD__{prefix}-dash-{index + 1:02d}", (0.07, 0.88, 0.025), (road_x, y, road_marking_z(False)), mats["stripe"], site, 0)
     for index, x in enumerate(range(-30, 31, 2)):
         box(f"ROAD__boulevard-dash-{index + 1:02d}", (0.92, 0.07, 0.025), (x, 23.0, 0.105), mats["stripe"], site, 0)
     for edge in (21.45, 24.55):
         box(f"ROAD__boulevard-edge-{edge}", (64, 0.055, 0.025), (0, edge, 0.105), mats["stripe"], site, 0)
     for crossing, cx in enumerate((20.5, 0.0, -18.8)):
         for stripe in range(7):
-            box(f"ROAD__crossing-{crossing + 1}-{stripe + 1}", (0.14, 0.92, 0.025), (cx - 0.48 + stripe * 0.16, 18.25, 0.10), mats["stripe"], site, 0)
+            box(f"ROAD__crossing-{crossing + 1}-{stripe + 1}", (0.14, 0.92, 0.025), (cx - 0.48 + stripe * 0.16, 18.25, road_marking_z(True)), mats["stripe"], site, 0)
 
     inner_curbs = [
         ((8.0, 0.16, 0.18), (-20.0, 7.38, 0.12)),
@@ -1130,45 +3333,120 @@ def create_roads_and_site(mats, campus):
             0.006,
         )
 
-    court = empty("SITE__basketball-court", (2.5, 15.1, 0), site)
-    box("COURT__surface", (4.8, 2.7, 0.07), (0, 0, 0.07), mats["court"], court, 0.05)
-    for idx, (sx, sy, px, py) in enumerate([
-        (4.0, 0.045, 0, 0), (0.045, 2.25, 0, 0), (0.045, 2.25, 0, 0),
-        (0.045, 2.25, -2.0, 0), (0.045, 2.25, 2.0, 0),
-    ]):
-        box(f"COURT__line-{idx + 1}", (sx, sy, 0.025), (px, py, 0.12), mats["stripe"], court, 0)
-    for side_index, px in enumerate((-1.62, 1.62)):
+    court = empty("SITE__basketball-court", (17.7, -14.85, 0), site)
+    box("COURT__surface", (8.8, 5.2, 0.07), (0, 0, 0.07), mats["court"], court, 0.08)
+    basketball_lines = [
+        ("center", (0.055, 4.62, 0.025), (0, 0, 0.12)),
+        ("sideline-north", (8.10, 0.055, 0.025), (0, 2.30, 0.12)),
+        ("sideline-south", (8.10, 0.055, 0.025), (0, -2.30, 0.12)),
+        ("baseline-west", (0.055, 4.62, 0.025), (-4.05, 0, 0.12)),
+        ("baseline-east", (0.055, 4.62, 0.025), (4.05, 0, 0.12)),
+        ("key-west-top", (1.48, 0.055, 0.025), (-3.28, 1.08, 0.12)),
+        ("key-west-bottom", (1.48, 0.055, 0.025), (-3.28, -1.08, 0.12)),
+        ("key-east-top", (1.48, 0.055, 0.025), (3.28, 1.08, 0.12)),
+        ("key-east-bottom", (1.48, 0.055, 0.025), (3.28, -1.08, 0.12)),
+    ]
+    for name, size, location in basketball_lines:
+        box(f"COURT__line-{name}", size, location, mats["stripe"], court, 0)
+    for side_index, px in enumerate((-3.58, 3.58)):
         side_name = "left" if side_index == 0 else "right"
-        cylinder(f"COURT__hoop-{side_name}", 0.055, 1.45, (px, 0, 0.82), mats["white"], court, vertices=10)
-        box(f"COURT__backboard-{side_name}", (0.08, 0.82, 0.52), (px, 0, 1.47), mats["white"], court, 0.015)
+        cylinder(f"COURT__hoop-{side_name}", 0.065, 1.82, (px, 0, 0.98), mats["facade_frame"], court, vertices=12)
+        box(f"COURT__backboard-{side_name}", (0.10, 1.02, 0.62), (px, 0, 1.75), mats["white"], court, 0.018)
         cylinder(
             f"COURT__rim-{side_name}",
-            0.14,
-            0.035,
-            (px - 0.12 if side_index == 0 else px + 0.12, 0, 1.34),
-            mats["court"],
+            0.18,
+            0.045,
+            (px - 0.18 if side_index == 0 else px + 0.18, 0, 1.58),
+            mats["safety_orange"],
             court,
             rotation=(0, math.pi / 2, 0),
-            vertices=16,
+            vertices=20,
         )
+
+    basketball_fence_runs = [
+        ("north", (3.65, 0.06, 2.10), (-2.575, 2.62, 1.08)),
+        ("north-right", (3.65, 0.06, 2.10), (2.575, 2.62, 1.08)),
+        ("south", (8.80, 0.06, 2.10), (0, -2.62, 1.08)),
+        ("west", (0.06, 5.30, 2.10), (-4.38, 0, 1.08)),
+        ("east", (0.06, 5.30, 2.10), (4.38, 0, 1.08)),
+    ]
+    for name, size, location in basketball_fence_runs:
+        fence = box(f"BASKET__fence-run-{name}", size, location, mats["court_fence"], court, 0.008)
+        fence["layerRole"] = "sports-fence"
+        create_sports_wire_panel(f"SPORTS_DETAIL__BASKET__{name}", size, location, mats, court)
+    basketball_post_index = 1
+    for px in (-4.38, 0, 4.38):
+        for py in (-2.62, 2.62):
+            cylinder(
+                f"BASKET__fence-post-{basketball_post_index:02d}",
+                0.045,
+                2.18,
+                (px, py, 1.10),
+                mats["facade_frame"],
+                court,
+                vertices=10,
+            )
+            basketball_post_index += 1
+    create_sports_gate("BASKET", 2.62, mats, court)
+
+    tennis = empty("SITE__tennis-court", (9.0, -14.85, 0), site)
+    box("TENNIS__surface", (8.4, 4.4, 0.07), (0, 0, 0.07), mats["tennis_court"], tennis, 0.08)
+    tennis_lines = [
+        ("sideline-north", (7.70, 0.050, 0.025), (0, 1.84, 0.12)),
+        ("sideline-south", (7.70, 0.050, 0.025), (0, -1.84, 0.12)),
+        ("baseline-west", (0.050, 3.72, 0.025), (-3.84, 0, 0.12)),
+        ("baseline-east", (0.050, 3.72, 0.025), (3.84, 0, 0.12)),
+        ("service-west", (0.050, 3.72, 0.025), (-1.62, 0, 0.12)),
+        ("service-east", (0.050, 3.72, 0.025), (1.62, 0, 0.12)),
+        ("service-center", (3.24, 0.050, 0.025), (0, 0, 0.12)),
+    ]
+    for name, size, location in tennis_lines:
+        box(f"TENNIS__line-{name}", size, location, mats["stripe"], tennis, 0)
+
+    net = box("TENNIS__net", (0.055, 4.05, 0.72), (0, 0, 0.54), mats["court_fence"], tennis, 0.008)
+    net["layerRole"] = "sports-net"
+    create_sports_wire_panel("SPORTS_DETAIL__TENNIS__net", (0.055, 4.05, 0.72), (0, 0, 0.54), mats, tennis)
+    for label, py in (("left", -2.10), ("right", 2.10)):
+        cylinder(f"TENNIS__net-post-{label}", 0.055, 0.94, (0, py, 0.54), mats["facade_frame"], tennis, vertices=12)
+
+    fence_runs = [
+        ("north", (3.65, 0.06, 2.10), (-2.575, 2.42, 1.08)),
+        ("north-right", (3.65, 0.06, 2.10), (2.575, 2.42, 1.08)),
+        ("south", (8.80, 0.06, 2.10), (0, -2.42, 1.08)),
+        ("west", (0.06, 4.90, 2.10), (-4.38, 0, 1.08)),
+        ("east", (0.06, 4.90, 2.10), (4.38, 0, 1.08)),
+    ]
+    for name, size, location in fence_runs:
+        fence = box(f"TENNIS__fence-run-{name}", size, location, mats["court_fence"], tennis, 0.008)
+        fence["layerRole"] = "sports-fence"
+        create_sports_wire_panel(f"SPORTS_DETAIL__TENNIS__{name}", size, location, mats, tennis)
+    post_index = 1
+    for px in (-4.38, 0, 4.38):
+        for py in (-2.42, 2.42):
+            cylinder(f"TENNIS__fence-post-{post_index:02d}", 0.045, 2.18, (px, py, 1.10), mats["facade_frame"], tennis, vertices=10)
+            post_index += 1
+    create_sports_gate("TENNIS", 2.42, mats, tennis)
 
     parking = empty("SITE__parking-canopy", (16.7, 10.5, 0), site)
     box("PARKING__surface", (8.8, 5.4, 0.08), (0, 0, 0.06), mats["asphalt"], parking, 0.02)
-    box("PARKING__canopy-roof", (7.8, 2.15, 0.12), (0, -1.35, 1.50), mats["roof"], parking, 0.025)
-    for index in range(10):
+    box("PARKING__canopy-roof", (8.4, 4.7, 0.14), (0, 0, 1.60), mats["roof"], parking, 0.025)
+    for index in range(20):
         px = -3.0 + (index % 5) * 1.5
-        py = -1.70 + (index // 5) * 0.82
+        py = -1.68 + (index // 5) * 1.12
         box(
             f"PARKING__solar-panel-{index + 1:02d}",
-            (1.30, 0.72, 0.055),
-            (px, py, 1.44),
+            (1.30, 0.86, 0.055),
+            (px, py, 1.70),
             mats["solar"],
             parking,
             0.012,
             rotation=(math.radians(4), 0, 0),
         )
-    for index, px in enumerate((-3.1, -1.55, 0, 1.55, 3.1)):
-        box(f"PARKING__post-{index}", (0.09, 0.09, 1.45), (px, -1.35, 0.73), mats["pipe"], parking, 0.01)
+    post_index = 1
+    for py in (-1.85, 1.85):
+        for px in (-3.1, -1.55, 0, 1.55, 3.1):
+            box(f"PARKING__post-{post_index:02d}", (0.09, 0.09, 1.55), (px, py, 0.78), mats["pipe"], parking, 0.01)
+            post_index += 1
     for row, py in enumerate((-1.35, 1.35)):
         for line_index, px in enumerate((-3.75, -2.25, -.75, .75, 2.25, 3.75)):
             box(f"PARKING__bay-line-{row + 1:02d}-{line_index + 1:02d}", (0.045, 2.25, 0.02), (px, py, 0.11), mats["stripe"], parking, 0)
@@ -1242,7 +3520,7 @@ def create_roads_and_site(mats, campus):
     inbound_barrier["motionAxis"] = "z"
     inbound_barrier["motionSpeed"] = 0.09
     inbound_barrier["closedAngle"] = 0.0
-    inbound_barrier["openAngle"] = -1.22
+    inbound_barrier["openAngle"] = 1.22
     inbound_barrier["linkedVehicle"] = "VEHICLE__gate-shuttle__root"
     box("GATE__barrier-inbound__arm", (1.25, 0.09, 0.09), (.62, 0, 0), mats["stripe"], inbound_barrier, 0.018)
     box("GATE__barrier-inbound__tip", (.12, .12, .12), (1.21, 0, 0), mats["safety_yellow"], inbound_barrier, .018)
@@ -1277,6 +3555,136 @@ def create_pipe_racks(mats, campus):
             cylinder(f"PIPE__run-{route_index}-{pipe_index}", 0.055, length, (px, py, 1.31 + pipe_index * 0.07), mats["pipe_accent"], group, rotation=rotation, vertices=10)
     box("PIPE__bridge-gantry-01", (0.12, 2.8, 2.45), (-8.5, 5.0, 1.23), mats["pipe"], group, 0.015)
     box("PIPE__bridge-gantry-02", (0.12, 2.8, 2.45), (-8.5, -9.3, 1.23), mats["pipe"], group, 0.015)
+    return group
+
+
+def create_industrial_process_core(mats, campus):
+    """Build a readable chemical-plant process yard without changing the building plan."""
+    group = empty("SITE__process-core", (-22.0, -12.7, 0), campus)
+    group["zoneType"] = "industrial-process-core"
+    group["interactive"] = True
+    group["layerRole"] = "industrial-zone"
+    pad = box("PROCESS__equipment-pad", (7.2, 7.4, 0.14), (0, 0, 0.08), mats["concrete"], group, 0.035)
+    pad["layerRole"] = "process-foundation"
+    for side in (-1, 1):
+        box(f"PROCESS__pad-curb-{side:+d}", (0.12, 7.15, 0.24), (side * 3.48, 0, 0.16), mats["curb"], group, 0.015)
+
+    for index, px in enumerate((-2.2, 0.0, 2.2), start=1):
+        tank = cylinder(f"PROCESS__tank-{index:02d}", 0.67, 2.45, (px, -2.05, 1.30), mats["gutter"], group, vertices=24)
+        tank["equipmentType"] = "vertical-storage-tank"
+        tank["layerRole"] = "process-equipment"
+        cylinder(f"PROCESS__tank-roof-{index:02d}", 0.70, 0.14, (px, -2.05, 2.59), mats["roof"], group, vertices=24)
+        cylinder(f"PROCESS__tank-ring-{index:02d}", 0.73, 0.08, (px, -2.05, 0.30), mats["pipe_band"], group, vertices=24)
+        cylinder(f"PROCESS__tank-vent-{index:02d}", 0.055, 0.38, (px, -2.05, 2.84), mats["pipe"], group, vertices=10)
+        for rung in range(7):
+            box(f"PROCESS__tank-ladder-{index:02d}-{rung + 1:02d}", (0.38, 0.055, 0.035), (px + 0.67, -2.05, 0.48 + rung * 0.28), mats["pipe"], group, 0.004)
+
+    for index, px in enumerate((-1.75, 0.35), start=1):
+        cell = box(f"PROCESS__cooling-cell-{index:02d}", (1.72, 1.18, 1.52), (px, 0.28, 0.83), mats["interior_equipment"], group, 0.05)
+        cell["equipmentType"] = "cooling-tower-cell"
+        cell["layerRole"] = "process-equipment"
+        for fin in range(7):
+            box(
+                f"PROCESS__cooling-fin-{index:02d}-{fin + 1:02d}",
+                (1.48, 0.045, 0.065),
+                (px, -0.33, 0.36 + fin * 0.16),
+                mats["gutter"],
+                group,
+                0.005,
+            )
+        cylinder(f"PROCESS__cooling-fan-{index:02d}", 0.43, 0.10, (px, 0.28, 1.64), mats["pipe"], group, vertices=20)
+
+    stack = cylinder("PROCESS__scrubber-stack", 0.38, 4.7, (2.55, 0.30, 2.42), mats["pipe_accent"], group, vertices=24)
+    stack["equipmentType"] = "scrubber-stack"
+    stack["layerRole"] = "process-equipment"
+    for index, z in enumerate((0.65, 2.05, 3.45), start=1):
+        cylinder(f"PROCESS__scrubber-band-{index:02d}", 0.42, 0.10, (2.55, 0.30, z), mats["pipe_band"], group, vertices=24)
+    cylinder("PROCESS__scrubber-cap", 0.50, 0.14, (2.55, 0.30, 4.82), mats["gutter"], group, vertices=24)
+
+    box("PROCESS__substation-pad", (2.65, 1.45, 0.10), (-1.65, 2.48, 0.12), mats["concrete"], group, 0.02)
+    for index, px in enumerate((-2.25, -1.05), start=1):
+        transformer = box(f"PROCESS__substation-transformer-{index:02d}", (0.84, 0.92, 0.92), (px, 2.48, 0.62), mats["interior_storage"], group, 0.05)
+        transformer["equipmentType"] = "transformer"
+        transformer["layerRole"] = "electrical-equipment"
+        for fin in range(5):
+            box(f"PROCESS__transformer-fin-{index:02d}-{fin + 1:02d}", (0.055, 1.02, 0.58), (px - 0.30 + fin * 0.15, 2.48, 0.62), mats["pipe"], group, 0.004)
+        for terminal in (-0.22, 0.22):
+            cylinder(f"PROCESS__transformer-terminal-{index:02d}-{terminal:+.2f}", 0.055, 0.30, (px + terminal, 2.48, 1.22), mats["pipe_band"], group, vertices=10)
+
+    basin = box("PROCESS__wastewater-basin", (2.42, 1.52, 0.34), (1.68, 2.50, 0.24), mats["concrete"], group, 0.02)
+    basin["equipmentType"] = "wastewater-basin"
+    basin["layerRole"] = "environmental-equipment"
+    box("PROCESS__wastewater-surface", (2.14, 1.24, 0.035), (1.68, 2.50, 0.40), mats["glass"], group, 0.005)
+    for side in (-1, 1):
+        box(f"PROCESS__basin-rail-long-{side:+d}", (2.48, 0.035, 0.42), (1.68, 2.50 + side * 0.80, 0.66), mats["safety_yellow"], group, 0.004)
+
+    for index, y in enumerate((-1.0, 0.85), start=1):
+        header = cylinder(f"PROCESS__pipe-header-{index:02d}", 0.075, 6.15, (0, y, 1.88 + index * 0.14), mats["pipe_accent"], group, rotation=(0, math.pi / 2, 0), vertices=12)
+        header["layerRole"] = "process-pipe"
+    for px in (-2.9, 0, 2.9):
+        box(f"PROCESS__header-support-{px:+.1f}", (0.10, 0.58, 1.88), (px, -0.08, 0.99), mats["pipe"], group, 0.012)
+
+    fence = box("PROCESS__substation-fence", (2.90, 0.055, 1.30), (-1.65, 1.70, 0.78), mats["fence"], group, 0.008)
+    fence["layerRole"] = "electrical-safety"
+    box("PROCESS__substation-fence-rear", (2.90, 0.055, 1.30), (-1.65, 3.25, 0.78), mats["fence"], group, 0.008)
+    for side in (-1, 1):
+        box(f"PROCESS__substation-fence-side-{side:+d}", (0.055, 1.60, 1.30), (-1.65 + side * 1.45, 2.48, 0.78), mats["fence"], group, 0.008)
+
+    pipe_group = bpy.data.objects["SYSTEM__pipe-racks"]
+    connector_one = cylinder("PROCESS__network-connector-01", 0.075, 9.15, (-16.23, -12.70, 3.12), mats["pipe_accent"], pipe_group, rotation=(0, math.pi / 2, 0), vertices=12)
+    connector_two = cylinder("PROCESS__network-connector-02", 0.075, 4.70, (-13.00, -11.05, 3.12), mats["pipe_accent"], pipe_group, rotation=(math.pi / 2, 0, 0), vertices=12)
+    for connector in (connector_one, connector_two):
+        connector["layerRole"] = "process-network-connector"
+    for index, (x, y) in enumerate(((-18.25, -12.70), (-14.15, -12.70), (-13.00, -12.55)), start=1):
+        box(f"PROCESS__network-support-{index:02d}", (0.10, 0.52, 3.00), (x, y, 1.55), mats["pipe"], pipe_group, 0.012)
+    return group
+
+
+def create_warehouse_logistics(mats, campus):
+    """Add a compact loading apron, dock equipment, pallets, forklift, and weighbridge."""
+    group = empty("SITE__logistics-yard", (-3.0, 7.3, 0), campus)
+    group["zoneType"] = "warehouse-logistics"
+    group["interactive"] = True
+    group["layerRole"] = "logistics-zone"
+    box("LOGISTICS__front-warehouse-apron", (8.0, 2.42, 0.10), (0, 0.86, 0.09), mats["asphalt"], group, 0.03)
+    for index, px in enumerate((-2.45, 0.0, 2.45), start=1):
+        dock = box(f"LOGISTICS__dock-platform-{index:02d}", (1.72, 0.58, 0.38), (px, 1.78, 0.26), mats["concrete"], group, 0.025)
+        dock["equipmentType"] = "loading-dock"
+        box(f"LOGISTICS__dock-bumper-{index:02d}", (1.45, 0.12, 0.30), (px, 2.04, 0.37), mats["tire"], group, 0.018)
+        box(f"LOGISTICS__dock-canopy-{index:02d}", (1.95, 0.78, 0.12), (px, 1.67, 2.28), mats["roof"], group, 0.02)
+        for side in (-1, 1):
+            box(f"LOGISTICS__dock-post-{index:02d}-{side:+d}", (0.08, 0.08, 2.02), (px + side * 0.82, 1.67, 1.27), mats["pipe"], group, 0.01)
+
+    for index, (px, py) in enumerate(((-3.25, 0.45), (-2.55, 0.45), (2.55, 0.45), (3.25, 0.45)), start=1):
+        root = empty(f"PROP__pallet-stack-{index:02d}", (px, py, 0), group)
+        for level in range(3):
+            box(f"PROP__pallet-stack-{index:02d}-load-{level + 1:02d}", (0.54, 0.42, 0.22), (0, 0, 0.17 + level * 0.23), mats["interior_worktop"], root, 0.015)
+            for runner in (-0.16, 0.16):
+                box(f"PROP__pallet-stack-{index:02d}-runner-{level + 1:02d}-{runner:+.2f}", (0.48, 0.055, 0.045), (0, runner, 0.055 + level * 0.23), mats["plinth"], root, 0.004)
+
+    weighbridge = box("LOGISTICS__weighbridge", (3.15, 0.94, 0.13), (5.40, 0.92, 0.12), mats["gutter"], group, 0.015)
+    weighbridge["equipmentType"] = "truck-scale"
+    for side in (-1, 1):
+        box(f"LOGISTICS__weighbridge-rail-{side:+d}", (3.24, 0.07, 0.16), (5.40, 0.92 + side * 0.51, 0.24), mats["safety_yellow"], group, 0.008)
+    box("LOGISTICS__scale-kiosk", (0.55, 0.72, 1.15), (7.25, 1.54, 0.62), mats["wall_secondary"], group, 0.04)
+    box("LOGISTICS__scale-kiosk-window", (0.32, 0.05, 0.38), (7.25, 1.16, 0.78), mats["glass"], group, 0.008)
+
+    for index, px in enumerate((-1.15, 1.15), start=1):
+        box(f"LOGISTICS__wheel-guide-{index:02d}", (0.12, 1.34, 0.14), (px, 0.82, 0.19), mats["safety_yellow"], group, 0.025)
+    box("LOGISTICS__pedestrian-safety-strip", (7.5, 0.42, 0.025), (0, -0.08, 0.16), mats["safety_yellow"], group, 0.006)
+    for index, (px, py) in enumerate(((-3.65, 1.80), (-3.30, 1.80), (3.30, 1.80), (3.65, 1.80)), start=1):
+        cylinder(f"LOGISTICS__safety-bollard-{index:02d}", 0.07, 0.78, (px, py, 0.50), mats["safety_yellow"], group, vertices=12)
+
+    forklift = empty("VEHICLE__forklift-01", (3.18, 1.03, 0.11), group)
+    forklift["vehicleType"] = "forklift"
+    box("VEHICLE__forklift-01__body", (1.05, 0.66, 0.48), (0, 0, 0.32), mats["safety_yellow"], forklift, 0.08)
+    box("VEHICLE__forklift-01__counterweight", (0.38, 0.72, 0.62), (-0.42, 0, 0.43), mats["safety_yellow"], forklift, 0.10)
+    for side in (-1, 1):
+        cylinder(f"VEHICLE__forklift-01__wheel-{side:+d}", 0.18, 0.10, (-0.28, side * 0.38, 0.20), mats["tire"], forklift, rotation=(math.pi / 2, 0, 0), vertices=12)
+        box(f"VEHICLE__forklift-01__mast-{side:+d}", (0.08, 0.08, 1.35), (0.50, side * 0.22, 0.78), mats["pipe"], forklift, 0.008)
+    for side in (-1, 1):
+        box(f"VEHICLE__forklift-01__fork-{side:+d}", (0.95, 0.07, 0.06), (0.88, side * 0.20, 0.10), mats["pipe"], forklift, 0.006)
+    box("LOGISTICS__staging-line", (7.2, 0.055, 0.025), (0, -0.31, 0.16), mats["safety_yellow"], group, 0)
     return group
 
 
@@ -1356,26 +3764,48 @@ def create_landscape(mats, campus):
     for index, y in enumerate(range(-16, 18, 2)):
         varied_y = y + perimeter_offsets[(index + 2) % len(perimeter_offsets)]
         positions.extend([(-25.8, varied_y), (25.8, varied_y)])
-    perimeter_crown_source = None
+    perimeter_crown_sources = {}
     for index, (x, y) in enumerate(positions):
-        trunk = cylinder(f"TREE__trunk-{index:02d}", 0.07, 0.55, (x, y, 0.32), mats["trunk"], group, vertices=7)
-        if perimeter_crown_source is None:
-            bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=1, radius=0.50, location=(0, 0, 0))
-            crown = bpy.context.object
-            crown.name = f"TREE__crown-{index:02d}"
-            crown.parent = group
-            crown.data.materials.append(mats["foliage"])
-            perimeter_crown_source = crown
+        if index == 74:
+            x -= 0.24
+        variant = index % 3
+        species = CANOPY_PROFILE_NAMES[index % len(CANOPY_PROFILE_NAMES)]
+        trunk = tapered_trunk(
+            f"TREE__trunk-{index:02d}",
+            0.082 + variant * 0.006,
+            0.050 + variant * 0.004,
+            0.62 + variant * 0.04,
+            (x, y, 0.35),
+            mats["trunk"],
+            group,
+            vertices=8 + variant,
+        )
+        if species not in perimeter_crown_sources:
+            foliage_layers = (mats["foliage"], mats["foliage_light"], mats["foliage_sunlit"])
+            crown = clustered_crown(
+                f"TREE__crown-{index:02d}",
+                0.58 + variant * 0.035,
+                (x, y, 1.02 + variant * 0.04),
+                (mats["foliage"], mats["foliage_light"], mats["foliage_warm"])[variant],
+                group,
+                variant,
+                species,
+                "near",
+                foliage_layers,
+            )
+            perimeter_crown_sources[species] = crown
         else:
             crown = linked_mesh_instance(
                 f"TREE__crown-{index:02d}",
-                perimeter_crown_source,
+                perimeter_crown_sources[species],
                 (x, y, 0),
                 group,
             )
-        crown.location = (x, y, 0.90 + (index % 2) * 0.08)
+        crown["vegetationSpecies"] = species
+        crown["vegetationTier"] = "mid"
+        crown.location = (x, y, 1.02 + (index % 2) * 0.08)
         scale_variant = 0.90 + (index % 5) * 0.055
-        crown.scale = (scale_variant, scale_variant * (0.92 + (index % 3) * 0.035), 1.18 + (index % 5) * 0.055)
+        crown.scale = (scale_variant, scale_variant * (0.92 + variant * 0.035), 1.12 + (index % 5) * 0.045)
         crown.rotation_euler[2] = math.radians((index * 43) % 360)
         trunk["instanceFamily"] = "tree"
 
@@ -1414,8 +3844,8 @@ def create_landscape(mats, campus):
             shrub_index += 1
 
     inner_tree_positions = [
-        (-22.2, 14.2), (-16.5, 14.2), (-10.5, 14.2), (-4.0, 14.0),
-        (5.0, 14.6), (11.5, 14.8), (17.5, 14.8), (23.8, 14.0),
+        (-22.2, 14.2), (-16.5, 14.2), (-10.5, 14.2), (-11.5, 14.0),
+        (8.2, 14.6), (11.5, 14.8), (17.5, 14.8), (23.8, 11.5),
         (-17.0, 7.8), (-11.5, 7.8), (8.0, 7.8), (14.0, 7.8),
     ]
     for index, (x, y) in enumerate(inner_tree_positions, start=1):
@@ -1427,22 +3857,37 @@ def create_landscape(mats, campus):
             group,
             0.025,
         )
-        trunk = cylinder(
+        variant = index % 3
+        species = CANOPY_PROFILE_NAMES[(index - 1) % len(CANOPY_PROFILE_NAMES)]
+        trunk = tapered_trunk(
             f"LANDSCAPE__inner-tree-trunk-{index:02d}",
-            0.085 + (index % 3) * 0.008,
+            0.105 + variant * 0.008,
+            0.064 + variant * 0.004,
             0.72 + (index % 2) * 0.10,
             (x, y, 0.50),
             mats["trunk"],
             group,
-            vertices=8,
+            vertices=9 + variant,
         )
-        bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=1, radius=0.54 + (index % 3) * 0.04, location=(0, 0, 0))
-        crown = bpy.context.object
-        crown.name = f"LANDSCAPE__inner-tree-crown-{index:02d}"
-        crown.parent = group
+        crown = linked_mesh_instance(
+            f"LANDSCAPE__inner-tree-crown-{index:02d}",
+            perimeter_crown_sources[species],
+            (x, y, 1.32 + (index % 2) * 0.10),
+            group,
+        )
         crown.location = (x, y, 1.22 + (index % 2) * 0.10)
-        crown.scale = (1.0, 0.88, 1.30 + (index % 3) * 0.08)
-        crown.data.materials.append(mats["foliage"] if index % 3 else mats["shrub_deep"])
+        crown.scale = (1.12, 0.98, 1.26 + variant * 0.08)
+        crown.rotation_euler[2] = math.radians((index * 61) % 360)
+        crown["vegetationSpecies"] = species
+        crown["vegetationTier"] = "near"
+        create_branch_structure(
+            f"VEGETATION__inner-tree-branches-{index:02d}",
+            (x, y, 0.86 + (index % 2) * 0.05),
+            0.58 + variant * 0.035,
+            mats["trunk"],
+            group,
+            index,
+        )
         trunk["instanceFamily"] = "inner-tree"
 
     front_post_x = [x for x in range(-27, 28) if not 18 <= x <= 23]
@@ -1474,39 +3919,96 @@ def create_landscape(mats, campus):
 
 def create_environment(mats, campus):
     group = empty("ENV__background", parent=campus)
-    box("ENV__landscape-apron", (76, 62, 0.28), (0, -5.0, -0.30), mats["forest_ground"], group, 0.10)
-    box("ENV__forest-backdrop", (76, 26, 0.18), (0, -33.0, -0.16), mats["forest_ground"], group, 0.08)
-    box("ENV__forest-side-west", (12, 42, 0.16), (-34.0, -5.0, -0.17), mats["forest_ground"], group, 0.08)
-    box("ENV__forest-side-east", (12, 42, 0.16), (34.0, -5.0, -0.17), mats["forest_ground"], group, 0.08)
+    ground_pieces = (
+        ("ENV__landscape-apron", (76, 62, 0.28), (0, -5.0, -0.30), "campus-buffer"),
+        ("ENV__forest-backdrop", (76, 26, 0.18), (0, -33.0, -0.16), "deep-forest"),
+        ("ENV__forest-side-west", (12, 42, 0.16), (-34.0, -5.0, -0.17), "side-buffer"),
+        ("ENV__forest-side-east", (12, 42, 0.16), (34.0, -5.0, -0.17), "side-buffer"),
+    )
+    for name, size, location, transition_role in ground_pieces:
+        ground = box(name, size, location, mats["forest_ground"], group, 0.08)
+        ground["transitionRole"] = transition_role
+        ground["layerRole"] = "environment-ground"
+
+    meadow_specs = (
+        (-27.0, -20.0, 7.2, 2.6, -7), (-13.5, -20.4, 8.4, 2.8, 5),
+        (0.5, -19.9, 9.2, 2.5, -4), (15.0, -20.5, 8.0, 3.0, 8),
+        (28.0, -20.0, 6.6, 2.5, -6), (-29.0, -12.0, 3.2, 7.2, 10),
+        (-29.5, 1.0, 2.8, 8.4, -8), (-29.0, 13.0, 3.4, 6.8, 6),
+        (29.0, -11.0, 3.0, 7.8, -9), (29.5, 2.0, 2.7, 8.2, 7),
+        (29.0, 13.0, 3.3, 6.4, -5),
+    )
+    for index, (x, y, width, depth, angle) in enumerate(meadow_specs, start=1):
+        meadow = cylinder(
+            f"ENV__transition-meadow-{index:02d}",
+            1.0,
+            0.055,
+            (x, y, -0.055),
+            mats["lawn"] if index % 3 else mats["forest_ground"],
+            group,
+            vertices=24,
+        )
+        meadow.scale = (width / 2, depth / 2, 1.0)
+        meadow.rotation_euler[2] = math.radians(angle)
+        meadow["transitionRole"] = "forest-edge-meadow"
+        meadow["layerRole"] = "environment-transition"
+
+    shrub_positions = []
+    for index in range(16):
+        shrub_positions.append((-30.0 + index * 4.0, -20.15 + math.sin(index * 1.7) * 0.42))
+    for side in (-1, 1):
+        for index in range(7):
+            shrub_positions.append((side * (29.2 + math.sin(index * 1.3) * 0.35), -15.0 + index * 4.8))
+    for index, (x, y) in enumerate(shrub_positions, start=1):
+        bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=1, radius=0.30, location=(0, 0, 0))
+        shrub = bpy.context.object
+        shrub.name = f"ENV__edge-shrub-{index:02d}"
+        shrub.parent = group
+        shrub.location = (x, y, 0.18 + (index % 3) * 0.025)
+        shrub.scale = (1.45 + (index % 4) * 0.12, 0.82 + (index % 3) * 0.10, 0.72 + (index % 5) * 0.055)
+        shrub.data.materials.append(mats["understory_deep"] if index % 3 else mats["understory_warm"])
+        shrub["transitionRole"] = "low-understory"
+        shrub["layerRole"] = "environment-transition"
 
     prototypes = {}
     tree_index = 0
 
-    def add_forest_tree(x, y, seed):
+    def add_forest_tree(x, y, seed, band):
         nonlocal tree_index
+        x += math.sin(seed * 12.9898 + 0.37) * 0.58
+        y += math.sin(seed * 4.1414 + 1.91) * 0.52
         variant = seed % 3
-        height_scale = 0.92 + (seed % 5) * 0.045
-        crown_scale = 0.92 + ((seed * 3) % 7) * 0.025
+        species = ("woodland", "conifer", "columnar")[variant]
+        tier = "mid" if band == "edge" else "far"
+        band_scale = {"edge": 0.78, "mid": 0.93, "deep": 1.08}[band]
+        height_scale = band_scale * (0.94 + (seed % 5) * 0.045)
+        crown_scale = band_scale * (0.94 + ((seed * 3) % 7) * 0.025)
         rotation = (0, 0, math.radians((seed * 47) % 360))
         trunk_location = (x, y, 0.42)
-        crown_location = (x, y, 1.24 + (seed % 4) * 0.055)
+        crown_location = (x, y, 1.12 + band_scale * 0.14 + (seed % 4) * 0.055)
 
         if variant not in prototypes:
-            trunk = cylinder(
+            trunk = tapered_trunk(
                 f"ENV__tree-trunk-{tree_index:03d}",
-                0.085 + variant * 0.008,
+                0.098 + variant * 0.008,
+                0.058 + variant * 0.004,
                 0.82 + variant * 0.08,
                 trunk_location,
                 mats["trunk"],
                 group,
-                vertices=7 + variant,
+                vertices=8 + variant,
             )
-            bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=1, radius=0.76 + variant * 0.055, location=(0, 0, 0))
-            crown = bpy.context.object
-            crown.name = f"ENV__tree-crown-{tree_index:03d}"
-            crown.parent = group
-            crown.location = crown_location
-            crown.data.materials.append(mats["forest_foliage_light"] if variant == 1 else mats["forest_foliage"])
+            crown = clustered_crown(
+                f"ENV__tree-crown-{tree_index:03d}",
+                0.76 + variant * 0.055,
+                crown_location,
+                mats["forest_foliage_light"] if variant == 1 else mats["forest_foliage"],
+                group,
+                variant + 3,
+                species,
+                "far",
+                (mats["forest_foliage"], mats["forest_foliage_light"]),
+            )
             prototypes[variant] = (trunk, crown)
         else:
             trunk_source, crown_source = prototypes[variant]
@@ -1524,18 +4026,33 @@ def create_environment(mats, campus):
             )
 
         trunk.scale = (1.0, 1.0, height_scale)
-        crown.scale = (crown_scale, crown_scale * (0.94 + variant * 0.035), 1.24 + variant * 0.10)
+        crown.scale = (
+            crown_scale,
+            crown_scale * (0.94 + variant * 0.035),
+            band_scale * (1.24 + variant * 0.10),
+        )
         crown.rotation_euler = rotation
+        crown["vegetationSpecies"] = species
+        crown["vegetationTier"] = tier
         trunk["instanceFamily"] = "background-tree"
+        trunk["forestBand"] = band
+        crown["forestBand"] = band
         tree_index += 1
 
     forest_width = 68.0
-    for row, y in enumerate((-22.0, -25.5, -29.0, -32.5, -36.0, -39.5)):
-        spacing = 2.75 + row * 0.14
+    rear_bands = (
+        (-22.0, 4.20, "edge"),
+        (-25.4, 3.55, "mid"),
+        (-28.8, 3.25, "mid"),
+        (-32.0, 2.95, "deep"),
+        (-35.2, 2.75, "deep"),
+        (-38.4, 2.65, "deep"),
+    )
+    for row, (y, spacing, band) in enumerate(rear_bands):
         count = math.floor(forest_width / spacing) + 1
         start_x = -spacing * (count - 1) / 2
         for column in range(count):
-            add_forest_tree(start_x + column * spacing, y, row * 31 + column)
+            add_forest_tree(start_x + column * spacing, y, row * 41 + column, band)
 
     side_y_min = -19.0
     side_y_max = 15.0
@@ -1543,10 +4060,11 @@ def create_environment(mats, campus):
     side_count = math.floor((side_y_max - side_y_min) / side_spacing) + 1
     for side_index, x in enumerate((-35.2, -32.5, 32.5, 35.2)):
         offset = side_spacing * 0.5 if side_index % 2 else 0.0
+        band = "deep" if side_index in {0, 3} else ("mid" if side_index == 1 else "edge")
         for row in range(side_count):
             y = side_y_min + row * side_spacing + offset
             if y <= side_y_max:
-                add_forest_tree(x, y, 300 + side_index * 37 + row)
+                add_forest_tree(x, y, 400 + side_index * 47 + row, band)
     return group
 
 
@@ -1558,7 +4076,6 @@ def create_industrial_finish_details(mats, campus):
     plinth_index = 1
     gutter_index = 1
     downpipe_index = 1
-    joint_index = 1
 
     for building_id, (x, y), (width, depth, height), kind in major_buildings:
         detail_root = empty(f"DETAIL__{building_id}", (x, y, 0), group)
@@ -1608,20 +4125,6 @@ def create_industrial_finish_details(mats, campus):
             )
             downpipe_index += 1
 
-        if kind != "administration":
-            joint_count = max(3, min(8, round(width / 1.6)))
-            for joint in range(1, joint_count):
-                px = -width / 2 + joint * width / joint_count
-                box(
-                    f"DETAIL__facade-joint-{joint_index:02d}",
-                    (0.018, 0.018, height - 0.48),
-                    (px, depth / 2 + 0.075, height / 2 + 0.12),
-                    mats["panel_joint"],
-                    detail_root,
-                    0,
-                )
-                joint_index += 1
-
     curb_runs = [
         ((39.0, 0.16, 0.18), (0.0, 6.92, 0.12)),
         ((39.0, 0.16, 0.18), (0.0, 5.28, 0.12)),
@@ -1662,11 +4165,1214 @@ def create_industrial_finish_details(mats, campus):
     return group
 
 
+def expand_campus_plan(campus):
+    """Double plan area while preserving building, vehicle, tree, and detail scale."""
+
+    def scale_location(obj):
+        obj.location.x *= PLAN_SCALE
+        obj.location.y *= PLAN_SCALE
+
+    def stretch_dominant_plan_axis(obj):
+        dimensions = list(obj.dimensions)
+        axis = 0 if dimensions[0] >= dimensions[1] else 1
+        dimensions[axis] *= PLAN_SCALE
+        obj.dimensions = dimensions
+
+    for building in (child for child in campus.children if child.name.startswith("BLDG__")):
+        scale_location(building)
+
+    for zone_name in ("SITE__process-core", "SITE__logistics-yard"):
+        scale_location(bpy.data.objects[zone_name])
+
+    site = bpy.data.objects["SITE__ground-and-roads"]
+    stretch_names = (
+        "SITE__outer-boulevard",
+        "SITE__front-sidewalk",
+        "ROAD__perimeter-",
+        "ROAD__segment-",
+        "ROAD__boulevard-edge-",
+        "ROAD_DETAIL__inner-curb-",
+        "ROAD_DETAIL__drain-channel-",
+        "PEDESTRIAN__walkway-",
+    )
+    for obj in list(site.children):
+        scale_location(obj)
+        if obj.name == "SITE__ground":
+            obj.dimensions = (obj.dimensions.x * PLAN_SCALE, obj.dimensions.y * PLAN_SCALE, obj.dimensions.z)
+        elif obj.type == "MESH" and obj.name.startswith(stretch_names):
+            stretch_dominant_plan_axis(obj)
+
+    pipes = bpy.data.objects["SYSTEM__pipe-racks"]
+    for obj in list(pipes.children):
+        scale_location(obj)
+        if obj.type == "MESH" and (obj.name.startswith("PIPE__run-") or obj.name.startswith("PIPE__bridge-gantry-")):
+            stretch_dominant_plan_axis(obj)
+
+    landscape = bpy.data.objects["SITE__landscape"]
+    for obj in list(landscape.children):
+        scale_location(obj)
+        if obj.type == "MESH" and obj.name.startswith("FENCE__perimeter-run-"):
+            stretch_dominant_plan_axis(obj)
+
+    furnishings = bpy.data.objects["SITE__furnishings"]
+    parking_anchor = Vector((16.7 * PLAN_SCALE, 10.5 * PLAN_SCALE))
+    for obj in list(furnishings.children):
+        original = Vector((obj.location.x, obj.location.y))
+        if obj.name.startswith("VEHICLE__parked-"):
+            obj.location.x = parking_anchor.x + original.x - 16.7
+            obj.location.y = parking_anchor.y + original.y - 10.5
+        elif obj.name == "VEHICLE__gate-shuttle__root":
+            obj.location.x = 20.5 * PLAN_SCALE - 0.85
+            obj.location.y = 17.0 * PLAN_SCALE + 5.0
+        else:
+            scale_location(obj)
+        if obj.name == "SITE__patrol-routes":
+            for patrol in list(obj.children):
+                scale_location(patrol)
+
+    environment = bpy.data.objects["ENV__background"]
+    for obj in list(environment.children):
+        scale_location(obj)
+        if obj.name in {"ENV__landscape-apron", "ENV__forest-backdrop", "ENV__forest-side-west", "ENV__forest-side-east"}:
+            obj.dimensions = (obj.dimensions.x * PLAN_SCALE, obj.dimensions.y * PLAN_SCALE, obj.dimensions.z)
+
+    finishes = bpy.data.objects["DETAIL__industrial-finishes"]
+    for obj in list(finishes.children):
+        scale_location(obj)
+        if obj.type == "MESH" and obj.name.startswith("DETAIL__curb-"):
+            stretch_dominant_plan_axis(obj)
+
+    campus["planScale"] = PLAN_SCALE
+    campus["planAreaMultiplier"] = PLAN_SCALE * PLAN_SCALE
+
+
+BUILDING_ACCESS_SPECS = [
+    ("administration", "ROAD__segment-01", "north", 13.44, "pedestrian"),
+    ("central-processing-hall", "ROAD__segment-04", "south", -3.54, "industrial"),
+    ("east-process-hall", "ROAD__segment-07", "west", -7.05, "industrial"),
+    ("east-warehouse", "ROAD__segment-07", "west", 3.18, "industrial"),
+    ("far-east-utility", "ROAD__segment-07", "east", 4.52, "service"),
+    ("front-utility-annex", "ROAD__segment-01", "north", -18.75, "service"),
+    ("front-warehouse", "ROAD__segment-03", "south", -4.24, "logistics"),
+    ("gatehouse", "ROAD__segment-02", "west", 20.78, "pedestrian"),
+    ("laboratory", "ROAD__segment-07", "east", 14.86, "pedestrian"),
+    ("main-production-hall", "ROAD__segment-03", "north", 19.98, "logistics"),
+    ("north-east-workshop", "ROAD__segment-04", "north", -16.20, "industrial"),
+    ("rear-high-bay", "ROAD__segment-04", "north", 0.0, "industrial"),
+]
+
+
+def world_bounds_xy(obj):
+    corners = [obj.matrix_world @ Vector(corner) for corner in obj.bound_box]
+    return (
+        min(corner.x for corner in corners),
+        max(corner.x for corner in corners),
+        min(corner.y for corner in corners),
+        max(corner.y for corner in corners),
+    )
+
+
+def create_building_access_network(mats, campus):
+    """Add final vehicle connections from the road grid to every building edge."""
+    bpy.context.view_layer.update()
+    group = empty("SITE__building-access-network", parent=campus)
+    group["layerRole"] = "building-access-network"
+    group["designIntent"] = "last-mile building access, fire response, and pedestrian safety"
+    access_surfaces = []
+    crosswalk_ids = {"administration", "front-warehouse", "gatehouse", "laboratory"}
+    give_way_index = 0
+    curb_index = 0
+
+    for building_id, road_name, side, anchor, access_type in BUILDING_ACCESS_SPECS:
+        shell = bpy.data.objects[f"{building_id}__wall-shell"]
+        road = bpy.data.objects[road_name]
+        shell_bounds = world_bounds_xy(shell)
+        road_bounds = world_bounds_xy(road)
+        road_width = 2.15 if access_type not in {"logistics", "industrial"} else 2.55
+
+        if side == "north":
+            building_edge, road_edge = shell_bounds[3], road_bounds[2]
+            gap = max(0.08, road_edge - building_edge)
+            location = (anchor, (building_edge + road_edge) / 2, 0.055)
+            size = (road_width, gap + 0.18, 0.11)
+            apron_depth = min(1.65, max(0.34, gap * 0.42))
+            apron_location = (anchor, building_edge + apron_depth / 2, 0.065)
+            apron_size = (road_width + 1.25, apron_depth, 0.13)
+            long_axis = "y"
+        elif side == "south":
+            building_edge, road_edge = shell_bounds[2], road_bounds[3]
+            gap = max(0.08, building_edge - road_edge)
+            location = (anchor, (building_edge + road_edge) / 2, 0.055)
+            size = (road_width, gap + 0.18, 0.11)
+            apron_depth = min(1.65, max(0.34, gap * 0.42))
+            apron_location = (anchor, building_edge - apron_depth / 2, 0.065)
+            apron_size = (road_width + 1.25, apron_depth, 0.13)
+            long_axis = "y"
+        elif side == "west":
+            building_edge, road_edge = shell_bounds[0], road_bounds[1]
+            gap = max(0.08, building_edge - road_edge)
+            location = ((building_edge + road_edge) / 2, anchor, 0.055)
+            size = (gap + 0.18, road_width, 0.11)
+            apron_depth = min(1.65, max(0.34, gap * 0.42))
+            apron_location = (building_edge - apron_depth / 2, anchor, 0.065)
+            apron_size = (apron_depth, road_width + 1.25, 0.13)
+            long_axis = "x"
+        else:
+            building_edge, road_edge = shell_bounds[1], road_bounds[0]
+            gap = max(0.08, road_edge - building_edge)
+            location = ((building_edge + road_edge) / 2, anchor, 0.055)
+            size = (gap + 0.18, road_width, 0.11)
+            apron_depth = min(1.65, max(0.34, gap * 0.42))
+            apron_location = (building_edge + apron_depth / 2, anchor, 0.065)
+            apron_size = (apron_depth, road_width + 1.25, 0.13)
+            long_axis = "x"
+
+        spur = box(f"ACCESS__{building_id}__spur", size, location, mats["asphalt"], group, 0.025)
+        apron = box(f"ACCESS__{building_id}__apron", apron_size, apron_location, mats["concrete"], group, 0.028)
+        for obj, role in ((spur, "building-access-road"), (apron, "building-access-apron")):
+            obj["buildingId"] = building_id
+            obj["targetRoad"] = road_name
+            obj["accessType"] = access_type
+            obj["layerRole"] = role
+        access_surfaces.extend((spur, apron))
+
+        route_length = size[1] if long_axis == "y" else size[0]
+        if route_length >= 0.85:
+            for edge_label, edge_sign in (("left", -1), ("right", 1)):
+                curb_index += 1
+                if long_axis == "y":
+                    curb_size = (0.10, max(0.30, size[1] - 0.18), 0.16)
+                    curb_location = (location[0] + edge_sign * (road_width / 2 + 0.08), location[1], 0.13)
+                else:
+                    curb_size = (max(0.30, size[0] - 0.18), 0.10, 0.16)
+                    curb_location = (location[0], location[1] + edge_sign * (road_width / 2 + 0.08), 0.13)
+                box(
+                    f"ACCESS_DETAIL__curb-{curb_index:02d}-{edge_label}",
+                    curb_size,
+                    curb_location,
+                    mats["curb"],
+                    group,
+                    0.018,
+                )
+
+        if building_id in crosswalk_ids:
+            for stripe_index in range(6):
+                offset = (stripe_index - 2.5) * 0.19
+                if long_axis == "y":
+                    stripe_size = (road_width * 0.82, 0.10, 0.024)
+                    stripe_location = (location[0], location[1] + offset, 0.124)
+                else:
+                    stripe_size = (0.10, road_width * 0.82, 0.024)
+                    stripe_location = (location[0] + offset, location[1], 0.124)
+                box(
+                    f"ACCESS_DETAIL__crosswalk-{building_id}-{stripe_index + 1:02d}",
+                    stripe_size,
+                    stripe_location,
+                    mats["stripe"],
+                    group,
+                    0,
+                )
+
+        if access_type in {"industrial", "logistics"}:
+            give_way_index += 1
+            if long_axis == "y":
+                marking_size = (road_width * 0.76, 0.09, 0.025)
+                marking_location = (location[0], location[1], 0.125)
+            else:
+                marking_size = (0.09, road_width * 0.76, 0.025)
+                marking_location = (location[0], location[1], 0.125)
+            box(
+                f"ACCESS_DETAIL__give-way-{give_way_index:02d}",
+                marking_size,
+                marking_location,
+                mats["safety_yellow"],
+                group,
+                0,
+            )
+
+    hydrant_locations = [
+        (-10.55, -11.55),
+        (-24.65, -8.35),
+        (-24.55, 5.75),
+        (5.45, 7.05),
+        (23.95, 7.15),
+        (2.20, -15.35),
+    ]
+    for index, (x, y) in enumerate(hydrant_locations, start=1):
+        root = empty(f"FIRE__hydrant-{index:02d}", (x, y, 0), group)
+        root["layerRole"] = "fire-safety"
+        cylinder(f"FIRE__hydrant-{index:02d}__base", 0.16, 0.10, (0, 0, 0.15), mats["facade_frame"], root, vertices=12)
+        cylinder(f"FIRE__hydrant-{index:02d}__body", 0.11, 0.58, (0, 0, 0.48), mats["fire_red"], root, vertices=12)
+        cylinder(f"FIRE__hydrant-{index:02d}__cap", 0.15, 0.10, (0, 0, 0.82), mats["fire_red"], root, vertices=12)
+        for side_sign in (-1, 1):
+            cylinder(
+                f"FIRE__hydrant-{index:02d}__outlet-{side_sign:+d}",
+                0.065,
+                0.16,
+                (side_sign * 0.14, 0, 0.56),
+                mats["facade_frame"],
+                root,
+                rotation=(0, math.pi / 2, 0),
+                vertices=12,
+            )
+
+    return group, access_surfaces
+
+
+def create_vehicle_route(route_id, points, loop_mode, dwell_fraction, parent):
+    route = empty(f"ROUTE__{route_id}", parent=parent)
+    route["routeId"] = route_id
+    route["layerRole"] = "vehicle-route"
+    route["loopMode"] = loop_mode
+    route["dwellFraction"] = dwell_fraction
+    for order, point in enumerate(points, start=1):
+        waypoint = empty(f"WAYPOINT__{route_id}__{order:02d}", (*point, 0.0), route)
+        waypoint["routeId"] = route_id
+        waypoint["waypointOrder"] = order
+        waypoint["layerRole"] = "vehicle-waypoint"
+    return route
+
+
+def configure_route_vehicle(vehicle, route_id, speed, phase, vehicle_width):
+    vehicle["motionPath"] = "campus-route"
+    vehicle["linkedRoute"] = route_id
+    vehicle["motionSpeed"] = speed
+    vehicle["motionPhase"] = phase
+    vehicle["vehicleWidth"] = vehicle_width
+    return vehicle
+
+
+def create_operational_traffic(mats, campus):
+    """Create GLB-authored routes for internal logistics and perimeter patrol vehicles."""
+    traffic = empty("SITE__operational-traffic", parent=campus)
+    traffic["layerRole"] = "operational-traffic"
+    routes = {
+        "warehouse-delivery": {
+            "loopMode": "ping-pong",
+            "dwellFraction": 0.14,
+            "points": [(28.8, 20.7), (28.8, 9.0), (8.0, 9.0), (-4.2, 9.0), (-4.2, 10.8), (-4.2, 11.4), (-4.2, 11.85)],
+        },
+        "maintenance-service": {
+            "loopMode": "ping-pong",
+            "dwellFraction": 0.10,
+            "points": [(28.8, 7.1), (20.0, 9.0), (20.0, 7.8), (20.0, 6.4), (20.0, 5.2), (20.0, 4.75)],
+        },
+        "fire-patrol": {
+            "loopMode": "loop",
+            "dwellFraction": 0.0,
+            "points": [(38.18, 20.0), (38.18, -28.28), (0.0, -28.28), (-38.18, -28.28), (-38.18, 0.0), (-38.18, 28.28), (0.0, 28.28), (38.18, 28.28), (38.18, 20.0)],
+        },
+    }
+    for route_id, spec in routes.items():
+        create_vehicle_route(route_id, spec["points"], spec["loopMode"], spec["dwellFraction"], traffic)
+
+    delivery_start = (*routes["warehouse-delivery"]["points"][0], 0.08)
+    delivery = create_vehicle(
+        "VEHICLE__delivery-truck",
+        delivery_start,
+        mats,
+        traffic,
+        length=2.35,
+        width=0.78,
+        height=0.84,
+        color="bus",
+        rotation_z=-math.pi / 2,
+    )
+    configure_route_vehicle(delivery, "warehouse-delivery", 0.022, 0.02, 0.78)
+
+    maintenance_start = (*routes["maintenance-service"]["points"][0], 0.08)
+    maintenance = create_vehicle(
+        "VEHICLE__maintenance-van",
+        maintenance_start,
+        mats,
+        traffic,
+        length=1.55,
+        width=0.68,
+        height=0.65,
+        color="vehicle_blue",
+        rotation_z=math.radians(168),
+    )
+    configure_route_vehicle(maintenance, "maintenance-service", 0.030, 0.31, 0.68)
+    box("VEHICLE__maintenance-van__lightbar-base", (0.48, 0.16, 0.05), (0, 0, 0.71), mats["facade_frame"], maintenance, 0.012)
+    box("VEHICLE__maintenance-van__lightbar-amber", (0.38, 0.12, 0.07), (0, 0, 0.77), mats["safety_yellow"], maintenance, 0.018)
+
+    fire_start = (*routes["fire-patrol"]["points"][0], 0.08)
+    fire_patrol = create_vehicle(
+        "VEHICLE__fire-patrol",
+        fire_start,
+        mats,
+        traffic,
+        length=1.75,
+        width=0.72,
+        height=0.68,
+        color="fire_red",
+        rotation_z=-math.pi / 2,
+    )
+    configure_route_vehicle(fire_patrol, "fire-patrol", 0.018, 0.58, 0.72)
+    box("VEHICLE__fire-patrol__lightbar-base", (0.56, 0.17, 0.05), (0, 0, 0.75), mats["facade_frame"], fire_patrol, 0.012)
+    box("VEHICLE__fire-patrol__lightbar-red", (0.23, 0.13, 0.07), (-0.14, 0, 0.81), mats["fire_red"], fire_patrol, 0.014)
+    box("VEHICLE__fire-patrol__lightbar-blue", (0.23, 0.13, 0.07), (0.14, 0, 0.81), mats["accent"], fire_patrol, 0.014)
+    for side in (-1, 1):
+        box(
+            f"VEHICLE__fire-patrol__side-stripe-{side:+d}",
+            (1.18, 0.025, 0.10),
+            (0, side * 0.366, 0.42),
+            mats["white"],
+            fire_patrol,
+            0.004,
+        )
+    return traffic
+
+
+def create_ground_road_landscape_art(mats, campus):
+    """Layer restrained construction, wear, and planting detail over the approved site plan."""
+    group = empty("SITE__surface-art", parent=campus)
+    group["layerRole"] = "site-surface-art"
+    group["designIntent"] = "semi-realistic industrial hardscape and planted-edge depth"
+
+    def tag(obj, role):
+        obj["layerRole"] = role
+        return obj
+
+    patch_specs = [
+        (-27.0, 28.28, 3.8, 0.58, 0),
+        (-13.0, 28.28, 2.9, 0.72, 0),
+        (5.5, 28.28, 4.4, 0.54, 0),
+        (18.5, 28.28, 3.2, 0.66, 0),
+        (-25.0, -28.28, 3.4, 0.62, 0),
+        (-7.0, -28.28, 4.8, 0.50, 0),
+        (12.0, -28.28, 3.1, 0.70, 0),
+        (27.0, -28.28, 4.1, 0.54, 0),
+        (-29.0, 9.05, 3.2, 0.45, 0),
+        (-14.0, 9.05, 4.0, 0.52, 0),
+        (8.0, 9.05, 3.6, 0.44, 0),
+        (27.0, 9.05, 4.2, 0.50, 0),
+        (-20.0, -13.29, 3.3, 0.48, 0),
+        (17.0, -13.29, 4.5, 0.46, 0),
+    ]
+    for index, (x, y, width, depth, rotation_z) in enumerate(patch_specs, start=1):
+        patch = box(
+            f"SURFACE_ART__asphalt-patch-{index:02d}",
+            (width, depth, 0.018),
+            (x, y, 0.122),
+            mats["asphalt_repair"],
+            group,
+            0.012,
+            rotation=(0, 0, rotation_z),
+        )
+        tag(patch, "asphalt-repair")
+
+    wear_specs = [
+        (-20.0, 28.28, 5.8, 0),
+        (12.0, 28.28, 6.6, 0),
+        (-14.0, -28.28, 6.2, 0),
+        (23.0, -28.28, 5.4, 0),
+    ]
+    wear_index = 1
+    for x, y, length, rotation_z in wear_specs:
+        for lane_offset in (-0.46, 0.46):
+            wear = box(
+                f"SURFACE_ART__traffic-wear-{wear_index:02d}",
+                (length, 0.085, 0.012),
+                (x, y + lane_offset, 0.124),
+                mats["traffic_wear"],
+                group,
+                0.006,
+                rotation=(0, 0, rotation_z),
+            )
+            tag(wear, "traffic-wear")
+            wear_index += 1
+
+    seam_specs = [
+        (-31.0, 28.28, 2.12, 0), (-18.0, 28.28, 2.12, 0), (-2.0, 28.28, 2.12, 0),
+        (14.0, 28.28, 2.12, 0), (30.0, 28.28, 2.12, 0),
+        (-30.0, -28.28, 2.12, 0), (-12.0, -28.28, 2.12, 0), (6.0, -28.28, 2.12, 0),
+        (22.0, -28.28, 2.12, 0), (34.0, -28.28, 2.12, 0),
+    ]
+    for index, (x, y, length, rotation_z) in enumerate(seam_specs, start=1):
+        seam = box(
+            f"SURFACE_ART__expansion-seam-{index:02d}",
+            (0.035, length, 0.012),
+            (x, y, 0.126),
+            mats["traffic_wear"],
+            group,
+            0.003,
+            rotation=(0, 0, rotation_z),
+        )
+        tag(seam, "road-expansion-joint")
+
+    for index, (x, y) in enumerate(((-21.0, 28.28), (10.0, -28.28), (-38.18, -4.0), (38.18, -14.0)), start=1):
+        cover = cylinder(
+            f"SURFACE_ART__utility-cover-{index:02d}",
+            0.31,
+            0.035,
+            (x, y, 0.132),
+            mats["utility_iron"],
+            group,
+            vertices=16,
+        )
+        cover["serviceType"] = "stormwater" if index % 2 else "utility"
+        tag(cover, "utility-cover")
+
+    for index in range(12):
+        x = 26.05 + index * 0.53
+        joint = box(
+            f"PAVING_DETAIL__joint-{index + 1:02d}",
+            (0.026, 2.72, 0.014),
+            (x, 24.04, 0.162),
+            mats["paving_joint"],
+            group,
+            0.002,
+        )
+        tag(joint, "paving-construction-joint")
+
+    parking_center = Vector((16.7 * PLAN_SCALE, 10.5 * PLAN_SCALE))
+    bay_number = 1
+    for py in (-2.30, 2.30):
+        for px in (-3.0, -1.5, 0, 1.5, 3.0):
+            plaque = box(
+                f"PARKING_DETAIL__bay-id-{bay_number:02d}",
+                (0.58, 0.24, 0.018),
+                (parking_center.x + px, parking_center.y + py, 0.132),
+                mats["safety_yellow"] if bay_number in {1, 6} else mats["paving_joint"],
+                group,
+                0.012,
+            )
+            plaque["bayNumber"] = bay_number
+            plaque["bayClass"] = "priority" if bay_number in {1, 6} else "standard"
+            tag(plaque, "parking-bay-identity")
+            bay_number += 1
+
+    rain_gardens = [
+        (-13.5 * PLAN_SCALE, 7.78 * PLAN_SCALE, 8.2, 0.72),
+        (11.5 * PLAN_SCALE, 7.78 * PLAN_SCALE, 9.8, 0.72),
+        (-3.0 * PLAN_SCALE, 5.0 * PLAN_SCALE, 5.8, 0.62),
+    ]
+    landscape_index = 1
+    for x, y, width, depth in rain_gardens:
+        for edge_sign in (-1, 1):
+            edge = box(
+                f"LANDSCAPE_ART__aggregate-edge-{landscape_index:02d}",
+                (width + 0.30, 0.12, 0.075),
+                (x, y + edge_sign * (depth / 2 + 0.08), 0.108),
+                mats["warm_aggregate"],
+                group,
+                0.035,
+            )
+            tag(edge, "landscape-aggregate-edge")
+            landscape_index += 1
+
+    flower_beds = [
+        (12.5 * PLAN_SCALE, 15.7 * PLAN_SCALE, 2.4, 0.48),
+        (-8.5 * PLAN_SCALE, 16.0 * PLAN_SCALE, 3.2, 0.52),
+        (-19.5 * PLAN_SCALE, 15.8 * PLAN_SCALE, 2.4, 0.48),
+    ]
+    for x, y, width, depth in flower_beds:
+        bed = box(
+            f"LANDSCAPE_ART__mulch-bed-{landscape_index:02d}",
+            (width + 0.42, depth + 0.30, 0.055),
+            (x, y, 0.052),
+            mats["planting_mulch"],
+            group,
+            0.11,
+        )
+        tag(bed, "landscape-mulch-bed")
+        landscape_index += 1
+
+    for index in range(1, 13):
+        crown = bpy.data.objects.get(f"LANDSCAPE__inner-tree-crown-{index:02d}")
+        if not crown:
+            continue
+        if index % 4 == 0:
+            crown["foliageTone"] = "warm"
+        elif index % 3 == 0:
+            crown["foliageTone"] = "light"
+        else:
+            crown["foliageTone"] = "deep"
+
+    return group
+
+
+def configure_ground_function_zones(mats, campus):
+    """Give site surfaces explicit operational PBR identities without changing layout."""
+    group = empty("SITE__ground-function-zones", parent=campus)
+    group["layerRole"] = "ground-function-zones"
+
+    def assign(name, mat, role):
+        obj = bpy.data.objects.get(name)
+        if not obj or obj.type != "MESH":
+            return None
+        obj.data.materials.clear()
+        obj.data.materials.append(mat)
+        obj["groundRole"] = role
+        return obj
+
+    for obj in bpy.data.objects:
+        if obj.type == "MESH" and obj.name.startswith(("ROAD__", "ACCESS__")) and (
+            obj.name.startswith("ROAD__") or obj.name.endswith("__spur")
+        ):
+            obj.data.materials.clear()
+            obj.data.materials.append(mats["asphalt"])
+            obj["groundRole"] = "new-asphalt"
+    assign("SITE__outer-boulevard", mats["asphalt"], "new-asphalt")
+    assign("LOGISTICS__front-warehouse-apron", mats["loading_concrete"], "loading-concrete")
+    assign("SITE__entry-plaza", mats["paving"], "entry-paving")
+    assign("PARKING__surface", mats["parking_surface"], "parking-surface")
+    assign("SITE__ground", mats["lawn"], "lawn")
+    for obj in bpy.data.objects:
+        if obj.type == "MESH" and obj.name.startswith("PEDESTRIAN__walkway-"):
+            obj.data.materials.clear()
+            obj.data.materials.append(mats["walkway"])
+            obj["groundRole"] = "walkway"
+        elif obj.type == "MESH" and obj.name.startswith("LANDSCAPE_ART__mulch-bed-"):
+            obj["groundRole"] = "mulch"
+        elif obj.type == "MESH" and obj.name.startswith("LANDSCAPE__rain-garden-") and "-grass-" not in obj.name:
+            obj["groundRole"] = "bare-soil"
+
+    aged = box(
+        "SURFACE_ZONE__aged-asphalt-01",
+        (8.6, 1.38, 0.018),
+        (-14.0, 9.05, 0.126),
+        mats["aged_asphalt"],
+        group,
+        0.012,
+    )
+    aged["groundRole"] = "aged-asphalt"
+    aged["anchorName"] = "ROAD__segment-02"
+    return group
+
+
+def create_ground_contact_realism(mats, campus):
+    """Add restrained, cause-based wear and contact transitions at named site anchors."""
+    group = empty("SITE__ground-contact-realism", parent=campus)
+    group["layerRole"] = "ground-contact-realism"
+    group["designIntent"] = "localized operational wear without black AO halos"
+
+    def tag(obj, role, anchor_type, anchor_name):
+        obj["wearRole"] = role
+        obj["layerRole"] = f"ground-{role}"
+        obj["detailTier"] = "micro"
+        obj["anchorType"] = anchor_type
+        obj["anchorName"] = anchor_name
+        return obj
+
+    route_marks = [
+        ("WAYPOINT__warehouse-delivery__02", 0),
+        ("WAYPOINT__warehouse-delivery__03", 0),
+        ("WAYPOINT__warehouse-delivery__04", 0),
+        ("WAYPOINT__maintenance-service__02", 0),
+        ("WAYPOINT__maintenance-service__03", math.pi / 2),
+        ("WAYPOINT__fire-patrol__02", math.pi / 2),
+        ("WAYPOINT__fire-patrol__03", 0),
+        ("WAYPOINT__fire-patrol__04", 0),
+    ]
+    for index, (anchor_name, rotation_z) in enumerate(route_marks, start=1):
+        anchor = bpy.data.objects[anchor_name]
+        position = anchor.matrix_world.translation
+        mark = box(
+            f"GROUND_CONTACT__tire-darkening-{index:02d}",
+            (1.65, 0.16, 0.018),
+            (position.x, position.y + (0.24 if index % 2 else -0.24), 0.128),
+            mats["ground_tire_wear"],
+            group,
+            0.02,
+            rotation=(0, 0, rotation_z),
+        )
+        tag(mark, "tire-darkening", "vehicle-route", anchor_name)
+
+    apron = bpy.data.objects["LOGISTICS__front-warehouse-apron"]
+    apron_position = apron.matrix_world.translation
+    for index in range(10):
+        offset = -3.4 + index * 0.76
+        joint = box(
+            f"GROUND_CONTACT__concrete-joint-{index + 1:02d}",
+            (0.025, 2.10, 0.016),
+            (apron_position.x + offset, apron_position.y, 0.127),
+            mats["ground_joint"],
+            group,
+            0.004,
+        )
+        tag(joint, "concrete-joint", "loading-apron", apron.name)
+
+    repair_anchors = [name for name, _rotation in route_marks[:6]]
+    for index, anchor_name in enumerate(repair_anchors, start=1):
+        position = bpy.data.objects[anchor_name].matrix_world.translation
+        repair = box(
+            f"GROUND_CONTACT__asphalt-repair-{index:02d}",
+            (1.45 + (index % 3) * 0.34, 0.48 + (index % 2) * 0.14, 0.018),
+            (position.x + 0.72, position.y - 0.52, 0.128),
+            mats["ground_repair"],
+            group,
+            0.05,
+        )
+        tag(repair, "asphalt-repair", "vehicle-route", anchor_name)
+
+    for index in range(1, 5):
+        anchor_name = f"DETAIL__storm-drain-{index:02d}"
+        anchor = bpy.data.objects[anchor_name]
+        position = anchor.matrix_world.translation
+        stain = box(
+            f"GROUND_CONTACT__drain-discoloration-{index:02d}",
+            (0.76, 0.38, 0.016),
+            (position.x, position.y, max(0.127, position.z + 0.022)),
+            mats["ground_drain_stain"],
+            group,
+            0.08,
+        )
+        tag(stain, "drain-discoloration", "storm-drain", anchor_name)
+
+    dock_names = [
+        "LOGISTICS__dock-platform-01",
+        "LOGISTICS__dock-platform-02",
+        "LOGISTICS__dock-platform-03",
+        "WAREHOUSE__dock-platform",
+        "FINISHED__dock-platform",
+    ]
+    for index, anchor_name in enumerate(dock_names, start=1):
+        anchor = bpy.data.objects[anchor_name]
+        position = anchor.matrix_world.translation
+        abrasion = box(
+            f"GROUND_CONTACT__dock-abrasion-{index:02d}",
+            (max(0.72, anchor.dimensions.x * 0.72), 0.16, 0.016),
+            (position.x, position.y, position.z + anchor.dimensions.z / 2 + 0.012),
+            mats["ground_dock_abrasion"],
+            group,
+            0.025,
+        )
+        tag(abrasion, "dock-abrasion", "loading-dock", anchor_name)
+
+    for building_id, _position, (width, depth, _height), _kind in BUILDINGS:
+        anchor_name = f"BLDG__{building_id}"
+        anchor = bpy.data.objects[anchor_name]
+        position = anchor.matrix_world.translation
+        dust = box(
+            f"GROUND_CONTACT__wall-base-dust-{building_id}",
+            (max(0.72, width * 0.62), 0.22, 0.018),
+            (position.x, position.y + depth / 2 + 0.20, 0.128),
+            mats["ground_wall_dust"],
+            group,
+            0.045,
+        )
+        tag(dust, "wall-base-dust", "building", anchor_name)
+
+    oil_anchors = ["PROCESS__equipment-pad", "LOGISTICS__front-warehouse-apron", "ACCESS__main-production-hall__apron"]
+    for index, anchor_name in enumerate(oil_anchors, start=1):
+        anchor = bpy.data.objects[anchor_name]
+        position = anchor.matrix_world.translation
+        oil = cylinder(
+            f"GROUND_CONTACT__oil-mark-{index:02d}",
+            0.28 + index * 0.035,
+            0.018,
+            (position.x + index * 0.34, position.y - 0.26, max(0.128, position.z + anchor.dimensions.z / 2 + 0.012)),
+            mats["ground_oil_mark"],
+            group,
+            vertices=18,
+        )
+        oil.scale.y = 0.58 + index * 0.08
+        tag(oil, "oil-mark", "service-zone", anchor_name)
+
+    for index in range(1, 13):
+        anchor_name = f"LANDSCAPE__inner-tree-trunk-{index:02d}"
+        anchor = bpy.data.objects[anchor_name]
+        position = anchor.matrix_world.translation
+        mulch = cylinder(
+            f"GROUND_CONTACT__tree-mulch-{index:02d}",
+            0.38,
+            0.020,
+            (position.x, position.y, 0.135),
+            mats["planting_mulch"],
+            group,
+            vertices=18,
+        )
+        mulch["groundRole"] = "mulch"
+        tag(mulch, "contact-transition", "tree-base", anchor_name)
+    return group
+
+
+def create_ground_circulation_realism(mats, campus):
+    """Clarify service circulation with broad hardstands and low-frequency wear cues."""
+    group = empty("SITE__ground-circulation-realism", parent=campus)
+    group["realismSystem"] = "functional-circulation"
+    group["designIntent"] = "readable service yards, drainage, and vehicle paths"
+
+    for obj in bpy.data.objects:
+        if obj.name.startswith(("GROUND_CONTACT__tire-darkening-", "SURFACE_ART__traffic-wear-")):
+            obj["groundDetailRole"] = "tire-wear"
+        elif obj.name.startswith(("ROAD_DETAIL__drain-channel-", "DETAIL__storm-drain-")):
+            obj["groundDetailRole"] = "drainage"
+
+    service_ids = (
+        "main-production-hall",
+        "central-processing-hall",
+        "east-process-hall",
+        "east-warehouse",
+        "front-warehouse",
+    )
+    building_dimensions = {building_id: size for building_id, _position, size, _kind in BUILDINGS}
+    drain_index = 1
+    for yard_index, building_id in enumerate(service_ids, start=1):
+        anchor = bpy.data.objects[f"BLDG__{building_id}"]
+        width, depth, _height = building_dimensions[building_id]
+        world = anchor.matrix_world.translation
+        pad_width = min(6.2, max(3.4, width * 0.58))
+        pad_depth = 1.42 if building_id != "main-production-hall" else 1.72
+        pad_y = world.y - depth / 2 - pad_depth / 2 - 0.18
+        pad = box(
+            f"GROUND_CIRCULATION__service-yard-{yard_index:02d}",
+            (pad_width, pad_depth, 0.055),
+            (world.x, pad_y, 0.112),
+            mats["loading_concrete"],
+            group,
+            0.035,
+        )
+        pad["groundDetailRole"] = "service-yard"
+        pad["anchorName"] = anchor.name
+        pad["detailScale"] = "macro"
+
+        for joint_index, offset in enumerate((-0.26, 0.26), start=1):
+            joint = box(
+                f"GROUND_CIRCULATION__yard-joint-{yard_index:02d}-{joint_index:02d}",
+                (pad_width * 0.88, 0.026, 0.012),
+                (world.x, pad_y + offset * pad_depth, 0.147),
+                mats["ground_joint"],
+                group,
+                0.003,
+            )
+            joint["groundDetailRole"] = "construction-joint"
+            joint["detailTier"] = "micro"
+
+        for side in (-1, 1):
+            drain = box(
+                f"GROUND_CIRCULATION__yard-drain-{drain_index:02d}",
+                (0.12, pad_depth * 0.82, 0.018),
+                (world.x + side * pad_width * 0.43, pad_y, 0.151),
+                mats["drain"],
+                group,
+                0.012,
+            )
+            drain["groundDetailRole"] = "drainage"
+            drain["anchorName"] = anchor.name
+            drain_index += 1
+    return group
+
+
+def create_street_bench(prefix, location, rotation, mats, parent):
+    bench = empty(prefix, location, parent)
+    bench.rotation_euler[2] = rotation
+    for slat_index, py in enumerate((-0.15, -0.05, 0.05, 0.15), start=1):
+        slat = box(
+            f"{prefix}__seat-slat-{slat_index:02d}",
+            (1.52, 0.075, 0.055),
+            (0, py, 0.42),
+            mats["street_timber"],
+            bench,
+            0.018,
+        )
+        slat["layerRole"] = "street-furniture-bench"
+    for slat_index, pz in enumerate((0.58, 0.72, 0.86), start=1):
+        slat = box(
+            f"{prefix}__back-slat-{slat_index:02d}",
+            (1.52, 0.055, 0.07),
+            (0, -0.18, pz),
+            mats["street_timber"],
+            bench,
+            0.018,
+        )
+        slat["layerRole"] = "street-furniture-bench"
+    for leg_index, px in enumerate((-0.58, 0.58), start=1):
+        leg = box(
+            f"{prefix}__leg-{leg_index:02d}",
+            (0.10, 0.34, 0.38),
+            (px, 0, 0.19),
+            mats["street_metal"],
+            bench,
+            0.018,
+        )
+        leg["layerRole"] = "street-furniture-bench"
+        leg["groundContact"] = True
+    return bench
+
+
+def create_waste_station(prefix, location, mats, parent):
+    station = empty(prefix, location, parent)
+    for bin_index, (px, mat_key, waste_type) in enumerate(((-0.18, "bin_blue", "recycling"), (0.18, "street_metal", "general")), start=1):
+        body = box(
+            f"{prefix}__body-{bin_index:02d}",
+            (0.30, 0.34, 0.68),
+            (px, 0, 0.34),
+            mats[mat_key],
+            station,
+            0.045,
+        )
+        body["layerRole"] = "street-furniture-bin"
+        body["wasteType"] = waste_type
+        body["groundContact"] = True
+        lid = box(
+            f"{prefix}__lid-{bin_index:02d}",
+            (0.32, 0.36, 0.065),
+            (px, 0, 0.70),
+            mats["facade_frame"],
+            station,
+            0.022,
+        )
+        lid["layerRole"] = "street-furniture-bin"
+    return station
+
+
+def create_wayfinding_pylon(prefix, location, rotation, mats, parent):
+    pylon = empty(prefix, location, parent)
+    pylon.rotation_euler[2] = rotation
+    base = box(f"{prefix}__base", (0.72, 0.34, 0.14), (0, 0, 0.07), mats["street_metal"], pylon, 0.035)
+    base["layerRole"] = "pedestrian-wayfinding"
+    base["groundContact"] = True
+    post = box(f"{prefix}__post", (0.18, 0.18, 1.48), (0, 0, 0.80), mats["street_metal"], pylon, 0.025)
+    post["layerRole"] = "pedestrian-wayfinding"
+    panel = box(f"{prefix}__panel", (0.82, 0.16, 0.72), (0, 0, 1.42), mats["facade_frame"], pylon, 0.035)
+    panel["layerRole"] = "pedestrian-wayfinding"
+    for bar_index, pz in enumerate((1.25, 1.42, 1.59), start=1):
+        bar = box(
+            f"{prefix}__identity-bar-{bar_index:02d}",
+            (0.58 - (bar_index - 1) * 0.08, 0.035, 0.055),
+            (-0.04, -0.10, pz),
+            mats["wayfinding_amber"],
+            pylon,
+            0.008,
+        )
+        bar["layerRole"] = "pedestrian-wayfinding"
+    return pylon
+
+
+def create_safety_cone(prefix, location, mats, parent):
+    cone = empty(prefix, location, parent)
+    base = cylinder(f"{prefix}__base", 0.15, 0.055, (0, 0, 0.035), mats["tire"], cone, vertices=12)
+    base["layerRole"] = "operational-safety-cone"
+    base["groundContact"] = True
+    bpy.ops.mesh.primitive_cone_add(vertices=12, radius1=0.115, radius2=0.025, depth=0.34, location=(0, 0, 0))
+    body = bpy.context.object
+    body.name = f"{prefix}__body"
+    body.parent = cone
+    body.location = (0, 0, 0.23)
+    body.data.materials.append(mats["safety_orange"])
+    body["layerRole"] = "operational-safety-cone"
+    band = cylinder(f"{prefix}__reflective-band", 0.075, 0.055, (0, 0, 0.28), mats["white"], cone, vertices=12)
+    band["layerRole"] = "operational-safety-cone"
+    return cone
+
+
+def create_loading_cage(prefix, location, mats, parent):
+    cage = empty(prefix, location, parent)
+    base = box(f"{prefix}__base", (0.78, 0.58, 0.12), (0, 0, 0.07), mats["street_metal"], cage, 0.018)
+    base["layerRole"] = "loading-support-prop"
+    base["groundContact"] = True
+    for post_index, (px, py) in enumerate(((-0.34, -0.24), (-0.34, 0.24), (0.34, -0.24), (0.34, 0.24)), start=1):
+        post = box(f"{prefix}__post-{post_index:02d}", (0.045, 0.045, 0.82), (px, py, 0.47), mats["gutter"], cage, 0.006)
+        post["layerRole"] = "loading-support-prop"
+    for rail_index, pz in enumerate((0.30, 0.58, 0.84), start=1):
+        rail = box(f"{prefix}__rail-{rail_index:02d}", (0.74, 0.045, 0.035), (0, -0.25, pz), mats["gutter"], cage, 0.004)
+        rail["layerRole"] = "loading-support-prop"
+    return cage
+
+
+def create_campus_operational_story(mats, campus):
+    """Add close-range pedestrian, landscape, gate, and loading narratives."""
+    group = empty("SITE__operational-story", parent=campus)
+    group["layerRole"] = "campus-operational-story"
+    group["designIntent"] = "medium and close range campus life without route obstruction"
+
+    furniture_specs = [
+        ((8.0, 20.2, 0), 0.0),
+        ((18.8, 20.2, 0), math.pi),
+        ((18.5, -17.2, 0), 0.0),
+        ((-27.0, 20.0, 0), 0.0),
+    ]
+    for index, (location, rotation) in enumerate(furniture_specs, start=1):
+        create_street_bench(f"STREET_FURNITURE__bench-{index:02d}", location, rotation, mats, group)
+        bin_location = (location[0] + (1.20 if index % 2 else -1.20), location[1], 0)
+        create_waste_station(f"STREET_FURNITURE__bin-{index:02d}", bin_location, mats, group)
+
+    for index, (location, rotation) in enumerate((((6.2, 20.5, 0), 0.0), ((20.5, 20.5, 0), math.pi), ((-24.8, 19.8, 0), 0.0)), start=1):
+        create_wayfinding_pylon(f"STREET_FURNITURE__pylon-{index:02d}", location, rotation, mats, group)
+
+    understory_positions = [
+        (7.1, 19.35), (19.7, 19.35), (-12.0, 21.7), (-27.7, 21.7),
+        (-19.0, 10.2), (-15.2, 10.2), (12.8, 10.2), (17.0, 10.2),
+        (18.1, -17.45), (30.0, -17.45), (8.0, -17.45), (6.2, -17.45),
+    ]
+    for index, (x, y) in enumerate(understory_positions, start=1):
+        shrub = empty(f"VEGETATION_DETAIL__understory-{index:02d}", (x, y, 0), group)
+        base = cylinder(f"VEGETATION_DETAIL__understory-{index:02d}__mulch", 0.34, 0.06, (0, 0, 0.04), mats["planting_mulch"], shrub, vertices=12)
+        base["layerRole"] = "understory-planting"
+        base["groundContact"] = True
+        for lobe_index, (px, py, scale) in enumerate(((-0.12, 0.02, 1.0), (0.13, -0.04, 0.82)), start=1):
+            bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=1, radius=0.24, location=(0, 0, 0))
+            lobe = bpy.context.object
+            lobe.name = f"VEGETATION_DETAIL__understory-{index:02d}__lobe-{lobe_index:02d}"
+            lobe.parent = shrub
+            lobe.location = (px, py, 0.22 + lobe_index * 0.035)
+            lobe.scale = (scale, scale * 0.82, scale * 0.76)
+            lobe.data.materials.append(mats["understory_warm"] if (index + lobe_index) % 3 == 0 else mats["understory_deep"])
+            lobe["layerRole"] = "understory-planting"
+
+    gate_root = empty("OPERATION_DETAIL__gate-equipment", (31.35, 24.75, 0), group)
+    gate_base = box("OPERATION_DETAIL__gate-equipment__base", (0.48, 0.48, 0.14), (0, 0, 0.07), mats["street_metal"], gate_root, 0.035)
+    gate_base["layerRole"] = "gate-access-equipment"
+    gate_base["groundContact"] = True
+    gate_mast = box("OPERATION_DETAIL__gate-equipment__mast", (0.12, 0.12, 1.72), (0, 0, 0.91), mats["street_metal"], gate_root, 0.018)
+    gate_mast["layerRole"] = "gate-access-equipment"
+    gate_head = box("OPERATION_DETAIL__gate-equipment__camera", (0.38, 0.24, 0.22), (-0.12, 0, 1.74), mats["facade_frame"], gate_root, 0.045)
+    gate_head["layerRole"] = "gate-access-equipment"
+    lens = cylinder("OPERATION_DETAIL__gate-equipment__lens", 0.065, 0.055, (-0.32, 0, 1.75), mats["glass"], gate_root, rotation=(0, math.pi / 2, 0), vertices=16)
+    lens["layerRole"] = "gate-access-equipment"
+
+    cone_positions = [
+        (31.25, 22.85), (31.25, 26.45),
+        (-7.1, 17.15), (-4.2, 17.15), (-1.4, 17.15),
+        (-22.2, 6.75), (-19.8, 6.75), (-17.4, 6.75),
+    ]
+    for index, (x, y) in enumerate(cone_positions, start=1):
+        create_safety_cone(f"OPERATION_DETAIL__safety-cone-{index:02d}", (x, y, 0), mats, group)
+
+    loading_positions = [(-6.1, 16.85), (-2.2, 16.85), (-21.3, 6.65), (-18.2, 6.65)]
+    for index, (x, y) in enumerate(loading_positions, start=1):
+        create_loading_cage(f"OPERATION_DETAIL__loading-cage-{index:02d}", (x, y, 0), mats, group)
+
+    walker_specs = [
+        ((4.8, 20.0, 0.12), "x", 3.0, 0.050, 0.12),
+        ((18.5, -17.0, 0.12), "x", 1.8, 0.046, 0.48),
+        ((-23.5, 19.7, 0.12), "x", 2.4, 0.052, 0.76),
+    ]
+    for index, (location, axis, distance, speed, phase) in enumerate(walker_specs, start=1):
+        walker = create_site_patrol_walker(
+            index,
+            location,
+            axis,
+            distance,
+            speed,
+            phase,
+            mats,
+            group,
+            name=f"OPERATION_DETAIL__walker-{index:02d}",
+        )
+        for child in walker.children_recursive:
+            if child.type == "MESH":
+                child["layerRole"] = "operational-walker"
+
+    return group
+
+
+def mark_operational_prop(prop, role, zone, anchor_name, ground_names=()):
+    """Attach the Web/audit contract to every visible component of one work prop."""
+    ground_names = set(ground_names)
+    nodes = [prop, *prop.children_recursive]
+    for node in nodes:
+        if node.type != "MESH":
+            continue
+        node["operationRole"] = role
+        node["operationalZone"] = zone
+        node["anchorName"] = anchor_name
+        node["layerRole"] = f"operational-{role}"
+        if node.name in ground_names or node.name.endswith("__base"):
+            node["groundContact"] = True
+    return prop
+
+
+def create_operational_sign(prefix, location, role, zone, anchor_name, mats, parent):
+    sign = empty(prefix, location, parent)
+    base = box(f"{prefix}__base", (0.42, 0.30, 0.10), (0, 0, 0.06), mats["concrete"], sign, 0.025)
+    box(f"{prefix}__post", (0.075, 0.075, 1.05), (0, 0, 0.59), mats["street_metal"], sign, 0.012)
+    box(f"{prefix}__panel", (0.62, 0.075, 0.42), (0, 0, 1.02), mats["facade_frame"], sign, 0.025)
+    box(f"{prefix}__identity", (0.42, 0.025, 0.06), (0, -0.05, 1.02), mats["wayfinding_amber"], sign, 0.006)
+    return mark_operational_prop(sign, role, zone, anchor_name, {base.name})
+
+
+def create_task_operator(index, name, location, axis, distance, speed, phase, dwell, role, zone, mats, parent):
+    start_name = f"TASK_ANCHOR__{name}__start"
+    end_name = f"TASK_ANCHOR__{name}__end"
+    start = empty(start_name, location, parent)
+    end_location = (
+        location[0] + (distance if axis == "x" else 0),
+        location[1] + (distance if axis == "z" else 0),
+        location[2],
+    )
+    end = empty(end_name, end_location, parent)
+    for anchor, purpose in ((start, "reporting"), (end, "inspection")):
+        anchor["taskRole"] = role
+        anchor["taskAnchorPurpose"] = purpose
+        anchor["operationalZone"] = zone
+    operator = create_site_patrol_walker(index, location, axis, distance, speed, phase, mats, parent, name=f"TASK_OPERATOR__{name}")
+    operator["motionPath"] = "task-route"
+    operator["dwellFraction"] = dwell
+    operator["taskRole"] = role
+    operator["operationalZone"] = zone
+    operator["taskStartAnchor"] = start_name
+    operator["taskEndAnchor"] = end_name
+    for child in operator.children_recursive:
+        if child.type == "MESH":
+            child["layerRole"] = "purposeful-task-operator"
+    return operator
+
+
+def create_factory_operational_realism(mats, campus):
+    """Concentrate authored activity in believable work zones without changing the site plan."""
+    existing = bpy.data.objects.get("SITE__operational-realism")
+    if existing:
+        remove_object_tree(existing)
+    root = empty("SITE__operational-realism", parent=campus)
+    root["layerRole"] = "industrial-operational-realism"
+    root["designIntent"] = "role-based props and purposeful short-shift operator routes"
+
+    zone_specs = {
+        "loading-front": ((-4.25, 16.75, 0), "loading"),
+        "loading-east": ((-19.80, 6.60, 0), "loading"),
+        "process": ((-31.10, -17.95, 0), "process"),
+        "administration-entry": ((13.45, 20.25, 0), "administration-entry"),
+        "gate": ((33.50, 26.60, 0), "gate"),
+    }
+    anchors = {}
+    for key, (location, zone) in zone_specs.items():
+        anchor = empty(f"OPERATION_ANCHOR__{key}", location, root)
+        anchor["operationalZone"] = zone
+        anchor["layerRole"] = "operational-zone-anchor"
+        anchors[key] = anchor
+
+    # Loading fronts: seals and bumpers read at distance; staging props shape the close view.
+    dock_sets = (
+        ("front", anchors["loading-front"], (-2.70, -0.90, 0.90, 2.70)),
+        ("east", anchors["loading-east"], (-2.45, -0.82, 0.82, 2.45)),
+    )
+    for yard_name, anchor, offsets in dock_sets:
+        anchor_name = anchor.name
+        apron = box(
+            f"OPERATION_REALISM__{yard_name}__loading-apron",
+            (7.55, 3.15, .04),
+            (anchor.location.x, anchor.location.y + .22, .10),
+            mats["loading_concrete"], root, .008,
+        )
+        mark_operational_prop(apron, "loading-apron", "loading", anchor_name)
+        apron["groundContact"] = True
+        for index, px in enumerate(offsets, start=1):
+            bumper = box(
+                f"OPERATION_REALISM__{yard_name}__dock-bumper-{index:02d}",
+                (0.52, 0.16, 0.34),
+                (anchor.location.x + px, anchor.location.y - 0.82, 0.40),
+                mats["dock_rubber"], root, 0.025,
+            )
+            mark_operational_prop(bumper, "dock-bumper", "loading", anchor_name)
+        for index, px in enumerate(offsets[:3], start=1):
+            seal = empty(
+                f"OPERATION_REALISM__{yard_name}__dock-seal-{index:02d}",
+                (anchor.location.x + px, anchor.location.y - 0.74, 0), root,
+            )
+            box(f"{seal.name}__left", (0.13, 0.16, 1.62), (-0.48, 0, 1.17), mats["dock_rubber"], seal, 0.025)
+            box(f"{seal.name}__right", (0.13, 0.16, 1.62), (0.48, 0, 1.17), mats["dock_rubber"], seal, 0.025)
+            box(f"{seal.name}__head", (1.08, 0.16, 0.16), (0, 0, 1.94), mats["dock_rubber"], seal, 0.025)
+            mark_operational_prop(seal, "dock-seal", "loading", anchor_name)
+
+        for index, px in enumerate((-2.10, 0.0, 2.10), start=1):
+            pallet = empty(
+                f"OPERATION_REALISM__{yard_name}__pallet-{index:02d}",
+                (anchor.location.x + px, anchor.location.y + 0.55, 0), root,
+            )
+            base = box(f"{pallet.name}__base", (0.66, 0.48, 0.10), (0, 0, 0.06), mats["street_timber"], pallet, 0.012)
+            box(f"{pallet.name}__load", (0.58, 0.42, 0.44), (0, 0, 0.33), mats["interior_worktop"], pallet, 0.025)
+            mark_operational_prop(pallet, "pallet-staging", "loading", anchor_name, {base.name})
+
+        for index, px in enumerate((-1.20, 1.20), start=1):
+            cage = create_loading_cage(
+                f"OPERATION_REALISM__{yard_name}__loading-cage-{index:02d}",
+                (anchor.location.x + px, anchor.location.y + 1.12, 0), mats, root,
+            )
+            mark_operational_prop(cage, "loading-cage", "loading", anchor_name)
+        for index, px in enumerate((-3.25, -2.55, 2.55, 3.25), start=1):
+            cone = create_safety_cone(
+                f"OPERATION_REALISM__{yard_name}__safety-cone-{index:02d}",
+                (anchor.location.x + px, anchor.location.y + 1.22, 0), mats, root,
+            )
+            mark_operational_prop(cone, "safety-cone", "loading", anchor_name)
+        for index, px in enumerate((-3.25, 3.25), start=1):
+            create_operational_sign(
+                f"OPERATION_REALISM__{yard_name}__service-sign-{index:02d}",
+                (anchor.location.x + px, anchor.location.y + 0.34, 0),
+                "service-signage", "loading", anchor_name, mats, root,
+            )
+
+    # Process-yard instruments reinforce function at human eye level.
+    process_anchor = anchors["process"]
+    process_name = process_anchor.name
+    for index, (px, py) in enumerate(((-3.0, -2.6), (-1.8, -2.6), (-.6, -2.6), (.6, -2.6), (1.8, -2.6), (3.0, -2.6)), start=1):
+        station = empty(f"OPERATION_REALISM__process__valve-station-{index:02d}", (process_anchor.location.x + px, process_anchor.location.y + py, 0), root)
+        cylinder(f"{station.name}__stem", .055, .82, (0, 0, .48), mats["pipe_accent"], station, vertices=12)
+        wheel = cylinder(f"{station.name}__wheel", .18, .055, (0, 0, .80), mats["safety_yellow"], station, rotation=(math.pi / 2, 0, 0), vertices=16)
+        mark_operational_prop(station, "process-valve", "process", process_name)
+        wheel["equipmentState"] = "field-operable"
+    for index, (px, py) in enumerate(((-2.8, 2.85), (-1.7, 2.85), (-.6, 2.85), (.6, 2.85), (1.7, 2.85), (2.8, 2.85)), start=1):
+        instrument = empty(f"OPERATION_REALISM__process__instrument-{index:02d}", (process_anchor.location.x + px, process_anchor.location.y + py, 0), root)
+        base = box(f"{instrument.name}__base", (.18, .18, .10), (0, 0, .06), mats["concrete"], instrument, .018)
+        box(f"{instrument.name}__post", (.055, .055, 1.05), (0, 0, .58), mats["street_metal"], instrument, .008)
+        box(f"{instrument.name}__display", (.32, .12, .24), (0, 0, 1.08), mats["task_light_cool"], instrument, .025)
+        mark_operational_prop(instrument, "process-instrument", "process", process_name, {base.name})
+    for index, (py, pz) in enumerate(((-3.05, 1.76), (-3.05, 2.15), (3.05, 1.76), (3.05, 2.15)), start=1):
+        tray = box(
+            f"OPERATION_REALISM__process__cable-tray-{index:02d}",
+            (5.8, .18, .12),
+            (process_anchor.location.x, process_anchor.location.y + py, pz),
+            mats["gutter"], root, .015,
+        )
+        mark_operational_prop(tray, "cable-tray", "process", process_name)
+    label_specs = (
+        (-2.8, -1.0, 2.02), (-1.9, -1.0, 2.02), (-1.0, -1.0, 2.02), (-.1, -1.0, 2.02),
+        (.8, .85, 2.16), (1.7, .85, 2.16), (2.6, .85, 2.16), (2.8, .85, 2.16),
+    )
+    for index, (px, py, pz) in enumerate(label_specs, start=1):
+        label = box(
+            f"OPERATION_REALISM__process__pipe-label-{index:02d}",
+            (.34, .08, .14),
+            (process_anchor.location.x + px, process_anchor.location.y + py, pz),
+            mats["wayfinding_amber"], root, .01,
+        )
+        mark_operational_prop(label, "pipe-label", "process", process_name)
+
+    # Administration arrival: restrained premium furniture, planters and identity signs.
+    admin_anchor = anchors["administration-entry"]
+    admin_name = admin_anchor.name
+    for index, px in enumerate((-2.45, 2.45), start=1):
+        bench = create_street_bench(
+            f"OPERATION_REALISM__admin__arrival-bench-{index:02d}",
+            (admin_anchor.location.x + px, admin_anchor.location.y, 0),
+            0 if index == 1 else math.pi, mats, root,
+        )
+        mark_operational_prop(bench, "arrival-furniture", "administration-entry", admin_name)
+    for index, (px, py) in enumerate(((-3.35, -.35), (-1.15, .48), (1.15, .48), (3.35, -.35)), start=1):
+        planter = empty(f"OPERATION_REALISM__admin__planter-{index:02d}", (admin_anchor.location.x + px, admin_anchor.location.y + py, 0), root)
+        base = cylinder(f"{planter.name}__base", .34, .42, (0, 0, .22), mats["architectural_bronze"], planter, vertices=16)
+        crown = cylinder(f"{planter.name}__plant", .26, .38, (0, 0, .54), mats["understory_deep"], planter, vertices=12)
+        crown.scale = (1.0, .86, 1.0)
+        mark_operational_prop(planter, "arrival-planter", "administration-entry", admin_name, {base.name})
+    for index, px in enumerate((-3.75, 3.75), start=1):
+        create_operational_sign(
+            f"OPERATION_REALISM__admin__arrival-sign-{index:02d}",
+            (admin_anchor.location.x + px, admin_anchor.location.y - 1.05, 0),
+            "arrival-signage", "administration-entry", admin_name, mats, root,
+        )
+
+    task_specs = (
+        ("front-loading-check", (-7.90, 18.30, .12), "x", 1.45, .046, .08, .16, "loading-inspection", "loading"),
+        ("east-loading-check", (-22.80, 8.05, .12), "x", 1.55, .048, .30, .15, "dispatch-check", "loading"),
+        ("process-valve-check", (-34.25, -14.65, .12), "x", 1.55, .040, .52, .19, "process-inspection", "process"),
+        ("process-meter-round", (-29.70, -15.00, .12), "z", 1.35, .042, .72, .18, "instrument-round", "process"),
+        ("gate-access-check", (34.10, 27.65, .12), "x", 1.20, .045, .18, .14, "access-verification", "gate"),
+        ("admin-arrival-host", (10.50, 21.45, .12), "x", 1.70, .043, .62, .20, "visitor-host", "administration-entry"),
+    )
+    for index, spec in enumerate(task_specs, start=1):
+        create_task_operator(index, *spec, mats, root)
+    return root
+
+
 def create_editor_camera_and_lights():
     camera_data = bpy.data.cameras.new("ReferenceObliqueCamera")
     camera = bpy.data.objects.new("ReferenceObliqueCamera", camera_data)
     bpy.context.scene.collection.objects.link(camera)
-    camera.location = (-52, 54, 44)
+    camera.location = (-52 * PLAN_SCALE, 54 * PLAN_SCALE, 52)
     direction = Vector((0, 0.5, 1.4)) - camera.location
     camera.rotation_euler = direction.to_track_quat("-Z", "Y").to_euler()
     camera_data.lens = 58
@@ -1693,34 +5399,111 @@ def main() -> None:
     args = parse_args()
     reset_scene()
     mats = {
-        "wall": material("MAT__wall", (0.57, 0.61, 0.62, 1), 0.68, coat_weight=0.05),
-        "admin_wall": material("MAT__admin-stone", (0.64, 0.61, 0.54, 1), 0.70),
-        "wall_secondary": material("MAT__wall-secondary", (0.56, 0.60, 0.61, 1), 0.72, coat_weight=0.04),
-        "wall_panel_light": material("MAT__wall-panel-light", (0.64, 0.68, 0.68, 1), 0.70, 0.08, coat_weight=0.06),
-        "wall_panel_mid": material("MAT__wall-panel-mid", (0.48, 0.54, 0.55, 1), 0.73, 0.10, coat_weight=0.04),
-        "corner_flashing": material("MAT__corner-flashing", (0.20, 0.25, 0.27, 1), 0.44, 0.64, coat_weight=0.10),
+        "wall": material("MAT__wall", (0.42, 0.46, 0.47, 1), 0.72, coat_weight=0.035),
+        "admin_wall": material("MAT__admin-stone", (0.90, 0.87, 0.80, 1), 0.78),
+        "admin_stone_light": material("MAT__limestone-light", (0.94, 0.91, 0.85, 1), 0.78, coat_weight=0.035),
+        "admin_stone_dark": material("MAT__limestone-shadow", (0.86, 0.83, 0.78, 1), 0.80),
+        "factory_wall": material("MAT__factory-wall", (0.87, 0.89, 0.90, 1), 0.65, 0.05, coat_weight=0.035),
+        "factory_panel_light": material("MAT__factory-panel-light", (0.92, 0.93, 0.93, 1), 0.65, 0.05, coat_weight=0.045),
+        "factory_panel_mid": material("MAT__factory-panel-mid", (0.82, 0.85, 0.86, 1), 0.68, 0.05, coat_weight=0.025),
+        "warehouse_wall": material("MAT__warehouse-wall", (0.89, 0.87, 0.82, 1), 0.72, 0.03, coat_weight=0.025),
+        "warehouse_panel_light": material("MAT__warehouse-panel-light", (0.93, 0.91, 0.86, 1), 0.72, 0.03, coat_weight=0.025),
+        "warehouse_panel_mid": material("MAT__warehouse-panel-mid", (0.85, 0.84, 0.80, 1), 0.74, 0.03),
+        "process_wall": material("MAT__process-wall", (0.85, 0.88, 0.90, 1), 0.66, 0.05, coat_weight=0.04),
+        "process_panel_light": material("MAT__process-panel-light", (0.90, 0.92, 0.93, 1), 0.65, 0.05, coat_weight=0.05),
+        "process_panel_mid": material("MAT__process-panel-mid", (0.81, 0.85, 0.87, 1), 0.68, 0.05, coat_weight=0.03),
+        "utility_wall": material("MAT__utility-wall", (0.82, 0.85, 0.87, 1), 0.68, 0.06, coat_weight=0.03),
+        "utility_panel_light": material("MAT__utility-panel-light", (0.88, 0.91, 0.93, 1), 0.66, 0.06, coat_weight=0.045),
+        "utility_panel_mid": material("MAT__utility-panel-mid", (0.80, 0.83, 0.85, 1), 0.70, 0.06),
+        "laboratory_wall": material("MAT__laboratory-wall", (0.89, 0.91, 0.88, 1), 0.68, 0.03, coat_weight=0.05),
+        "laboratory_panel_light": material("MAT__laboratory-panel-light", (0.93, 0.94, 0.90, 1), 0.66, 0.03, coat_weight=0.06),
+        "laboratory_panel_mid": material("MAT__laboratory-panel-mid", (0.84, 0.87, 0.84, 1), 0.70, 0.03, coat_weight=0.035),
+        "architectural_bronze": material("MAT__architectural-bronze", (0.30, 0.20, 0.105, 1), 0.34, 0.72, coat_weight=0.16),
+        "admin_glass": material("MAT__admin-glass", (0.022, 0.085, 0.11, 0.46), 0.12, 0.06, transmission=0.52, ior=1.48, coat_weight=0.44),
+        "lobby_glow": material(
+            "MAT__lobby-glow",
+            (0.66, 0.39, 0.16, 1),
+            0.32,
+            0.05,
+            coat_weight=0.12,
+            emission_color=(1.0, 0.48, 0.16, 1),
+            emission_strength=0.72,
+        ),
+        "entry_light_warm": material(
+            "MAT__entry-light-warm",
+            (0.86, 0.57, 0.25, 1),
+            0.24,
+            0.06,
+            coat_weight=0.22,
+            emission_color=(1.0, 0.54, 0.22, 1),
+            emission_strength=0.38,
+        ),
+        "task_light_cool": material(
+            "MAT__task-light-cool",
+            (0.48, 0.74, 0.84, 1),
+            0.20,
+            0.08,
+            coat_weight=0.26,
+            emission_color=(0.46, 0.82, 1.0, 1),
+            emission_strength=0.32,
+        ),
+        "wayfinding_amber": material(
+            "MAT__wayfinding-amber",
+            (0.82, 0.38, 0.055, 1),
+            0.30,
+            0.12,
+            coat_weight=0.18,
+            emission_color=(1.0, 0.34, 0.055, 1),
+            emission_strength=0.26,
+        ),
+        "wall_secondary": material("MAT__wall-secondary", (0.72, 0.75, 0.76, 1), 0.76, coat_weight=0.03),
+        "wall_panel_light": material("MAT__wall-panel-light", (0.50, 0.54, 0.55, 1), 0.76, 0.10, coat_weight=0.04),
+        "wall_panel_mid": material("MAT__wall-panel-mid", (0.34, 0.39, 0.41, 1), 0.79, 0.12, coat_weight=0.025),
+        "facade_shadow_joint": material("MAT__facade-shadow-joint", (0.09, 0.115, 0.125, 1), 0.76, 0.24),
+        "wall_batten": material("MAT__wall-pressed-batten", (0.24, 0.29, 0.30, 1), 0.58, 0.46, coat_weight=0.07),
+        "corner_flashing": material("MAT__corner-flashing", (0.88, 0.89, 0.90, 1), 0.62, 0.10, coat_weight=0.10),
         "wall_rib": material("MAT__wall-rib", (0.15, 0.19, 0.21, 1), 0.46, 0.52, coat_weight=0.10),
+        "facade_weathering": material("MAT__facade-weathering", (0.085, 0.10, 0.10, 0.38), 0.94),
+        "facade_weathering_light": material("MAT__facade-weathering-light", (0.20, 0.20, 0.18, 0.20), 0.91),
+        "roof_patina": material("MAT__roof-patina", (0.22, 0.255, 0.25, 0.48), 0.87, 0.10),
         "safety_orange": material("MAT__safety-orange", (0.92, 0.28, 0.035, 1), 0.46, 0.18, coat_weight=0.18),
         "luminaire": material("MAT__luminaire", (0.78, 0.88, 0.86, 1), 0.22, 0.08, coat_weight=0.34),
         "facade_frame": material("MAT__facade-frame", (0.12, 0.16, 0.18, 1), 0.38, 0.68, coat_weight=0.14),
         "dock_rubber": material("MAT__dock-rubber", (0.022, 0.026, 0.028, 1), 0.92),
-        "roof": material("MAT__roof", (0.42, 0.47, 0.51, 1), 0.42, 0.62, coat_weight=0.12),
-        "roof_rib": material("MAT__roof-rib", (0.32, 0.37, 0.40, 1), 0.38, 0.70),
+        "roof": material("MAT__roof", (0.90, 0.91, 0.92, 1), 0.62, 0.10, coat_weight=0.12),
+        "roof_rib": material("MAT__roof-rib", (0.86, 0.88, 0.89, 1), 0.62, 0.10),
         "accent": material("MAT__blue-accent", (0.035, 0.22, 0.38, 1), 0.38, 0.24, coat_weight=0.22),
         "glass": material("MAT__glass", (0.018, 0.075, 0.12, 1), 0.18, 0.08, transmission=0.30, ior=1.46, coat_weight=0.34),
         "vent": material("MAT__vent", (0.21, 0.25, 0.28, 1), 0.40, 0.72),
         "skylight": material("MAT__skylight", (0.12, 0.25, 0.34, 1), 0.22, 0.12, transmission=0.16, coat_weight=0.25),
         "asphalt": material("MAT__asphalt", (0.075, 0.085, 0.092, 1), 0.93),
+        "aged_asphalt": material("MAT__aged-asphalt", (0.105, 0.105, 0.098, 1), 0.95),
+        "asphalt_repair": material("MAT__asphalt-repair-warm", (0.096, 0.088, 0.078, 1), 0.90),
+        "traffic_wear": material("MAT__traffic-wear-cool", (0.047, 0.053, 0.057, 1), 0.88),
+        "utility_iron": material("MAT__utility-iron", (0.075, 0.082, 0.082, 1), 0.64, 0.58),
+        "paving_joint": material("MAT__paving-joint", (0.22, 0.23, 0.22, 1), 0.86),
+        "warm_aggregate": material("MAT__warm-aggregate", (0.39, 0.34, 0.27, 1), 0.94),
+        "planting_mulch": material("MAT__planting-mulch", (0.115, 0.068, 0.038, 1), 0.97),
+        "street_timber": material("MAT__street-timber", (0.30, 0.18, 0.085, 1), 0.82, 0.02),
+        "street_metal": material("MAT__street-metal", (0.075, 0.105, 0.11, 1), 0.52, 0.70),
+        "bin_blue": material("MAT__recycling-blue", (0.035, 0.27, 0.40, 1), 0.62, 0.20),
         "stripe": material("MAT__road-marking", (0.78, 0.80, 0.76, 1), 0.78),
         "safety_yellow": material("MAT__safety-yellow", (0.86, 0.60, 0.035, 1), 0.68, 0.04, coat_weight=0.05),
+        "fire_red": material("MAT__fire-service-red", (0.66, 0.035, 0.025, 1), 0.52, 0.08, coat_weight=0.12),
         "tactile": material("MAT__tactile-paving", (0.72, 0.53, 0.08, 1), 0.84),
         "lawn": material("MAT__lawn", (0.08, 0.20, 0.10, 1), 0.95),
         "court": material("MAT__court", (0.48, 0.16, 0.12, 1), 0.84),
+        "tennis_court": material("MAT__tennis-court", (0.055, 0.30, 0.24, 1), 0.86),
+        "court_fence": material("MAT__sports-fence", (0.055, 0.13, 0.105, 0.14), 0.70, 0.42),
+        "court_wire": material("MAT__sports-wire", (0.035, 0.095, 0.075, 1), 0.54, 0.72),
         "concrete": material("MAT__concrete", (0.54, 0.56, 0.55, 1), 0.86),
-        "plinth": material("MAT__wall-plinth", (0.36, 0.38, 0.38, 1), 0.84),
+        "loading_concrete": material("MAT__loading-concrete", (0.46, 0.47, 0.45, 1), 0.90),
+        "parking_surface": material("MAT__parking-surface", (0.105, 0.115, 0.118, 1), 0.92),
+        "walkway": material("MAT__walkway", (0.60, 0.61, 0.58, 1), 0.88),
+        "plinth": material("MAT__wall-plinth", (0.70, 0.72, 0.72, 1), 0.84),
         "panel_joint": material("MAT__panel-joint", (0.24, 0.27, 0.28, 1), 0.62, 0.18),
-        "gutter": material("MAT__galvanized-gutter", (0.43, 0.47, 0.48, 1), 0.40, 0.72),
-        "curb": material("MAT__curb", (0.62, 0.63, 0.60, 1), 0.88),
+        "gutter": material("MAT__galvanized-gutter", (0.82, 0.84, 0.86, 1), 0.62, 0.10),
+        "curb": material("MAT__curb", (0.78, 0.79, 0.76, 1), 0.88),
         "drain": material("MAT__storm-drain", (0.12, 0.14, 0.15, 1), 0.56, 0.72),
         "pipe": material("MAT__pipe-structure", (0.25, 0.33, 0.35, 1), 0.40, 0.62),
         "pipe_accent": material("MAT__pipe-runs", (0.08, 0.38, 0.45, 1), 0.32, 0.68, coat_weight=0.10),
@@ -1738,8 +5521,13 @@ def main() -> None:
         "skin": material("MAT__skin", (0.58, 0.36, 0.25, 1), 0.72),
         "trunk": material("MAT__trunk", (0.16, 0.10, 0.055, 1), 0.95),
         "foliage": material("MAT__foliage", (0.055, 0.23, 0.10, 1), 0.90),
+        "foliage_light": material("MAT__foliage-light", (0.095, 0.30, 0.12, 1), 0.91),
+        "foliage_sunlit": material("MAT__foliage-sunlit", (0.155, 0.335, 0.105, 1), 0.90),
+        "foliage_warm": material("MAT__foliage-warm", (0.16, 0.245, 0.075, 1), 0.92),
+        "understory_deep": material("MAT__understory-deep", (0.025, 0.135, 0.055, 1), 0.94),
+        "understory_warm": material("MAT__understory-warm", (0.20, 0.29, 0.07, 1), 0.93),
         "fence": material("MAT__fence", (0.66, 0.69, 0.68, 1), 0.60, 0.4),
-        "sidewalk": material("MAT__sidewalk", (0.47, 0.49, 0.48, 1), 0.88),
+        "sidewalk": material("MAT__sidewalk", (0.74, 0.76, 0.75, 1), 0.88),
         "paving": material("MAT__entry-paving", (0.58, 0.55, 0.49, 1), 0.82),
         "white": material("MAT__paint-white", (0.90, 0.92, 0.91, 1), 0.62),
         "solar": material("MAT__solar-panel", (0.025, 0.11, 0.19, 1), 0.28, 0.48),
@@ -1756,7 +5544,18 @@ def main() -> None:
         "forest_ground": material("MAT__forest-ground", (0.10, 0.25, 0.11, 1), 0.96),
         "forest_foliage": material("MAT__forest-foliage", (0.075, 0.30, 0.12, 1), 0.92),
         "forest_foliage_light": material("MAT__forest-foliage-light", (0.11, 0.36, 0.15, 1), 0.91),
+        "ground_tire_wear": material("MAT__ground-tire-wear", (0.14, 0.15, 0.15, 0.24), 0.90),
+        "ground_joint": material("MAT__ground-concrete-joint", (0.18, 0.19, 0.19, 0.30), 0.91),
+        "ground_repair": material("MAT__ground-asphalt-repair", (0.16, 0.15, 0.14, 0.28), 0.92),
+        "ground_drain_stain": material("MAT__ground-drain-discoloration", (0.12, 0.15, 0.13, 0.22), 0.94),
+        "ground_dock_abrasion": material("MAT__ground-dock-abrasion", (0.20, 0.17, 0.14, 0.24), 0.90),
+        "ground_wall_dust": material("MAT__ground-wall-dust", (0.32, 0.30, 0.26, 0.20), 0.93),
+        "ground_oil_mark": material("MAT__ground-oil-mark", (0.11, 0.12, 0.11, 0.26), 0.88),
+        "ground_contact_transition": material("MAT__ground-contact-transition", (0.22, 0.24, 0.20, 0.18), 0.94),
     }
+    configure_ground_pbr_materials(mats)
+    configure_vegetation_pbr_materials(mats)
+    configure_architectural_pbr_materials(mats)
 
     campus = empty("FactoryCampusGraybox")
     campus["assetSource"] = "Blender 5.2 procedural graybox"
@@ -1766,10 +5565,25 @@ def main() -> None:
     for record in BUILDINGS:
         create_building(record, mats, campus)
     create_pipe_racks(mats, campus)
+    create_industrial_process_core(mats, campus)
+    create_warehouse_logistics(mats, campus)
     create_landscape(mats, campus)
     create_site_furnishings(mats, campus)
     create_environment(mats, campus)
     create_industrial_finish_details(mats, campus)
+    expand_campus_plan(campus)
+    create_building_access_network(mats, campus)
+    create_operational_traffic(mats, campus)
+    create_ground_road_landscape_art(mats, campus)
+    configure_ground_function_zones(mats, campus)
+    create_ground_contact_realism(mats, campus)
+    create_ground_circulation_realism(mats, campus)
+    create_vegetation_ecology(mats, campus)
+    create_vegetation_transition_realism(mats, campus)
+    create_campus_operational_story(mats, campus)
+    create_factory_operational_realism(mats, campus)
+    configure_ground_uv_tiling()
+    configure_architectural_uv_tiling()
     create_editor_camera_and_lights()
 
     scene = bpy.context.scene

@@ -4,7 +4,7 @@ import * as THREE from 'three'
 import { buildingRegistry } from '../src/scene/buildingRegistry.js'
 import { prepareFactoryCampusModel } from '../src/scene/factoryCampusAsset.js'
 
-function makeCampus({ omitId = null } = {}) {
+function makeCampus({ omitId = null, includeRoute = false, linkedRoute = 'warehouse-delivery' } = {}) {
   const root = new THREE.Group()
   root.name = 'FactoryCampusGraybox'
   const sharedMaterial = new THREE.MeshStandardMaterial({ color: 0xcccccc })
@@ -35,10 +35,30 @@ function makeCampus({ omitId = null } = {}) {
   patrol.position.set(3, .1, -4)
   patrol.userData = { motionPath: 'site-patrol', motionAxis: 'z', motionDistance: 6, motionSpeed: .08, motionPhase: .2 }
   root.add(patrol)
+  const taskOperator = new THREE.Group()
+  taskOperator.name = 'TASK_OPERATOR__process-inspection-01'
+  taskOperator.position.set(-1, .1, 2)
+  taskOperator.userData = {
+    motionPath: 'task-route',
+    motionAxis: 'x',
+    motionDistance: 3,
+    motionSpeed: .1,
+    motionPhase: .05,
+    dwellFraction: .16,
+    taskRole: 'process-inspection',
+    taskStartAnchor: 'TASK_ANCHOR__process-inspection-01__start',
+    taskEndAnchor: 'TASK_ANCHOR__process-inspection-01__end',
+  }
+  root.add(taskOperator)
   const barrier = new THREE.Group()
   barrier.name = 'GATE__barrier-inbound'
-  barrier.userData = { motionPath: 'gate-barrier', motionAxis: 'z', motionSpeed: .09, closedAngle: 0, openAngle: -1.22 }
+  barrier.userData = { motionPath: 'gate-barrier', motionAxis: 'z', motionSpeed: .09, closedAngle: 0, openAngle: 1.22 }
   root.add(barrier)
+  const forklift = new THREE.Group()
+  forklift.name = 'LOGISTICS_OPS__front-warehouse__forklift'
+  forklift.position.set(2, .1, 3)
+  forklift.userData = { motionPath: 'yard-shuttle', motionAxis: 'x', motionDistance: 3.2, motionSpeed: .06, motionPhase: .4 }
+  root.add(forklift)
   const firstFloor = root.getObjectByName('FLOOR__main-production-hall__L01')
   const walker = new THREE.Group()
   walker.name = 'WALKER__main-production-hall__L01__01'
@@ -50,6 +70,23 @@ function makeCampus({ omitId = null } = {}) {
   rightLeg.name = `${walker.name}__leg-right`
   walker.add(leftLeg, rightLeg)
   if (firstFloor) firstFloor.add(walker)
+  if (includeRoute) {
+    const route = new THREE.Group()
+    route.name = 'ROUTE__warehouse-delivery'
+    route.userData = { routeId: 'warehouse-delivery', loopMode: 'ping-pong', dwellFraction: .14 }
+    for (const [order, position] of [[1, [0, 0, 0]], [2, [4, 0, 0]], [3, [4, 0, 3]]]) {
+      const waypoint = new THREE.Group()
+      waypoint.name = `WAYPOINT__warehouse-delivery__${String(order).padStart(2, '0')}`
+      waypoint.position.set(...position)
+      waypoint.userData = { routeId: 'warehouse-delivery', waypointOrder: order }
+      route.add(waypoint)
+    }
+    root.add(route)
+    const delivery = new THREE.Group()
+    delivery.name = 'VEHICLE__delivery-truck__root'
+    delivery.userData = { motionPath: 'campus-route', linkedRoute, motionSpeed: .022, motionPhase: .02 }
+    root.add(delivery)
+  }
   return root
 }
 
@@ -63,7 +100,7 @@ test('maps every required GLB building node to one interactive building id', () 
     buildingRegistry.map(({ id }) => id),
   )
   assert.equal(new Set(prepared.interactiveObjects).size, buildingRegistry.length)
-  assert.equal(prepared.animatedObjects?.length, 4)
+  assert.equal(prepared.animatedObjects?.length, 6)
   const vehicle = prepared.animatedObjects.find(({ object }) => object.name === 'VEHICLE__gate-shuttle__root')
   assert.equal(vehicle.kind, 'vehicle')
   assert.equal(vehicle.motionPath, 'gate-lane')
@@ -82,12 +119,25 @@ test('maps every required GLB building node to one interactive building id', () 
   assert.equal(patrol.kind, 'person')
   assert.equal(patrol.axis, 'z')
   assert.equal(patrol.baseZ, -4)
+  const taskOperator = prepared.animatedObjects.find(({ object }) => object.name === 'TASK_OPERATOR__process-inspection-01')
+  assert.equal(taskOperator.kind, 'person')
+  assert.equal(taskOperator.motionPath, 'task-route')
+  assert.equal(taskOperator.dwellFraction, .16)
+  assert.equal(taskOperator.taskRole, 'process-inspection')
+  assert.equal(taskOperator.taskStartAnchor, 'TASK_ANCHOR__process-inspection-01__start')
+  assert.equal(taskOperator.taskEndAnchor, 'TASK_ANCHOR__process-inspection-01__end')
   const gate = prepared.animatedObjects.find(({ object }) => object.name === 'GATE__barrier-inbound')
   assert.equal(gate.kind, 'gate')
   assert.equal(gate.axis, 'z')
   assert.equal(gate.speed, .09)
   assert.equal(gate.closedAngle, 0)
-  assert.equal(gate.openAngle, -1.22)
+  assert.equal(gate.openAngle, 1.22)
+  const forklift = prepared.animatedObjects.find(({ object }) => object.name === 'LOGISTICS_OPS__front-warehouse__forklift')
+  assert.equal(forklift.kind, 'vehicle')
+  assert.equal(forklift.motionPath, 'yard-shuttle')
+  assert.equal(forklift.axis, 'x')
+  assert.equal(forklift.baseX, 2)
+  assert.equal(forklift.baseZ, 3)
   const preparedMaterials = prepared.interactiveObjects.map((building) => building.children[0].material)
   assert.equal(new Set(preparedMaterials).size, buildingRegistry.length)
   for (const building of prepared.interactiveObjects) {
@@ -101,7 +151,10 @@ test('maps every required GLB building node to one interactive building id', () 
     assert.equal(building.userData.exteriorMeshes.length, 1)
     building.traverse((object) => {
       if (!object.isMesh) return
-      assert.equal(object.castShadow, true)
+      const materials = (Array.isArray(object.material) ? object.material : [object.material]).filter(Boolean)
+      const isTransparent = materials.some((material) => material.transparent || material.opacity < .98)
+      const isMicrodetail = object.userData.detailTier === 'micro'
+      assert.equal(object.castShadow, !isTransparent && !isMicrodetail)
       assert.equal(object.receiveShadow, true)
     })
   }
@@ -114,5 +167,28 @@ test('rejects a GLB that omits a required building node', () => {
   assert.throws(
     () => prepareFactoryCampusModel(campus),
     new RegExp(`missing required building node: ${missing.nodeName}`),
+  )
+})
+
+test('links route vehicles to immutable GLB route records', () => {
+  const campus = makeCampus({ includeRoute: true })
+  const prepared = prepareFactoryCampusModel(campus)
+  const delivery = prepared.animatedObjects.find(({ object }) => object.name === 'VEHICLE__delivery-truck__root')
+
+  assert.ok(prepared.routes instanceof Map, 'prepared campus is missing its route registry')
+  assert.equal(prepared.routes.size, 1)
+  assert.equal(delivery.kind, 'route-vehicle')
+  assert.equal(delivery.motionPath, 'campus-route')
+  assert.equal(delivery.route.id, 'warehouse-delivery')
+  assert.deepEqual(delivery.route.points.map((point) => point.toArray()), [[0, 0, 0], [4, 0, 0], [4, 0, 3]])
+  assert.equal(delivery.speed, .022)
+  assert.equal(delivery.phase, .02)
+})
+
+test('rejects a route vehicle that references an unknown GLB route', () => {
+  const campus = makeCampus({ includeRoute: true, linkedRoute: 'missing-route' })
+  assert.throws(
+    () => prepareFactoryCampusModel(campus),
+    /missing campus route for vehicle: VEHICLE__delivery-truck__root -> missing-route/,
   )
 })

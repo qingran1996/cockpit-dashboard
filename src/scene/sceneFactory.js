@@ -119,13 +119,19 @@ function createLights() {
   key.position.set(-8, 16, 8)
   key.castShadow = true
   key.shadow.mapSize.set(1024, 1024)
+  const shadowFill = new THREE.DirectionalLight(0xa8efff, 1.15)
+  shadowFill.name = 'CampusShadowFill'
+  shadowFill.position.set(9, 12, -10)
+  shadowFill.castShadow = false
+  const facadeAmbient = new THREE.AmbientLight(0xf4f1e9, 1.2)
+  facadeAmbient.name = 'CampusFacadeAmbient'
   const cyan = new THREE.PointLight(0x19d7ff, 42, 24, 2)
   cyan.name = 'CampusRoadGlow'
   cyan.position.set(6, 5, 2)
   const orange = new THREE.PointLight(0xff7138, 48, 19, 2)
   orange.name = 'CampusAccentGlow'
   orange.position.set(-2, 4, -1)
-  group.add(key, cyan, orange)
+  group.add(key, shadowFill, facadeAmbient, cyan, orange)
   return group
 }
 

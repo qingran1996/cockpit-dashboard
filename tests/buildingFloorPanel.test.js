@@ -14,6 +14,7 @@ test('renders an accessible industrial floor-section control for the selected bu
     focusedFloorId: 'L02',
     onToggleExploded: () => {},
     onSelectFloor: () => {},
+    onOpenMaterialLab: () => {},
     onClose: () => {},
   }))
 
@@ -28,4 +29,6 @@ test('renders an accessible industrial floor-section control for the selected bu
   assert.match(markup, /aria-pressed="true"[^>]*data-tone="cyan"/)
   assert.match(markup, /合拢楼层/)
   assert.match(markup, /关闭建筑分层详情/)
+  assert.match(markup, /aria-label="打开综合管理中心材质实验室"/)
+  assert.match(markup, /材质实验室/)
 })

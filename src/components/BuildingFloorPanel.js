@@ -6,6 +6,7 @@ export function BuildingFloorPanel({
   focusedFloorId,
   onToggleExploded,
   onSelectFloor,
+  onOpenMaterialLab,
   onClose,
 }) {
   const focusedFloor = building.floors.find((floor) => floor.id === focusedFloorId)
@@ -29,12 +30,20 @@ export function BuildingFloorPanel({
         h('span', null, 'BUILDING SECTION'),
         h('strong', null, '楼层剖面'),
       ),
-      h('button', {
-        type: 'button',
-        className: 'scene-floor-panel__toggle',
-        onClick: onToggleExploded,
-        'aria-pressed': exploded,
-      }, exploded ? '合拢楼层' : '展开分层'),
+      h('div', { className: 'scene-floor-panel__actions' },
+        h('button', {
+          type: 'button',
+          className: 'scene-floor-panel__material',
+          onClick: onOpenMaterialLab,
+          'aria-label': `打开${building.name}材质实验室`,
+        }, '材质实验室'),
+        h('button', {
+          type: 'button',
+          className: 'scene-floor-panel__toggle',
+          onClick: onToggleExploded,
+          'aria-pressed': exploded,
+        }, exploded ? '合拢楼层' : '展开分层'),
+      ),
     ),
     h('div', { className: `scene-floor-panel__stack${exploded ? ' is-exploded' : ''}`, 'aria-label': '楼层剖面', role: 'list' },
       [...building.floors].reverse().map((floor, index) =>

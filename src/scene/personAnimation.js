@@ -1,3 +1,5 @@
+import { sampleTaskRouteCycle } from './campusRouteAnimation.js'
+
 export function updatePersonAnimations(animatedItems, seconds, reducedMotion = false) {
   animatedItems.forEach((item) => {
     if (item.kind !== 'person') return
@@ -18,16 +20,20 @@ export function updatePersonAnimations(animatedItems, seconds, reducedMotion = f
     }
 
     const cycle = (seconds * item.speed + (item.phase ?? 0)) % 1
-    const returning = cycle > .5
-    const laneProgress = returning ? (1 - cycle) * 2 : cycle * 2
-    const stride = Math.sin(cycle * Math.PI * 4)
+    const taskSample = item.motionPath === 'task-route'
+      ? sampleTaskRouteCycle(seconds, item.speed, item.phase, item.dwellFraction)
+      : null
+    const returning = taskSample?.returning ?? cycle > .5
+    const laneProgress = taskSample?.progress ?? (returning ? (1 - cycle) * 2 : cycle * 2)
+    const stride = taskSample?.waiting ? 0 : Math.sin(cycle * Math.PI * 4)
+    if (taskSample) item.taskPhase = taskSample.taskPhase
     item.object.position.x = axis === 'x' ? baseX + item.distance * laneProgress : baseX
     item.object.position.z = axis === 'z' ? baseZ + item.distance * laneProgress : baseZ
     item.object.position.y = baseY + Math.abs(stride) * .025
     item.object.rotation.y = baseRotationY + (axis === 'z'
       ? (returning ? Math.PI : 0)
       : (returning ? -Math.PI / 2 : Math.PI / 2))
-    if (item.leftLeg) item.leftLeg.rotation.x = stride * .45
-    if (item.rightLeg) item.rightLeg.rotation.x = -stride * .45
+    if (item.leftLeg) item.leftLeg.rotation.x = stride === 0 ? 0 : stride * .45
+    if (item.rightLeg) item.rightLeg.rotation.x = stride === 0 ? 0 : -stride * .45
   })
 }

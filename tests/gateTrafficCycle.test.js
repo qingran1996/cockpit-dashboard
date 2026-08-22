@@ -9,6 +9,11 @@ test('holds the shuttle for recognition and clears the barrier before closing', 
   assert.equal(waiting.phase, 'recognition-wait')
   assert.equal(waiting.waiting, true)
 
+  const detected = module.sampleGateTrafficCycle(1.5, .1)
+  assert.equal(detected.phase, 'recognition-opening')
+  assert.ok(detected.vehicleProgress < .35, 'vehicle should still be approaching the stop line')
+  assert.ok(detected.barrierOpen > 0, 'barrier must begin lifting as the vehicle enters the recognition zone')
+
   const open = module.sampleGateTrafficCycle(2.7, .1)
   assert.equal(open.barrierOpen, 1)
   assert.equal(open.phase, 'crossing')

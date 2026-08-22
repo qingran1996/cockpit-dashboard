@@ -15,10 +15,12 @@ test('uses the shared traffic cycle to open only after recognition and close aft
   const barrier = new THREE.Group()
   const item = {
     kind: 'gate', object: barrier, axis: 'z', speed: .1,
-    closedAngle: 0, openAngle: -1.22, baseRotationZ: 0,
+    closedAngle: 0, openAngle: 1.22, baseRotationZ: 0,
   }
   module.updateGateAnimations([item], 2.7, false)
-  assert.equal(Math.round(barrier.rotation.z * 100) / 100, -1.22)
+  assert.equal(Math.round(barrier.rotation.z * 100) / 100, 1.22)
+  const raisedTip = new THREE.Vector3(1.21, 0, 0).applyEuler(barrier.rotation)
+  assert.ok(raisedTip.y > 1, `barrier tip must lift upward, received y=${raisedTip.y}`)
   module.updateGateAnimations([item], 5, false)
   assert.equal(barrier.rotation.z, 0)
   module.updateGateAnimations([item], 2.5, true)

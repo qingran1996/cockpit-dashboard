@@ -17,6 +17,21 @@ function makeLoadedCampus() {
   return { root, interactiveObjects: [building], animatedObjects: [{ kind: 'vehicle', object: shuttle, motionPath: 'gate-lane', distance: 10, speed: .09 }] }
 }
 
+test('uses a shadowless directional fill from the opposite side of the key light', () => {
+  const park = createIndustrialScene({ loadCampus: async () => makeLoadedCampus() })
+  const key = park.root.getObjectByName('CampusKey')
+  const fill = park.root.getObjectByName('CampusShadowFill')
+  const facadeAmbient = park.root.getObjectByName('CampusFacadeAmbient')
+
+  assert.ok(key?.isDirectionalLight)
+  assert.ok(fill?.isDirectionalLight)
+  assert.ok(key.position.x * fill.position.x + key.position.z * fill.position.z < 0, `fill must oppose the key horizontally: key=${key.position.toArray()} fill=${fill.position.toArray()}`)
+  assert.ok(fill.position.y > 0, 'fill must continue illuminating downward from above the campus')
+  assert.equal(fill.castShadow, false)
+  assert.ok(facadeAmbient?.isAmbientLight, 'campus needs an orientation-independent PBR facade fill')
+  park.dispose()
+})
+
 test('replaces the procedural fallback only after a campus GLB resolves', async () => {
   const loaded = makeLoadedCampus()
   const park = createIndustrialScene({ loadCampus: async () => loaded })

@@ -1,16 +1,22 @@
 export const cameraLimits = Object.freeze({
   minDistance: 24,
-  maxDistance: 72,
+  maxDistance: 112,
   minPolarAngle: Math.PI * 0.18,
   maxPolarAngle: Math.PI * 0.47,
 })
 
 export const initialCameraView = Object.freeze({
-  position: Object.freeze([-38, 29, -47]),
-  target: Object.freeze([0, 1.2, -3]),
+  position: Object.freeze([-47, 29, -58]),
+  target: Object.freeze([0, 1.4, -3.2]),
   fov: 38,
-  fogDensity: .012,
-  exposure: 1.55,
+  fogDensity: .0055,
+  exposure: 1.86,
+})
+
+export const focusCameraView = Object.freeze({
+  position: Object.freeze([-43, 26, -53]),
+  target: Object.freeze([0, .35, -1.8]),
+  fov: 38,
 })
 
 export function normalizePointer(clientX, clientY, rect) {

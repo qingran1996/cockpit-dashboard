@@ -1,10 +1,10 @@
 import { useEffect, useRef } from 'react'
 import * as echarts from 'echarts/core'
 import { BarChart, LineChart } from 'echarts/charts'
-import { GridComponent, MarkPointComponent, TooltipComponent } from 'echarts/components'
+import { GridComponent, MarkLineComponent, MarkPointComponent, TooltipComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 
-echarts.use([BarChart, LineChart, GridComponent, MarkPointComponent, TooltipComponent, CanvasRenderer])
+echarts.use([BarChart, LineChart, GridComponent, MarkLineComponent, MarkPointComponent, TooltipComponent, CanvasRenderer])
 
 export function EChart({ option, className = '', ariaLabel }) {
   const containerRef = useRef(null)

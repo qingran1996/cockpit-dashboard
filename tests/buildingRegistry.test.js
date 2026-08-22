@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { buildingById, buildingRegistry } from '../src/scene/buildingRegistry.js'
+import { buildingById, buildingRegistry, campusPlan } from '../src/scene/buildingRegistry.js'
 
 test('defines a complete industrial park', () => {
   assert.ok(buildingRegistry.length >= 12)
@@ -49,4 +49,28 @@ test('key campus buildings use credible vertical floor scale', () => {
   assert.ok(buildingById.get('laboratory').size[1] / 3 >= 1.15)
   assert.ok(buildingById.get('rear-high-bay').size[1] >= 5)
   assert.ok(buildingById.get('gatehouse').size[1] >= 1.65)
+})
+
+test('campus plan doubles the footprint and supports larger landmark buildings', () => {
+  assert.ok(campusPlan.width * campusPlan.depth >= 58 * 42 * 1.98)
+  assert.equal(campusPlan.scale, Math.SQRT2)
+  assert.deepEqual(buildingById.get('main-production-hall').size, [16.8, 3.8, 7])
+  assert.deepEqual(buildingById.get('administration').size, [8.4, 6.2, 5.4])
+  assert.ok(buildingById.get('administration').position[0] >= 13.4)
+  assert.ok(buildingById.get('rear-high-bay').position[2] >= 18.3)
+})
+
+test('doubled site is occupied by visibly larger building footprints', () => {
+  const previousFootprints = new Map([
+    ['central-processing-hall', 11.5 * 4.5],
+    ['rear-high-bay', 9.5 * 4],
+    ['east-process-hall', 6 * 3.6],
+    ['east-warehouse', 7 * 4],
+    ['front-warehouse', 7.2 * 3],
+    ['laboratory', 3.2 * 1.8],
+  ])
+  for (const [id, oldArea] of previousFootprints) {
+    const [width, , depth] = buildingById.get(id).size
+    assert.ok(width * depth >= oldArea * 1.22, `${id} needs at least 22% more footprint presence`)
+  }
 })
