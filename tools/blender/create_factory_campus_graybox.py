@@ -335,23 +335,26 @@ def apply_generated_pbr(
 
 def configure_ground_pbr_materials(mats) -> None:
     specs = (
-        ("asphalt", "asphalt", (0.075, 0.085, 0.092), 0.93, 11, "new-asphalt", 2.0),
-        ("aged_asphalt", "aged-asphalt", (0.105, 0.105, 0.098), 0.95, 17, "aged-asphalt", 2.0),
+        ("asphalt", "asphalt", (0.075, 0.085, 0.092), 0.93, 11, "new-asphalt", 4.6),
+        ("aged_asphalt", "aged-asphalt", (0.105, 0.105, 0.098), 0.95, 17, "aged-asphalt", 4.8),
         ("concrete", "concrete", (0.54, 0.56, 0.55), 0.86, 23),
-        ("loading_concrete", "loading-concrete", (0.46, 0.47, 0.45), 0.90, 29, "loading-concrete", 2.4),
-        ("paving", "entry-paving", (0.58, 0.55, 0.49), 0.82, 31, "entry-paving", 1.6),
-        ("parking_surface", "parking-surface", (0.105, 0.115, 0.118), 0.92, 37, "parking-surface", 2.0),
-        ("walkway", "walkway", (0.60, 0.61, 0.58), 0.88, 41, "walkway", 1.4),
-        ("lawn", "lawn", (0.08, 0.20, 0.10), 0.95, 43, "lawn", 2.2),
-        ("bioswale_soil", "bioswale-soil", (0.105, 0.075, 0.045), 0.96, 59, "bare-soil", 1.7),
-        ("planting_mulch", "planting-mulch", (0.115, 0.068, 0.038), 0.97, 67, "mulch", 1.3),
-        ("forest_ground", "forest-ground", (0.10, 0.25, 0.11), 0.96, 71),
+        ("loading_concrete", "loading-concrete", (0.46, 0.47, 0.45), 0.90, 29, "loading-concrete", 4.2),
+        ("paving", "entry-paving", (0.58, 0.55, 0.49), 0.82, 31, "entry-paving", 3.4),
+        ("parking_surface", "parking-surface", (0.105, 0.115, 0.118), 0.92, 37, "parking-surface", 4.6),
+        ("walkway", "walkway", (0.60, 0.61, 0.58), 0.88, 41, "walkway", 3.2),
+        ("lawn", "lawn", (0.08, 0.20, 0.10), 0.95, 43, "lawn", 4.8),
+        ("bioswale_soil", "bioswale-soil", (0.105, 0.075, 0.045), 0.96, 59, "bare-soil", 3.6),
+        ("planting_mulch", "planting-mulch", (0.115, 0.068, 0.038), 0.97, 67, "mulch", 3.2),
+        ("forest_ground", "forest-ground", (0.10, 0.25, 0.11), 0.96, 71, "forest-floor", 5.0),
     )
     for spec in specs:
         key, family, color, roughness, seed, *ground_contract = spec
         if key not in mats:
             continue
         apply_generated_pbr(mats[key], family, color, roughness, seed)
+        for node in mats[key].node_tree.nodes:
+            if node.type == "NORMAL_MAP":
+                node.inputs["Strength"].default_value = 0.10
         if ground_contract:
             role, tile_size = ground_contract
             mats[key]["groundMaterialRole"] = role
@@ -616,17 +619,17 @@ def configure_architectural_pbr_materials(mats) -> None:
 
 def configure_ground_uv_tiling() -> None:
     tile_sizes = {
-        "MAT__asphalt": 2.0,
-        "MAT__aged-asphalt": 2.0,
-        "MAT__concrete": 2.4,
-        "MAT__loading-concrete": 2.4,
-        "MAT__entry-paving": 1.6,
-        "MAT__parking-surface": 2.0,
-        "MAT__walkway": 1.4,
-        "MAT__lawn": 2.2,
-        "MAT__bioswale-soil": 1.7,
-        "MAT__planting-mulch": 1.3,
-        "MAT__forest-ground": 3.4,
+        "MAT__asphalt": 4.6,
+        "MAT__aged-asphalt": 4.8,
+        "MAT__concrete": 4.2,
+        "MAT__loading-concrete": 4.2,
+        "MAT__entry-paving": 3.4,
+        "MAT__parking-surface": 4.6,
+        "MAT__walkway": 3.2,
+        "MAT__lawn": 4.8,
+        "MAT__bioswale-soil": 3.6,
+        "MAT__planting-mulch": 3.2,
+        "MAT__forest-ground": 5.0,
     }
     seen_meshes = set()
     for obj in bpy.context.scene.objects:
@@ -988,6 +991,116 @@ def linked_mesh_instance(name, prototype, location, parent, scale=(1, 1, 1), rot
     obj.scale = scale
     obj.rotation_euler = rotation
     return obj
+
+
+def create_site_composition(mats, campus):
+    """Dissolve the rectangular environment edge and establish a small hierarchy of specimen trees."""
+    for root_name in ("SITE__horizon-transition", "VEGETATION__hero-specimens"):
+        existing = bpy.data.objects.get(root_name)
+        if existing:
+            remove_object_tree(existing)
+
+    horizon_root = empty("SITE__horizon-transition", parent=campus)
+    horizon_root["landscapeSystem"] = "layered-horizon-transition"
+    horizon_root["designIntent"] = "overlapping low-frequency islands dissolve the rectangular campus board"
+
+    horizon_specs = (
+        ("forest-floor-island", -42.0, -65.0, 19.0, 11.0, -8, "forest_ground"),
+        ("meadow-island", -25.0, -66.0, 18.0, 10.0, 7, "lawn"),
+        ("forest-floor-island", -8.0, -64.5, 20.0, 11.5, -5, "forest_ground"),
+        ("scrub-island", 9.0, -66.0, 18.5, 10.2, 11, "forest_ground"),
+        ("forest-floor-island", 26.0, -64.8, 19.0, 11.2, -9, "forest_ground"),
+        ("meadow-island", 43.0, -65.5, 18.0, 10.4, 6, "lawn"),
+        ("forest-floor-island", -56.0, -45.0, 11.0, 20.0, 9, "forest_ground"),
+        ("drainage-island", -57.0, -27.0, 10.5, 19.0, -6, "lawn"),
+        ("meadow-island", -56.0, -9.0, 11.0, 20.0, 8, "lawn"),
+        ("scrub-island", -55.5, 12.0, 12.0, 20.0, -7, "forest_ground"),
+        ("meadow-island", -55.0, 28.0, 12.0, 13.0, 5, "lawn"),
+        ("forest-floor-island", 56.0, -44.0, 11.0, 20.0, -8, "forest_ground"),
+        ("drainage-island", 57.0, -25.0, 10.5, 19.5, 7, "lawn"),
+        ("scrub-island", 56.0, -6.0, 11.0, 20.0, -9, "forest_ground"),
+        ("meadow-island", 55.5, 14.0, 12.0, 19.0, 6, "lawn"),
+        ("forest-floor-island", 55.0, 29.0, 12.0, 13.0, -5, "forest_ground"),
+    )
+    for index, (role, x, y, width, depth, angle, material_key) in enumerate(horizon_specs, start=1):
+        island = cylinder(
+            f"HORIZON__{role}-{index:02d}",
+            1.0,
+            0.045,
+            (x, y, 0.015 + (index % 3) * 0.021),
+            mats[material_key],
+            horizon_root,
+            vertices=20,
+        )
+        island.scale = (width / 2, depth / 2, 1.0)
+        island.rotation_euler[2] = math.radians(angle)
+        island["horizonRole"] = role
+        island["clearanceClass"] = "perimeter-transition"
+        island["visibilityTier"] = "far"
+        island["detailScale"] = "macro"
+
+    hero_root = empty("VEGETATION__hero-specimens", parent=campus)
+    hero_root["landscapeSystem"] = "hierarchical-hero-planting"
+    hero_root["designIntent"] = "specimen trees frame functional destinations without blocking circulation"
+    trunk_source = bpy.data.objects.get("LANDSCAPE__inner-tree-trunk-01") or bpy.data.objects.get("TREE__trunk-01")
+    crown_sources = [
+        obj
+        for obj in bpy.data.objects
+        if obj.type == "MESH" and obj.name.startswith("LANDSCAPE__inner-tree-crown-")
+    ]
+    crown_sources.sort(key=lambda obj: obj.name)
+    if not trunk_source or not crown_sources:
+        raise RuntimeError("site composition requires existing landscape tree prototypes")
+
+    hero_specs = (
+        (5.2, 18.2, "administration-buffer", "near", 1.58, 1.78),
+        (20.2, 18.8, "administration-buffer", "near", 1.48, 1.70),
+        (17.5, 11.0, "parking-buffer", "near", 1.42, 1.62),
+        (30.2, 14.5, "parking-buffer", "mid", 1.48, 1.68),
+        (5.0, -23.0, "sports-buffer", "mid", 1.52, 1.72),
+        (35.0, -22.0, "sports-buffer", "mid", 1.56, 1.78),
+        (-22.5, 17.2, "pedestrian-buffer", "near", 1.44, 1.66),
+        (-8.0, 18.0, "pedestrian-buffer", "near", 1.50, 1.72),
+        (-31.5, 8.5, "pedestrian-buffer", "mid", 1.42, 1.62),
+        (31.8, 3.5, "pedestrian-buffer", "mid", 1.46, 1.66),
+    )
+    for index, (x, y, clearance, tier, width_scale, height_scale) in enumerate(hero_specs, start=1):
+        tree = empty(f"HERO_TREE__{index:02d}", (x, y, 0), hero_root)
+        tree["landscapeRole"] = "hero-tree"
+        tree["clearanceClass"] = clearance
+        tree["vegetationTier"] = tier
+        tree["visibilityTier"] = "far"
+        tree["functionalAnchor"] = clearance.removesuffix("-buffer")
+
+        trunk = linked_mesh_instance(
+            f"HERO_TREE__{index:02d}__trunk",
+            trunk_source,
+            (0, 0, 0.56),
+            tree,
+            scale=(width_scale, width_scale, height_scale),
+            rotation=(0, 0, math.radians((index * 53) % 360)),
+        )
+        crown_source = crown_sources[(index - 1) % len(crown_sources)]
+        crown = linked_mesh_instance(
+            f"HERO_TREE__{index:02d}__crown",
+            crown_source,
+            (0, 0, 1.55 + (index % 3) * 0.08),
+            tree,
+            scale=(width_scale, width_scale * (0.92 + (index % 2) * 0.08), height_scale),
+            rotation=(0, 0, math.radians((index * 67) % 360)),
+        )
+        for obj in (trunk, crown):
+            obj["landscapeRole"] = "hero-tree-component"
+            obj["clearanceClass"] = clearance
+            obj["vegetationTier"] = tier
+            obj["visibilityTier"] = "far"
+            obj["sharedPrototype"] = trunk_source.name if obj is trunk else crown_source.name
+
+    campus["siteCompositionPass"] = "layered-horizon-and-hero-planting-v1"
+    campus["horizonTransitionCount"] = len(horizon_specs)
+    campus["heroSpecimenCount"] = len(hero_specs)
+    bpy.context.scene["siteCompositionPass"] = "2026-08-23"
+    return {"horizon": len(horizon_specs), "heroes": len(hero_specs)}
 
 
 MATERIAL_REUSE_ALIASES = {
@@ -5989,6 +6102,7 @@ def main() -> None:
     create_ground_circulation_realism(mats, campus)
     create_vegetation_ecology(mats, campus)
     create_vegetation_transition_realism(mats, campus)
+    create_site_composition(mats, campus)
     create_campus_operational_story(mats, campus)
     create_factory_operational_realism(mats, campus)
     configure_ground_uv_tiling()

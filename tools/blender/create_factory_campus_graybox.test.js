@@ -1409,7 +1409,7 @@ test('ground materials export embedded base color normal and roughness maps with
   assert.ok(audit.uvRanges['SITE__ground'][0] >= 8 && audit.uvRanges['SITE__ground'][1] >= 8, JSON.stringify(audit.uvRanges))
   assert.ok(audit.uvRanges['SITE__outer-boulevard'][0] >= 8, JSON.stringify(audit.uvRanges))
   assert.ok(audit.uvRanges['SITE__entry-plaza'][0] >= 3, JSON.stringify(audit.uvRanges))
-  assert.ok(audit.uvRanges['PARKING__surface'][0] >= 3, JSON.stringify(audit.uvRanges))
+  assert.ok(audit.uvRanges['PARKING__surface'][0] >= 1.8, JSON.stringify(audit.uvRanges))
 
   const glb = readFileSync(glbPath)
   const jsonLength = glb.readUInt32LE(12)
@@ -1439,18 +1439,18 @@ test('ground surfaces expose nine functional PBR material zones at credible real
   const audit = JSON.parse(auditLine.slice('GROUND_ZONE_AUDIT='.length))
   for (const role of audit.required) {
     assert.ok(audit.materials[role], `missing distinct ${role} ground material`)
-    assert.ok(audit.materials[role].normalStrength <= .45, `${role} normal map is too noisy`)
+    assert.ok(audit.materials[role].normalStrength <= .12, `${role} normal map is too noisy`)
   }
   assert.equal(new Set(Object.values(audit.materials).map((record) => record.name)).size, 9, 'ground functions need nine distinct material identities')
-  assert.equal(audit.materials['new-asphalt'].tileSize, 2.0)
-  assert.equal(audit.materials['aged-asphalt'].tileSize, 2.0)
-  assert.equal(audit.materials['loading-concrete'].tileSize, 2.4)
-  assert.ok(audit.materials['entry-paving'].tileSize >= 1.2 && audit.materials['entry-paving'].tileSize <= 1.6)
-  assert.equal(audit.materials['parking-surface'].tileSize, 2.0)
-  assert.equal(audit.materials.walkway.tileSize, 1.4)
-  assert.ok(audit.materials.lawn.tileSize >= 1.8 && audit.materials.lawn.tileSize <= 2.6)
-  assert.ok(audit.materials.mulch.tileSize >= 1.2 && audit.materials.mulch.tileSize <= 1.8)
-  assert.ok(audit.materials['bare-soil'].tileSize >= 1.2 && audit.materials['bare-soil'].tileSize <= 1.8)
+  assert.equal(audit.materials['new-asphalt'].tileSize, 4.6)
+  assert.equal(audit.materials['aged-asphalt'].tileSize, 4.8)
+  assert.equal(audit.materials['loading-concrete'].tileSize, 4.2)
+  assert.equal(audit.materials['entry-paving'].tileSize, 3.4)
+  assert.equal(audit.materials['parking-surface'].tileSize, 4.6)
+  assert.equal(audit.materials.walkway.tileSize, 3.2)
+  assert.equal(audit.materials.lawn.tileSize, 4.8)
+  assert.equal(audit.materials.mulch.tileSize, 3.2)
+  assert.equal(audit.materials['bare-soil'].tileSize, 3.6)
   assert.deepEqual(Object.keys(audit.representatives).sort(), [
     'GROUND_CONTACT__tree-mulch-01',
     'LANDSCAPE__rain-garden-01',

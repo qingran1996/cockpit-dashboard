@@ -79,6 +79,46 @@ test('hero buildings expose distinct functional silhouettes', () => {
   assert.ok(nodes.filter(({ name }) => name?.startsWith('IDENTITY__far-east-utility__louver-blade-')).length >= 6)
 })
 
+test('campus boundary dissolves through layered horizon and planting', () => {
+  const gltf = readGlbJson(MODEL_PATH)
+  const nodes = gltf.nodes ?? []
+  const horizonRoot = nodes.find(({ name }) => name === 'SITE__horizon-transition')
+  const heroRoot = nodes.find(({ name }) => name === 'VEGETATION__hero-specimens')
+  const horizon = nodes.filter((node) => node.extras?.horizonRole)
+  const heroes = nodes.filter((node) => node.extras?.landscapeRole === 'hero-tree')
+  const horizonRoles = new Set(horizon.map((node) => node.extras.horizonRole))
+  const outerHorizon = horizon.filter((node) => {
+    const [x = 0, , z = 0] = node.translation ?? []
+    return Math.hypot(x, z) >= 50
+  })
+
+  assert.equal(horizonRoot?.extras?.landscapeSystem, 'layered-horizon-transition')
+  assert.equal(heroRoot?.extras?.landscapeSystem, 'hierarchical-hero-planting')
+  assert.ok(horizon.length >= 12, `expected at least 12 horizon transition pieces, received ${horizon.length}`)
+  assert.ok(outerHorizon.length >= 12, `horizon pieces remain inside the campus board: ${outerHorizon.length}/${horizon.length}`)
+  assert.ok(heroes.length >= 8, `expected at least 8 hero trees, received ${heroes.length}`)
+  for (const role of ['meadow-island', 'scrub-island', 'drainage-island', 'forest-floor-island']) {
+    assert.ok(horizonRoles.has(role), `missing horizon role ${role}`)
+  }
+  for (const hero of heroes) {
+    assert.ok(['pedestrian-buffer', 'sports-buffer', 'parking-buffer', 'administration-buffer'].includes(hero.extras?.clearanceClass), `invalid hero-tree clearance on ${hero.name}`)
+    assert.ok(['near', 'mid'].includes(hero.extras?.vegetationTier), `hero tree must remain readable at near or mid tier: ${hero.name}`)
+  }
+})
+
+test('campus ground materials use broad low-frequency PBR separation', () => {
+  const gltf = readGlbJson(MODEL_PATH)
+  const groundMaterials = (gltf.materials ?? []).filter((material) => material.extras?.groundMaterialRole)
+  const required = new Set(['new-asphalt', 'loading-concrete', 'walkway', 'lawn', 'bare-soil', 'mulch'])
+
+  for (const material of groundMaterials) {
+    required.delete(material.extras.groundMaterialRole)
+    assert.ok(material.extras.groundTileSize >= 3.2 && material.extras.groundTileSize <= 5, `${material.name} has high-frequency tiling ${material.extras.groundTileSize}`)
+    assert.ok((material.normalTexture?.scale ?? 0) <= .12, `${material.name} normal scale is too strong: ${material.normalTexture?.scale}`)
+  }
+  assert.deepEqual([...required], [], `missing ground PBR roles: ${[...required]}`)
+})
+
 test('generated GLB carries tactile facade joints and pressed battens', () => {
   const gltf = readGlbJson(MODEL_PATH)
   const names = (gltf.nodes || []).map(({ name }) => name || '')

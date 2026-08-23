@@ -27,3 +27,24 @@ test('derives separate restrained day and evening reflection policies', async ()
   assert.deepEqual(module.deriveCampusEnvironmentPolicy('day'), { intensity: .78, rotation: .12 })
   assert.deepEqual(module.deriveCampusEnvironmentPolicy('evening'), { intensity: .38, rotation: -.08 })
 })
+
+test('keeps the landscaped horizon readable in day and evening modes', async () => {
+  const module = await import('../src/scene/campusEnvironment.js').catch(() => ({}))
+  assert.equal(typeof module.deriveCampusLandscapePolicy, 'function', 'landscape presentation policy is missing')
+
+  assert.deepEqual(module.deriveCampusLandscapePolicy('day'), {
+    horizonLift: .18,
+    groundSeparation: .16,
+    vegetationLift: .1,
+  })
+  assert.deepEqual(module.deriveCampusLandscapePolicy('evening'), {
+    horizonLift: .1,
+    groundSeparation: .12,
+    vegetationLift: .08,
+  })
+
+  const scene = new THREE.Scene()
+  const environment = new THREE.Texture()
+  module.installCampusEnvironment(scene, environment, 'evening')
+  assert.deepEqual(scene.userData.campusEnvironment.landscape, module.deriveCampusLandscapePolicy('evening'))
+})
