@@ -286,9 +286,25 @@ test('every interactive building has a credible rear service envelope', () => {
 
 test('formal campus exports connected water power and steam networks', () => {
   const nodes = readGlbJson(MODEL_PATH).nodes ?? []
+  const parentByNode = new Map()
+  nodes.forEach((node, parentIndex) => (node.children ?? []).forEach((childIndex) => parentByNode.set(childIndex, parentIndex)))
+  const campusIndex = nodes.findIndex((node) => node.name === 'FactoryCampusGraybox')
+  assert.ok(campusIndex >= 0, 'missing FactoryCampusGraybox root')
   for (const energyType of ['water', 'power', 'steam']) {
+    const rootName = `ENERGY_NETWORK__${energyType}`
+    const rootIndex = nodes.findIndex((node) => node.name === rootName)
+    assert.ok(rootIndex >= 0, `missing ${rootName}`)
+    assert.equal(parentByNode.get(rootIndex), campusIndex, `${rootName} must remain parented to the campus root`)
     const segments = nodes.filter((node) => node.extras?.energyType === energyType)
     assert.ok(segments.length >= 8, energyType)
-    assert.ok(segments.every((node) => node.extras?.networkSegmentId))
+    assert.ok(segments.every((node) => parentByNode.get(nodes.indexOf(node)) === rootIndex), `${energyType} segments must remain parented to their network root`)
+    assert.ok(segments.every((node) => (
+      typeof node.extras?.networkSegmentId === 'string' && node.extras.networkSegmentId.trim()
+      && typeof node.extras?.sourceBuildingId === 'string' && node.extras.sourceBuildingId.trim()
+      && typeof node.extras?.targetBuildingId === 'string' && node.extras.targetBuildingId.trim()
+      && ['source-to-target', 'target-to-source'].includes(node.extras?.flowDirection)
+      && typeof node.extras?.networkRouteId === 'string' && node.extras.networkRouteId.trim()
+      && Number.isInteger(node.extras?.networkRouteOrder) && node.extras.networkRouteOrder > 0
+    )), `${energyType} metadata is incomplete`)
   }
 })

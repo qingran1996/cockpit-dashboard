@@ -2,13 +2,13 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as THREE from 'three'
 
-function makeNetworkSegment(name, energyType, flowDirection) {
+function makeNetworkSegment(name, energyType, flowDirection, networkRouteId = `${energyType}-main`, networkRouteOrder = 1) {
   const segment = new THREE.Mesh(
     new THREE.BoxGeometry(1, .1, .1),
     new THREE.MeshStandardMaterial({ color: 0x7b858a, roughness: .68, metalness: .32, emissive: 0x000000, emissiveIntensity: .04 }),
   )
   segment.name = name
-  segment.userData = { energyType, networkSegmentId: name, flowDirection }
+  segment.userData = { energyType, networkSegmentId: name, flowDirection, networkRouteId, networkRouteOrder }
   return segment
 }
 
@@ -60,4 +60,32 @@ test('uses static reduced-motion highlights and low-frequency directional flow p
   const returnPulse = steam.material.emissiveIntensity
   module.updateCampusEnergyNetworks(networks, { activeEnergy: 'steam', reducedMotion: false }, 2.5)
   assert.notEqual(steam.material.emissiveIntensity, returnPulse)
+})
+
+test('moves the brightest wave across explicit route order in opposite directions', async () => {
+  const module = await import('../src/scene/campusEnergyNetworkAnimation.js').catch(() => ({}))
+  assert.equal(typeof module.updateCampusEnergyNetworks, 'function', 'campus energy network animator is missing')
+  const makeRoute = (energyType, flowDirection) => [3, 1, 2].map((order) => makeNetworkSegment(
+    `${energyType}-${order}`,
+    energyType,
+    flowDirection,
+    `${energyType}-trunk`,
+    order,
+  ))
+  const water = makeRoute('water', 'source-to-target')
+  const steam = makeRoute('steam', 'target-to-source')
+  const networks = new Map([['water', water], ['power', []], ['steam', steam]])
+  const intensityByOrder = (segments) => Object.fromEntries(segments.map((segment) => [segment.userData.networkRouteOrder, segment.material.emissiveIntensity]))
+  const strongestOrder = (intensities) => Number(Object.entries(intensities).sort((left, right) => right[1] - left[1])[0][0])
+
+  module.updateCampusEnergyNetworks(networks, { activeEnergy: 'water', reducedMotion: false }, 0)
+  assert.equal(strongestOrder(intensityByOrder(water)), 1, 'source flow must begin at the route source regardless of traversal order')
+  module.updateCampusEnergyNetworks(networks, { activeEnergy: 'steam', reducedMotion: false }, 0)
+  assert.equal(strongestOrder(intensityByOrder(steam)), 3, 'return flow must begin at the route target')
+
+  const twoRouteSteps = 2 / (3 * .18)
+  module.updateCampusEnergyNetworks(networks, { activeEnergy: 'water', reducedMotion: false }, twoRouteSteps)
+  assert.equal(strongestOrder(intensityByOrder(water)), 3, 'source flow must progress toward the route target')
+  module.updateCampusEnergyNetworks(networks, { activeEnergy: 'steam', reducedMotion: false }, twoRouteSteps)
+  assert.equal(strongestOrder(intensityByOrder(steam)), 1, 'return flow must progress toward the route source')
 })
