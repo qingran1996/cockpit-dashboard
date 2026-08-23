@@ -19,6 +19,29 @@ test('every building has interaction data and a known model', () => {
   }
 })
 
+test('hero building records declare matching functional identities', () => {
+  const expected = new Map([
+    ['administration', ['administration-arrival', 'administration', 'hero']],
+    ['main-production-hall', ['production-monitor', 'production', 'hero']],
+    ['front-warehouse', ['warehouse-logistics', 'warehouse', 'primary']],
+    ['far-east-utility', ['utility-process', 'utilities', 'primary']],
+  ])
+
+  for (const record of buildingRegistry) {
+    assert.ok(record.identityRole, `${record.id} must declare an identity role`)
+    assert.ok(record.functionalZone, `${record.id} must declare a functional zone`)
+    assert.ok(['hero', 'primary', 'supporting'].includes(record.identityTier), `${record.id} has an invalid identity tier`)
+  }
+  for (const [id, [identityRole, functionalZone, identityTier]] of expected) {
+    const record = buildingById.get(id)
+    assert.deepEqual(
+      [record.identityRole, record.functionalZone, record.identityTier],
+      [identityRole, functionalZone, identityTier],
+      `${id} identity metadata does not match its Blender silhouette contract`,
+    )
+  }
+})
+
 test('every building exposes ordered interactive floor-space metadata', () => {
   for (const record of buildingRegistry) {
     assert.ok(record.floors.length >= 2, `${record.id} must expose at least two levels`)

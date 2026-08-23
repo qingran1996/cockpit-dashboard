@@ -63,6 +63,21 @@ export const campusPlan = Object.freeze({
   depth: 42 * Math.SQRT2,
 })
 
+const buildingIdentityProfiles = Object.freeze({
+  'main-production-hall': { identityRole: 'production-monitor', functionalZone: 'production', identityTier: 'hero' },
+  'central-processing-hall': { identityRole: 'production-monitor', functionalZone: 'production', identityTier: 'primary' },
+  'rear-high-bay': { identityRole: 'production-monitor', functionalZone: 'production', identityTier: 'primary' },
+  'north-east-workshop': { identityRole: 'production-monitor', functionalZone: 'production', identityTier: 'supporting' },
+  'east-process-hall': { identityRole: 'utility-process', functionalZone: 'process', identityTier: 'primary' },
+  'far-east-utility': { identityRole: 'utility-process', functionalZone: 'utilities', identityTier: 'primary' },
+  'east-warehouse': { identityRole: 'warehouse-logistics', functionalZone: 'warehouse', identityTier: 'primary' },
+  'front-warehouse': { identityRole: 'warehouse-logistics', functionalZone: 'warehouse', identityTier: 'primary' },
+  'front-utility-annex': { identityRole: 'utility-process', functionalZone: 'utilities', identityTier: 'supporting' },
+  laboratory: { identityRole: 'laboratory-analysis', functionalZone: 'laboratory', identityTier: 'primary' },
+  administration: { identityRole: 'administration-arrival', functionalZone: 'administration', identityTier: 'hero' },
+  gatehouse: { identityRole: 'access-control', functionalZone: 'access', identityTier: 'supporting' },
+})
+
 export const buildingRegistry = [
   { id: 'main-production-hall', nodeName: 'BLDG__main-production-hall', name: '主生产车间', type: '核心生产厂房', status: '正常', metricLabel: '当前负荷', metricValue: '82%', temperature: '26°C', position: [10, 1.9, -.5], size: [16.8, 3.8, 7], tone: 'cyan', model: 'factory' },
   { id: 'central-processing-hall', nodeName: 'BLDG__central-processing-hall', name: '中央处理车间', type: '连续化生产厂房', status: '正常', metricLabel: '当前负荷', metricValue: '76%', temperature: '29°C', position: [-2.5, 1.725, 5.9], size: [12.9, 3.45, 5.1], tone: 'cyan', model: 'factory' },
@@ -78,6 +93,7 @@ export const buildingRegistry = [
   { id: 'gatehouse', nodeName: 'BLDG__gatehouse', name: '园区门卫室', type: '出入口管理设施', status: '正常', metricLabel: '今日通行', metricValue: '286 辆', temperature: '24°C', position: [23.2, 1, -14.7], size: [2.3, 2, 1.7], tone: 'orange', model: 'office' },
 ].map((record) => ({
   ...record,
+  ...buildingIdentityProfiles[record.id],
   position: [record.position[0] * campusPlan.scale, record.position[1], record.position[2] * campusPlan.scale],
   floors: floorPlans[record.id],
 }))

@@ -46,6 +46,39 @@ test('formal campus reuses repeated assets within the render budget', () => {
   assert.ok((visibilityTiers.mid ?? 0) >= 40, `expected mid-detail visibility tags, received ${visibilityTiers.mid ?? 0}`)
 })
 
+test('hero buildings expose distinct functional silhouettes', () => {
+  const gltf = readGlbJson(MODEL_PATH)
+  const nodes = gltf.nodes ?? []
+  const identityRoots = nodes.filter(({ name }) => name?.startsWith('IDENTITY__'))
+  const roles = new Set(identityRoots.map((node) => node.extras?.identityRole).filter(Boolean))
+
+  for (const role of ['administration-arrival', 'production-monitor', 'warehouse-logistics', 'utility-process']) {
+    assert.ok(roles.has(role), `missing building identity role ${role}`)
+  }
+  for (const rootName of ['IDENTITY__administration', 'IDENTITY__main-production-hall', 'IDENTITY__front-warehouse', 'IDENTITY__far-east-utility']) {
+    const root = nodes.find(({ name }) => name === rootName)
+    assert.ok(root?.extras?.functionalZone, `missing functional zone on ${rootName}`)
+    assert.ok(['hero', 'primary'].includes(root.extras.identityTier), `missing identity tier on ${rootName}`)
+  }
+  for (const detailName of [
+    'IDENTITY__administration__two-story-lobby',
+    'IDENTITY__administration__canopy-soffit',
+    'IDENTITY__administration__side-service-entry',
+    'IDENTITY__main-production-hall__monitor-shell',
+    'IDENTITY__main-production-hall__monitor-clerestory-front',
+    'IDENTITY__front-warehouse__dispatch-pod',
+    'IDENTITY__front-warehouse__dock-canopy-01',
+    'IDENTITY__far-east-utility__louver-tower',
+    'IDENTITY__far-east-utility__cable-tray',
+    'IDENTITY__far-east-utility__exhaust-stack-01',
+  ]) {
+    assert.ok(nodes.some(({ name }) => name === detailName), `missing silhouette detail ${detailName}`)
+  }
+  assert.ok(nodes.filter(({ name }) => name?.startsWith('IDENTITY__administration__forecourt-step-')).length >= 3)
+  assert.ok(nodes.filter(({ name }) => name?.startsWith('IDENTITY__front-warehouse__dock-seal-')).length >= 3)
+  assert.ok(nodes.filter(({ name }) => name?.startsWith('IDENTITY__far-east-utility__louver-blade-')).length >= 6)
+})
+
 test('generated GLB carries tactile facade joints and pressed battens', () => {
   const gltf = readGlbJson(MODEL_PATH)
   const names = (gltf.nodes || []).map(({ name }) => name || '')

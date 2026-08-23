@@ -98,6 +98,21 @@ BUILDINGS = [
     ("gatehouse", (23.2, 14.7), (2.3, 1.7, 2.0), "office"),
 ]
 
+BUILDING_IDENTITY_PROFILES = {
+    "main-production-hall": ("production-monitor", "production", "hero"),
+    "central-processing-hall": ("production-monitor", "production", "primary"),
+    "rear-high-bay": ("production-monitor", "production", "primary"),
+    "north-east-workshop": ("production-monitor", "production", "supporting"),
+    "east-process-hall": ("utility-process", "process", "primary"),
+    "far-east-utility": ("utility-process", "utilities", "primary"),
+    "east-warehouse": ("warehouse-logistics", "warehouse", "primary"),
+    "front-warehouse": ("warehouse-logistics", "warehouse", "primary"),
+    "front-utility-annex": ("utility-process", "utilities", "supporting"),
+    "laboratory": ("laboratory-analysis", "laboratory", "primary"),
+    "administration": ("administration-arrival", "administration", "hero"),
+    "gatehouse": ("access-control", "access", "supporting"),
+}
+
 BUILDING_FLOORS = {
     "main-production-hall": [
         ("L01", "一层生产作业区", "主生产线与物流通道", 1, "cyan"),
@@ -3209,6 +3224,198 @@ def create_rear_service_envelope(building_id, width, depth, height, mats, root):
     return service
 
 
+def create_building_identity(building_id, width, depth, height, mats, root):
+    """Add a removable, pale-material silhouette system that communicates building function."""
+    identity_name = f"IDENTITY__{building_id}"
+    existing = bpy.data.objects.get(identity_name)
+    if existing:
+        remove_object_tree(existing)
+    identity_role, functional_zone, identity_tier = BUILDING_IDENTITY_PROFILES[building_id]
+    identity = empty(identity_name, parent=root)
+    identity["buildingId"] = building_id
+    identity["identityRole"] = identity_role
+    identity["functionalZone"] = functional_zone
+    identity["identityTier"] = identity_tier
+    identity["layerRole"] = "building-identity"
+
+    def mark(obj, detail_role, visibility_tier="far"):
+        obj["buildingId"] = building_id
+        obj["identityRole"] = identity_role
+        obj["identityDetailRole"] = detail_role
+        obj["visibilityTier"] = visibility_tier
+        return obj
+
+    front_y = depth / 2
+
+    if building_id == "administration":
+        lobby_height = min(4.55, height * 0.74)
+        mark(box(
+            f"{identity_name}__two-story-lobby",
+            (width * 0.38, 0.34, lobby_height),
+            (0, front_y + 0.24, lobby_height / 2 + 0.12),
+            mats["admin_glass"], identity, 0.025,
+        ), "two-story-lobby")
+        mark(box(
+            f"{identity_name}__vestibule",
+            (width * 0.28, 0.82, 2.18),
+            (0, front_y + 0.48, 1.12),
+            mats["admin_glass"], identity, 0.03,
+        ), "recessed-vestibule")
+        mark(box(
+            f"{identity_name}__canopy-soffit",
+            (width * 0.62, 1.34, 0.16),
+            (0, front_y + 0.66, 2.48),
+            mats["admin_stone_light"], identity, 0.035,
+        ), "arrival-canopy")
+        for column_index, px in enumerate((-width * 0.25, width * 0.25), start=1):
+            mark(cylinder(
+                f"{identity_name}__canopy-column-{column_index:02d}",
+                0.13, 2.28, (px, front_y + 1.12, 1.18),
+                mats["architectural_bronze"], identity, vertices=16,
+            ), "arrival-column", "mid")
+        for step_index in range(3):
+            step_width = width * (0.70 - step_index * 0.06)
+            mark(box(
+                f"{identity_name}__forecourt-step-{step_index + 1:02d}",
+                (step_width, 0.62 + step_index * 0.22, 0.10 + step_index * 0.035),
+                (0, front_y + 1.38 + step_index * 0.16, 0.05 + step_index * 0.055),
+                mats["admin_stone_light"], identity, 0.025,
+            ), "stepped-forecourt", "mid")
+        mark(box(
+            f"{identity_name}__side-service-entry",
+            (0.22, 1.42, 2.06),
+            (width / 2 + 0.13, -depth * 0.12, 1.08),
+            mats["facade_frame"], identity, 0.025,
+        ), "side-service-entry")
+        mark(box(
+            f"{identity_name}__corporate-sign",
+            (width * 0.32, 0.10, 0.38),
+            (width * 0.20, front_y + 1.36, 2.08),
+            mats["architectural_bronze"], identity, 0.018,
+        ), "corporate-wayfinding", "mid")
+
+    elif building_id == "main-production-hall":
+        monitor_y = -depth * 0.08
+        monitor_width = width * 0.56
+        monitor_depth = depth * 0.34
+        mark(box(
+            f"{identity_name}__monitor-shell",
+            (monitor_width, monitor_depth, 0.72),
+            (0, monitor_y, height + 0.52),
+            mats["factory_panel_light"], identity, 0.035,
+        ), "roof-monitor")
+        mark(box(
+            f"{identity_name}__monitor-clerestory-front",
+            (monitor_width * 0.90, 0.10, 0.30),
+            (0, monitor_y + monitor_depth / 2 + 0.04, height + 0.50),
+            mats["glass"], identity, 0.012,
+        ), "monitor-clerestory")
+        mark(box(
+            f"{identity_name}__monitor-cap",
+            (monitor_width + 0.24, monitor_depth + 0.20, 0.14),
+            (0, monitor_y, height + 0.95),
+            mats["roof"], identity, 0.025,
+        ), "monitor-cap")
+        for bay_index, px in enumerate((-width * 0.40, -width * 0.20, 0, width * 0.20, width * 0.40), start=1):
+            mark(box(
+                f"{identity_name}__crane-bay-pier-{bay_index:02d}",
+                (0.13, 0.30, height * 0.82),
+                (px, front_y + 0.28, height * 0.43),
+                mats["factory_panel_mid"], identity, 0.018,
+            ), "crane-bay-rhythm", "mid")
+            if bay_index < 5:
+                mark(box(
+                    f"{identity_name}__crane-bay-head-{bay_index:02d}",
+                    (width * 0.19, 0.32, 0.13),
+                    (px + width * 0.10, front_y + 0.28, height * 0.84),
+                    mats["facade_frame"], identity, 0.014,
+                ), "crane-bay-rhythm", "mid")
+
+    elif building_id == "front-warehouse":
+        loading_y = -front_y
+        mark(box(
+            f"{identity_name}__dispatch-pod",
+            (width * 0.24, 0.86, 2.42),
+            (width * 0.34, front_y + 0.46, 1.24),
+            mats["warehouse_panel_light"], identity, 0.035,
+        ), "dispatch-office-pod")
+        mark(box(
+            f"{identity_name}__dispatch-window",
+            (width * 0.17, 0.08, 0.78),
+            (width * 0.34, front_y + 0.93, 1.48),
+            mats["glass"], identity, 0.012,
+        ), "dispatch-office-glazing")
+        for dock_index, px in enumerate((-width * 0.30, 0, width * 0.30), start=1):
+            mark(box(
+                f"{identity_name}__dock-seal-{dock_index:02d}",
+                (1.94, 0.18, 2.18),
+                (px, loading_y - 0.31, 1.10),
+                mats["facade_frame"], identity, 0.030,
+            ), "dock-seal")
+            mark(box(
+                f"{identity_name}__dock-canopy-{dock_index:02d}",
+                (2.12, 1.02, 0.14),
+                (px, loading_y - 0.67, 2.72),
+                mats["roof"], identity, 0.025,
+            ), "dock-canopy")
+            mark(box(
+                f"{identity_name}__dock-ramp-{dock_index:02d}",
+                (1.64, 1.36, 0.16),
+                (px, loading_y - 1.02, 0.14),
+                mats["loading_concrete"], identity, 0.025,
+            ), "dock-ramp", "mid")
+
+    elif building_id == "far-east-utility":
+        tower_height = height * 0.92
+        tower_x = -width * 0.28
+        mark(box(
+            f"{identity_name}__louver-tower",
+            (width * 0.34, 0.46, tower_height),
+            (tower_x, front_y + 0.29, tower_height / 2 + 0.20),
+            mats["factory_panel_mid"], identity, 0.028,
+        ), "ventilation-tower")
+        for blade_index in range(6):
+            mark(box(
+                f"{identity_name}__louver-blade-{blade_index + 1:02d}",
+                (width * 0.28, 0.08, 0.055),
+                (tower_x, front_y + 0.56, 0.48 + blade_index * tower_height * 0.12),
+                mats["gutter"], identity, 0.006,
+            ), "ventilation-louver", "near")
+        mark(box(
+            f"{identity_name}__cable-tray",
+            (width * 0.88, 0.30, 0.18),
+            (0, front_y + 0.34, height + 0.42),
+            mats["pipe"], identity, 0.016,
+        ), "cable-distribution")
+        for stack_index, px in enumerate((width * 0.16, width * 0.36), start=1):
+            mark(cylinder(
+                f"{identity_name}__exhaust-stack-{stack_index:02d}",
+                0.13, 1.28, (px, -depth * 0.18, height + 0.72),
+                mats["pipe"], identity, vertices=14,
+            ), "safe-exhaust-stack")
+            mark(cylinder(
+                f"{identity_name}__exhaust-cap-{stack_index:02d}",
+                0.20, 0.10, (px, -depth * 0.18, height + 1.39),
+                mats["gutter"], identity, vertices=14,
+            ), "safe-exhaust-cap", "mid")
+
+    return identity
+
+
+def rebuild_building_identities(mats, campus):
+    created = 0
+    for building_id, _, (width, depth, height), _ in BUILDINGS:
+        building_root = bpy.data.objects.get(f"BLDG__{building_id}")
+        if building_root is None:
+            continue
+        create_building_identity(building_id, width, depth, height, mats, building_root)
+        created += 1
+    campus["buildingIdentityPass"] = "functional-silhouette-v1"
+    campus["buildingIdentityCount"] = created
+    bpy.context.scene["buildingIdentityPass"] = "functional-silhouette-v1"
+    return created
+
+
 def create_building(record, mats, campus):
     building_id, (x, y), (width, depth, height), kind = record
     root = empty(f"BLDG__{building_id}", (x, y, 0), campus)
@@ -5765,6 +5972,7 @@ def main() -> None:
     create_roads_and_site(mats, campus)
     for record in BUILDINGS:
         create_building(record, mats, campus)
+    rebuild_building_identities(mats, campus)
     create_pipe_racks(mats, campus)
     create_industrial_process_core(mats, campus)
     create_warehouse_logistics(mats, campus)
