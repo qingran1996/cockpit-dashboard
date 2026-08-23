@@ -2,6 +2,69 @@ import * as THREE from 'three'
 import { DEFAULT_CAMPUS_SUNLIGHT, clampCampusSunlight } from './campusSunlight.js'
 import { resolveCampusLightingProfile } from './campusLightingProfiles.js'
 
+const BACKDROP_NAME = 'CampusBackdrop'
+
+export function resolveCampusBackdrop(mode, profile) {
+  const state = resolveCampusLightingProfile(profile, mode === 'evening' ? 'evening' : 'day')
+  return {
+    topColor: state.skyColor,
+    horizonColor: state.horizonColor,
+    lowColor: state.lowColor,
+  }
+}
+
+function ensureCampusBackdrop(scene) {
+  const current = scene.getObjectByName(BACKDROP_NAME)
+  if (current?.isMesh) return current
+  const material = new THREE.ShaderMaterial({
+    uniforms: {
+      topColor: { value: new THREE.Color() },
+      horizonColor: { value: new THREE.Color() },
+      lowColor: { value: new THREE.Color() },
+    },
+    vertexShader: `
+      varying vec3 vDirection;
+      void main() {
+        vDirection = normalize(position);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform vec3 topColor;
+      uniform vec3 horizonColor;
+      uniform vec3 lowColor;
+      varying vec3 vDirection;
+      void main() {
+        float h = normalize(vDirection).y;
+        vec3 upper = mix(horizonColor, topColor, smoothstep(0.02, 0.72, h));
+        vec3 lower = mix(lowColor, horizonColor, smoothstep(-0.38, 0.04, h));
+        gl_FragColor = vec4(h < 0.02 ? lower : upper, 1.0);
+      }
+    `,
+    side: THREE.BackSide,
+    depthWrite: false,
+    depthTest: false,
+    fog: false,
+    toneMapped: false,
+  })
+  const backdrop = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 16), material)
+  backdrop.name = BACKDROP_NAME
+  backdrop.renderOrder = -1000
+  backdrop.frustumCulled = false
+  scene.add(backdrop)
+  return backdrop
+}
+
+export function updateCampusBackdropCamera(scene, camera) {
+  const backdrop = scene.getObjectByName(BACKDROP_NAME)
+  if (!backdrop?.isMesh || !camera?.position) return false
+  const radius = Math.max(24, Math.min(120, (Number(camera.far) || 160) * .82))
+  backdrop.position.copy(camera.position)
+  backdrop.scale.setScalar(radius)
+  backdrop.updateMatrixWorld()
+  return true
+}
+
 function deriveSunlightFactor(mode, sunlightPercent) {
   const baseline = mode === 'evening' ? DEFAULT_CAMPUS_SUNLIGHT.evening : DEFAULT_CAMPUS_SUNLIGHT.day
   const percent = clampCampusSunlight(sunlightPercent ?? baseline)
@@ -52,12 +115,18 @@ export function resolveFixtureLighting(object, state) {
   return profiles[object.userData.lightRole] ?? null
 }
 
-export function applyCampusLightingMode({ scene, renderer, postProcessing }, mode, sunlightPercent, profile) {
+export function applyCampusLightingMode({ scene, camera, renderer, postProcessing }, mode, sunlightPercent, profile) {
   const state = deriveCampusLightingState(mode, sunlightPercent, profile)
+  const backdropState = resolveCampusBackdrop(mode, state)
   renderer.toneMappingExposure = state.exposure
   scene.environmentIntensity = state.environmentIntensity
   if (scene.environmentRotation) scene.environmentRotation.y = state.environmentRotation
   scene.background = new THREE.Color(state.skyColor)
+  const backdrop = ensureCampusBackdrop(scene)
+  backdrop.material.uniforms.topColor.value.setHex(backdropState.topColor)
+  backdrop.material.uniforms.horizonColor.value.setHex(backdropState.horizonColor)
+  backdrop.material.uniforms.lowColor.value.setHex(backdropState.lowColor)
+  updateCampusBackdropCamera(scene, camera)
   if (scene.fog) {
     scene.fog.color.setHex(state.fogColor)
     scene.fog.density = state.fogDensity

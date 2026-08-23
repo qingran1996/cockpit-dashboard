@@ -11,7 +11,7 @@ import { updateVehicleAnimations } from '../scene/vehicleAnimation.js'
 import { updatePersonAnimations } from '../scene/personAnimation.js'
 import { updateGateAnimations } from '../scene/gateAnimation.js'
 import { createFloorInspectionLighting } from '../scene/floorInspectionLighting.js'
-import { applyCampusLightingMode } from '../scene/campusLightingMode.js'
+import { applyCampusLightingMode, updateCampusBackdropCamera } from '../scene/campusLightingMode.js'
 import { configureCampusShadowQuality } from '../scene/campusShadowQuality.js'
 import { installCampusEnvironment } from '../scene/campusEnvironment.js'
 import { applyCampusMaterialQuality, createCampusQualityController } from '../scene/campusMaterialQuality.js'
@@ -147,7 +147,7 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
       pixelRatio,
       focused: focusMode,
     })
-    lightingControllerRef.current = { scene, renderer, postProcessing }
+    lightingControllerRef.current = { scene, camera, renderer, postProcessing }
     const inspectionLighting = createFloorInspectionLighting()
     scene.add(inspectionLighting.group)
 
@@ -193,9 +193,9 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
     park.root.position.y = -1.2
     scene.add(park.root)
     applyInspectionOccluders(park.root, Boolean(floorViewRef.current?.focusedFloorId))
-    applyCampusLightingMode({ scene, renderer, postProcessing }, lightingModeRef.current, sunlightPercentRef.current, lightingProfileRef.current)
+    applyCampusLightingMode({ scene, camera, renderer, postProcessing }, lightingModeRef.current, sunlightPercentRef.current, lightingProfileRef.current)
     park.ready.then(() => {
-      if (parkRef.current === park) applyCampusLightingMode({ scene, renderer, postProcessing }, lightingModeRef.current, sunlightPercentRef.current, lightingProfileRef.current)
+      if (parkRef.current === park) applyCampusLightingMode({ scene, camera, renderer, postProcessing }, lightingModeRef.current, sunlightPercentRef.current, lightingProfileRef.current)
     })
     const raycaster = new THREE.Raycaster()
     const pointer = new THREE.Vector2(2, 2)
@@ -367,6 +367,7 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
       }
 
       controls.update()
+      updateCampusBackdropCamera(scene, camera)
       qualityController.update()
       postProcessing.render()
     }

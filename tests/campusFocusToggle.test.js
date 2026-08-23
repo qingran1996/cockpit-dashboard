@@ -25,3 +25,11 @@ test('renders an accessible campus-only view toggle in both states', async () =>
   assert.match(focusMarkup, /恢复面板/)
   assert.match(focusMarkup, /FOCUS VIEW/)
 })
+
+test('focus controls retain a safe inset when the campus fills the design canvas', async () => {
+  const { resolveCampusFocusViewport } = await import('../src/scene/campusViewDefaults.js').catch(() => ({}))
+  assert.equal(typeof resolveCampusFocusViewport, 'function')
+  const layout = resolveCampusFocusViewport(1512, 731)
+  assert.deepEqual(layout.scene, { left: 0, top: 0, width: 1920, height: 1080 })
+  assert.deepEqual(layout.controls, { top: 42, right: 42 })
+})

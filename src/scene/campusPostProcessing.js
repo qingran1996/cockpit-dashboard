@@ -29,8 +29,8 @@ export function deriveCampusPostProcessingPolicy({ mode = 'day', reducedMotion =
   }
   return {
     enabled: true,
-    contact: { enabled: true, radius: pixelRatio > 1.5 ? 2.2 : 2.8, intensity: mode === 'evening' ? .32 : .26 },
-    bloom: { enabled: true, threshold: 2.2, strength: THREE.MathUtils.clamp(bloomStrength ?? (mode === 'evening' ? .28 : .08), 0, .6), radius: mode === 'evening' ? .24 : .12 },
+    contact: { enabled: true, radius: pixelRatio > 1.5 ? 2.1 : 2.6, intensity: mode === 'evening' ? .36 : .31 },
+    bloom: { enabled: true, threshold: 2.35, strength: THREE.MathUtils.clamp(bloomStrength ?? (mode === 'evening' ? .28 : .08), 0, .6), radius: mode === 'evening' ? .22 : .1 },
     antialias: 'smaa',
     renderScale: focused && pixelRatio < 1.5 ? 1.25 : 1,
   }

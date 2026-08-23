@@ -17,7 +17,7 @@ import { resolveEnergyDetail } from './energyDetailState.js'
 import { resolveEnergyDetailWorkspaceLayout } from './energyDetailWorkspaceLayout.js'
 import { resolveHomepageSceneControlsLayout } from './homepagePanelLayout.js'
 import { useViewportScale } from './hooks/useViewportScale.js'
-import { DEFAULT_CAMPUS_LIGHTING_MODE } from './scene/campusViewDefaults.js'
+import { DEFAULT_CAMPUS_LIGHTING_MODE, resolveCampusFocusViewport } from './scene/campusViewDefaults.js'
 import { DEFAULT_CAMPUS_SUNLIGHT, resolveCampusSunlight, updateCampusSunlight } from './scene/campusSunlight.js'
 import { createCampusLightingProfiles, resetCampusLightingProfile, resolveCampusLightingProfile, updateCampusLightingProfile } from './scene/campusLightingProfiles.js'
 
@@ -26,7 +26,7 @@ const homepageSceneControlsLayout = resolveHomepageSceneControlsLayout()
 const detailOriginTop = 118
 
 export default function App({ surfaceMode = APP_SURFACES.campus }) {
-  const { scale, left, top } = useViewportScale()
+  const { scale, left, top, viewportWidth, viewportHeight } = useViewportScale()
   const [campusFocus, setCampusFocus] = useState(false)
   const [energyDetail, setEnergyDetail] = useState(null)
   const [campusLightingMode, setCampusLightingMode] = useState(DEFAULT_CAMPUS_LIGHTING_MODE)
@@ -67,6 +67,7 @@ export default function App({ surfaceMode = APP_SURFACES.campus }) {
   }
 
   const unityOverlay = surfaceMode === APP_SURFACES.unityOverlay
+  const focusViewport = resolveCampusFocusViewport(viewportWidth, viewportHeight)
 
   return (
     <main className={`dashboard-shell${campusFocus ? ' is-campus-focus' : ''}${unityOverlay ? ' is-unity-overlay' : ''}`}>
@@ -101,6 +102,12 @@ export default function App({ surfaceMode = APP_SURFACES.campus }) {
           '--homepage-traffic-bottom': `${homepageSceneControlsLayout.trafficBottom}px`,
           '--homepage-hint-left': `${homepageSceneControlsLayout.hintLeft}px`,
           '--homepage-hint-bottom': `${homepageSceneControlsLayout.hintBottom}px`,
+          '--campus-focus-left': `${focusViewport.scene.left}px`,
+          '--campus-focus-top': `${focusViewport.scene.top}px`,
+          '--campus-focus-width': `${focusViewport.scene.width}px`,
+          '--campus-focus-height': `${focusViewport.scene.height}px`,
+          '--campus-focus-control-top': `${focusViewport.controls.top}px`,
+          '--campus-focus-control-right': `${focusViewport.controls.right}px`,
           '--energy-detail-footer-top': `${detailWorkspaceLayout.footer.top - detailOriginTop}px`,
           '--energy-detail-footer-height': `${detailWorkspaceLayout.footer.height}px`,
           '--energy-detail-workspace-height': `${detailWorkspaceLayout.footer.bottom - detailOriginTop}px`,

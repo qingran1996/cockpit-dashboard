@@ -37,7 +37,8 @@ button, input, select { font: inherit; }
   position: relative;
   width: 100vw;
   height: 100vh;
-  overflow: hidden;
+  overflow: clip;
+  overscroll-behavior: none;
   background:
     radial-gradient(circle at 50% 44%, rgba(7, 90, 135, .26), transparent 46%),
     linear-gradient(rgba(14, 96, 135, .055) 1px, transparent 1px),
@@ -78,7 +79,7 @@ button, input, select { font: inherit; }
   left: 0;
   width: 1920px;
   height: 1080px;
-  overflow: hidden;
+  overflow: clip;
   transform-origin: top left;
   background:
     linear-gradient(90deg, rgba(1, 10, 20, .72), transparent 18%, transparent 82%, rgba(1, 10, 20, .72)),
@@ -252,10 +253,10 @@ button, input, select { font: inherit; }
 
 .dashboard-canvas.is-campus-focus .industrial-scene {
   z-index: 5;
-  left: 28px;
-  top: 28px;
-  width: 1864px;
-  height: 1024px;
+  left: var(--campus-focus-left, 0);
+  top: var(--campus-focus-top, 0);
+  width: var(--campus-focus-width, 1920px);
+  height: var(--campus-focus-height, 1080px);
   box-shadow:
     inset 0 0 0 1px rgba(25, 215, 255, .26),
     inset 0 0 42px rgba(15, 129, 180, .08),
@@ -357,7 +358,10 @@ button, input, select { font: inherit; }
 .campus-focus-toggle__status { width: 5px; height: 5px; border-radius: 50%; background: #2bdcff; box-shadow: 0 0 8px #2bdcff; opacity: .45; }
 .campus-focus-toggle[aria-pressed="true"] .campus-focus-toggle__status { opacity: 1; animation: nodePulse 1.8s ease-out infinite; }
 
-.dashboard-canvas.is-campus-focus .campus-focus-toggle { top: 42px; right: 42px; }
+.dashboard-canvas.is-campus-focus .campus-focus-toggle {
+  top: var(--campus-focus-control-top, 42px);
+  right: var(--campus-focus-control-right, 42px);
+}
 
 .industrial-scene::before {
   content: "";

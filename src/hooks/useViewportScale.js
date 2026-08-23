@@ -1,7 +1,11 @@
 import { useEffect, useState } from 'react'
 import { calculateViewportScale } from '../utils/layout.js'
 
-const getViewport = () => calculateViewportScale(window.innerWidth, window.innerHeight)
+const getViewport = () => ({
+  ...calculateViewportScale(window.innerWidth, window.innerHeight),
+  viewportWidth: window.innerWidth,
+  viewportHeight: window.innerHeight,
+})
 
 export function useViewportScale() {
   const [viewport, setViewport] = useState(getViewport)
