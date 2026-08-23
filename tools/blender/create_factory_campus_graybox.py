@@ -4116,11 +4116,6 @@ def create_factory_energy_networks(campus):
         segment["visibilityTier"] = "near"
         return segment
 
-    def tag_route(segment, route_id, route_order):
-        segment["networkRouteId"] = route_id
-        segment["networkRouteOrder"] = route_order
-        return segment
-
     def between(name, start, end, radius, mat, parent, energy_type, segment_id, source, target, flow_direction, role, square=False):
         start_vector = Vector(start)
         end_vector = Vector(end)
@@ -4144,9 +4139,9 @@ def create_factory_energy_networks(campus):
     )
     for route_id, source, target, points in water_routes:
         for index, (start, end) in enumerate(zip(points, points[1:]), start=1):
-            tag_route(between(f"ENERGY__water__{route_id}__pipe-{index:02d}", start, end, 0.09, water_pipe, roots["water"], "water", f"water-{route_id}-pipe-{index:02d}", source, target, "source-to-target", "blue-gray-pipe"), f"water-{route_id}", index * 2 - 1)
+            between(f"ENERGY__water__{route_id}__pipe-{index:02d}", start, end, 0.09, water_pipe, roots["water"], "water", f"water-{route_id}-pipe-{index:02d}", source, target, "source-to-target", "blue-gray-pipe")
         meter_point = points[min(1, len(points) - 1)]
-        tag_route(marker(f"ENERGY__water__{route_id}__meter", (meter_point[0], meter_point[1], meter_point[2] - 0.18), (0.30, 0.24, 0.34), water_meter, roots["water"], "water", f"water-{route_id}-meter", source, target, "source-to-target", "meter-node"), f"water-{route_id}", 2)
+        marker(f"ENERGY__water__{route_id}__meter", (meter_point[0], meter_point[1], meter_point[2] - 0.18), (0.30, 0.24, 0.34), water_meter, roots["water"], "water", f"water-{route_id}-meter", source, target, "source-to-target", "meter-node")
 
     power_routes = (
         ("production", "far-east-utility", "main-production-hall", ((-31.1, 4.2, 2.78), (-12.0, 4.2, 2.78), (3.0, 4.2, 2.78), (17.0, 1.1, 2.78))),
@@ -4155,9 +4150,9 @@ def create_factory_energy_networks(campus):
     )
     for route_id, source, target, points in power_routes:
         for index, (start, end) in enumerate(zip(points, points[1:]), start=1):
-            tag_route(between(f"ENERGY__power__{route_id}__tray-{index:02d}", start, end, 0.11, power_tray, roots["power"], "power", f"power-{route_id}-tray-{index:02d}", source, target, "source-to-target", "cable-tray", square=True), f"power-{route_id}", index)
+            between(f"ENERGY__power__{route_id}__tray-{index:02d}", start, end, 0.11, power_tray, roots["power"], "power", f"power-{route_id}-tray-{index:02d}", source, target, "source-to-target", "cable-tray", square=True)
         cabinet_point = points[-1]
-        tag_route(marker(f"ENERGY__power__{route_id}__cabinet", (cabinet_point[0], cabinet_point[1], cabinet_point[2] - 0.52), (0.46, 0.30, 0.74), power_cabinet, roots["power"], "power", f"power-{route_id}-cabinet", source, target, "source-to-target", "distribution-cabinet"), f"power-{route_id}", len(points))
+        marker(f"ENERGY__power__{route_id}__cabinet", (cabinet_point[0], cabinet_point[1], cabinet_point[2] - 0.52), (0.46, 0.30, 0.74), power_cabinet, roots["power"], "power", f"power-{route_id}-cabinet", source, target, "source-to-target", "distribution-cabinet")
 
     steam_routes = (
         ("production", "far-east-utility", "main-production-hall", ((-31.1, 2.8, 3.16), (-12.0, 2.8, 3.16), (3.0, 2.8, 3.16), (17.0, .9, 3.16))),
@@ -4166,11 +4161,11 @@ def create_factory_energy_networks(campus):
     )
     for route_id, source, target, points in steam_routes:
         for index, (start, end) in enumerate(zip(points, points[1:]), start=1):
-            tag_route(between(f"ENERGY__steam__{route_id}__pipe-{index:02d}", start, end, 0.12, steam_pipe, roots["steam"], "steam", f"steam-{route_id}-pipe-{index:02d}", source, target, "source-to-target", "insulated-steam-pipe"), f"steam-{route_id}", index * 2 - 1)
+            between(f"ENERGY__steam__{route_id}__pipe-{index:02d}", start, end, 0.12, steam_pipe, roots["steam"], "steam", f"steam-{route_id}-pipe-{index:02d}", source, target, "source-to-target", "insulated-steam-pipe")
         valve_point = points[min(1, len(points) - 1)]
-        tag_route(marker(f"ENERGY__steam__{route_id}__valve", valve_point, (0.38, 0.38, 0.20), steam_valve, roots["steam"], "steam", f"steam-{route_id}-valve", source, target, "source-to-target", "isolation-valve"), f"steam-{route_id}", 2)
+        marker(f"ENERGY__steam__{route_id}__valve", valve_point, (0.38, 0.38, 0.20), steam_valve, roots["steam"], "steam", f"steam-{route_id}-valve", source, target, "source-to-target", "isolation-valve")
         return_point = points[-1]
-        tag_route(marker(f"ENERGY__steam__{route_id}__condensate-return", (return_point[0], return_point[1], return_point[2] - 0.42), (0.28, 0.28, 0.40), steam_valve, roots["steam"], "steam", f"steam-{route_id}-condensate-return", target, source, "target-to-source", "condensate-return-marker"), f"steam-{route_id}-return", 1)
+        marker(f"ENERGY__steam__{route_id}__condensate-return", (return_point[0], return_point[1], return_point[2] - 0.42), (0.28, 0.28, 0.40), steam_valve, roots["steam"], "steam", f"steam-{route_id}-condensate-return", target, source, "target-to-source", "condensate-return-marker")
 
     campus["energyNetworkTwin"] = "water-power-steam-physical-routes-v1"
     return roots
