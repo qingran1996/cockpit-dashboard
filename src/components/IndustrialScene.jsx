@@ -26,6 +26,7 @@ function useReducedMotion() {
 
 export function IndustrialScene({
   focusMode = false,
+  activeEnergy = null,
   lightingMode = DEFAULT_CAMPUS_LIGHTING_MODE,
   onLightingModeChange = () => {},
   sunlightPercent = DEFAULT_CAMPUS_SUNLIGHT[lightingMode],
@@ -93,6 +94,7 @@ export function IndustrialScene({
     lightingProfile,
     trafficEnabled,
     focusMode,
+    activeEnergy,
   })
 
   const selected = selectedId ? buildingById.get(selectedId) : null

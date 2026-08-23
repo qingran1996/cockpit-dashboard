@@ -4079,6 +4079,98 @@ def create_pipe_racks(mats, campus):
     return group
 
 
+def create_factory_energy_networks(campus):
+    """Add semantically tagged utility routes that stay legible as physical PBR infrastructure."""
+    for name in ("ENERGY_NETWORK__water", "ENERGY_NETWORK__power", "ENERGY_NETWORK__steam"):
+        existing = bpy.data.objects.get(name)
+        if existing:
+            remove_object_tree(existing)
+    for name in (
+        "MAT__energy-water-pipe", "MAT__energy-water-meter", "MAT__energy-power-tray",
+        "MAT__energy-power-cabinet", "MAT__energy-steam-pipe", "MAT__energy-steam-valve",
+    ):
+        existing = bpy.data.materials.get(name)
+        if existing and existing.users == 0:
+            bpy.data.materials.remove(existing)
+
+    water_pipe = bpy.data.materials["MAT__pipe-structure"]
+    water_meter = bpy.data.materials["MAT__street-metal"]
+    power_tray = bpy.data.materials["MAT__pipe-structure"]
+    power_cabinet = bpy.data.materials["MAT__street-metal"]
+    steam_pipe = bpy.data.materials["MAT__concrete"]
+    steam_valve = bpy.data.materials["MAT__architectural-bronze"]
+
+    roots = {
+        "water": empty("ENERGY_NETWORK__water", parent=campus),
+        "power": empty("ENERGY_NETWORK__power", parent=campus),
+        "steam": empty("ENERGY_NETWORK__steam", parent=campus),
+    }
+
+    def tag(segment, energy_type, segment_id, source, target, flow_direction, role):
+        segment["energyType"] = energy_type
+        segment["networkSegmentId"] = segment_id
+        segment["sourceBuildingId"] = source
+        segment["targetBuildingId"] = target
+        segment["flowDirection"] = flow_direction
+        segment["utilityRole"] = role
+        segment["visibilityTier"] = "near"
+        return segment
+
+    def between(name, start, end, radius, mat, parent, energy_type, segment_id, source, target, flow_direction, role, square=False):
+        start_vector = Vector(start)
+        end_vector = Vector(end)
+        delta = end_vector - start_vector
+        rotation = delta.to_track_quat("Z", "Y").to_euler()
+        midpoint = (start_vector + end_vector) / 2
+        if square:
+            segment = box(name, (radius * 2, radius * 2, delta.length), midpoint, mat, parent, 0.025, rotation)
+        else:
+            segment = cylinder(name, radius, delta.length, midpoint, mat, parent, rotation=rotation, vertices=12)
+        return tag(segment, energy_type, segment_id, source, target, flow_direction, role)
+
+    def marker(name, point, size, mat, parent, energy_type, segment_id, source, target, flow_direction, role):
+        segment = box(name, size, point, mat, parent, 0.025)
+        return tag(segment, energy_type, segment_id, source, target, flow_direction, role)
+
+    water_routes = (
+        ("main", "far-east-utility", "main-production-hall", ((-31.1, 5.0, 2.36), (-12.0, 7.2, 2.36), (3.0, 7.2, 2.36), (17.0, 7.2, 2.36), (17.0, 1.2, 2.36))),
+        ("process", "far-east-utility", "east-process-hall", ((-12.0, 7.2, 2.36), (-12.0, -2.0, 2.36), (-20.0, -7.0, 2.36))),
+        ("lab", "far-east-utility", "laboratory", ((-12.0, 7.2, 2.36), (-23.0, 12.2, 2.36), (-31.4, 14.4, 2.36))),
+    )
+    for route_id, source, target, points in water_routes:
+        for index, (start, end) in enumerate(zip(points, points[1:]), start=1):
+            between(f"ENERGY__water__{route_id}__pipe-{index:02d}", start, end, 0.09, water_pipe, roots["water"], "water", f"water-{route_id}-pipe-{index:02d}", source, target, "source-to-target", "blue-gray-pipe")
+        meter_point = points[min(1, len(points) - 1)]
+        marker(f"ENERGY__water__{route_id}__meter", (meter_point[0], meter_point[1], meter_point[2] - 0.18), (0.30, 0.24, 0.34), water_meter, roots["water"], "water", f"water-{route_id}-meter", source, target, "source-to-target", "meter-node")
+
+    power_routes = (
+        ("production", "far-east-utility", "main-production-hall", ((-31.1, 4.2, 2.78), (-12.0, 4.2, 2.78), (3.0, 4.2, 2.78), (17.0, 1.1, 2.78))),
+        ("warehouse", "far-east-utility", "front-warehouse", ((-31.1, 4.2, 2.78), (-17.0, 4.2, 2.78), (-10.0, 10.0, 2.78), (-4.3, 14.1, 2.78))),
+        ("administration", "far-east-utility", "administration", ((-17.0, 4.2, 2.78), (1.0, 9.6, 2.78), (13.5, 14.6, 2.78))),
+    )
+    for route_id, source, target, points in power_routes:
+        for index, (start, end) in enumerate(zip(points, points[1:]), start=1):
+            between(f"ENERGY__power__{route_id}__tray-{index:02d}", start, end, 0.11, power_tray, roots["power"], "power", f"power-{route_id}-tray-{index:02d}", source, target, "source-to-target", "cable-tray", square=True)
+        cabinet_point = points[-1]
+        marker(f"ENERGY__power__{route_id}__cabinet", (cabinet_point[0], cabinet_point[1], cabinet_point[2] - 0.52), (0.46, 0.30, 0.74), power_cabinet, roots["power"], "power", f"power-{route_id}-cabinet", source, target, "source-to-target", "distribution-cabinet")
+
+    steam_routes = (
+        ("production", "far-east-utility", "main-production-hall", ((-31.1, 2.8, 3.16), (-12.0, 2.8, 3.16), (3.0, 2.8, 3.16), (17.0, .9, 3.16))),
+        ("processing", "far-east-utility", "central-processing-hall", ((-12.0, 2.8, 3.16), (-5.0, -4.0, 3.16), (-3.6, -8.2, 3.16))),
+        ("laboratory", "far-east-utility", "laboratory", ((-12.0, 2.8, 3.16), (-21.0, 7.0, 3.16), (-31.4, 13.6, 3.16))),
+    )
+    for route_id, source, target, points in steam_routes:
+        for index, (start, end) in enumerate(zip(points, points[1:]), start=1):
+            between(f"ENERGY__steam__{route_id}__pipe-{index:02d}", start, end, 0.12, steam_pipe, roots["steam"], "steam", f"steam-{route_id}-pipe-{index:02d}", source, target, "source-to-target", "insulated-steam-pipe")
+        valve_point = points[min(1, len(points) - 1)]
+        marker(f"ENERGY__steam__{route_id}__valve", valve_point, (0.38, 0.38, 0.20), steam_valve, roots["steam"], "steam", f"steam-{route_id}-valve", source, target, "source-to-target", "isolation-valve")
+        return_point = points[-1]
+        marker(f"ENERGY__steam__{route_id}__condensate-return", (return_point[0], return_point[1], return_point[2] - 0.42), (0.28, 0.28, 0.40), steam_valve, roots["steam"], "steam", f"steam-{route_id}-condensate-return", target, source, "target-to-source", "condensate-return-marker")
+
+    campus["energyNetworkTwin"] = "water-power-steam-physical-routes-v1"
+    return roots
+
+
 def create_industrial_process_core(mats, campus):
     """Build a readable chemical-plant process yard without changing the building plan."""
     group = empty("SITE__process-core", (-22.0, -12.7, 0), campus)
@@ -6105,6 +6197,7 @@ def main() -> None:
     create_site_composition(mats, campus)
     create_campus_operational_story(mats, campus)
     create_factory_operational_realism(mats, campus)
+    create_factory_energy_networks(campus)
     configure_ground_uv_tiling()
     configure_architectural_uv_tiling()
     asset_summary = optimize_asset_reuse_and_visibility(campus)
