@@ -38,6 +38,7 @@ export default function App({ surfaceMode = APP_SURFACES.campus }) {
   }
 
   const openEnergyDetail = (resource) => {
+    setCampusFocus(false)
     dispatchEnergyDetail({ type: 'open', resource })
   }
 
@@ -120,7 +121,6 @@ export default function App({ surfaceMode = APP_SURFACES.campus }) {
         ) : (
           <IndustrialScene
             focusMode={campusFocus}
-            activeEnergy={energyDetail?.resource ?? null}
             lightingMode={campusLightingMode}
             onLightingModeChange={setCampusLightingMode}
             sunlightPercent={activeSunlight}

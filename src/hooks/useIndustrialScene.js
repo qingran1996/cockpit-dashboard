@@ -19,8 +19,6 @@ import { createCampusMaterialController } from '../scene/campusMaterialLab.js'
 import { configureCampusRenderer, createCampusPostProcessing } from '../scene/campusPostProcessing.js'
 import { DEFAULT_CAMPUS_LIGHTING_MODE, deriveCampusOrbitPolicy } from '../scene/campusViewDefaults.js'
 import { resolveCampusSunlight } from '../scene/campusSunlight.js'
-import { collectCampusEnergyNetworks } from '../scene/campusEnergyNetworkRegistry.js'
-import { updateCampusEnergyNetworks } from '../scene/campusEnergyNetworkAnimation.js'
 
 const INITIAL_CAMERA = new THREE.Vector3(...initialCameraView.position)
 const INITIAL_TARGET = new THREE.Vector3(...initialCameraView.target)
@@ -54,7 +52,7 @@ function findBuildingGroup(object) {
   return current
 }
 
-export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMotion, floorView, lightingMode = DEFAULT_CAMPUS_LIGHTING_MODE, sunlightPercent, lightingProfile, trafficEnabled = true, focusMode = false, activeEnergy = null }) {
+export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMotion, floorView, lightingMode = DEFAULT_CAMPUS_LIGHTING_MODE, sunlightPercent, lightingProfile, trafficEnabled = true, focusMode = false }) {
   const [webglError, setWebglError] = useState(false)
   const resetRef = useRef(() => {})
   const focusFloorRef = useRef(() => {})
@@ -69,8 +67,6 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
   const materialControllerRef = useRef(null)
   const materialEditsRef = useRef(new Map())
   const trafficEnabledRef = useRef(trafficEnabled)
-  const activeEnergyRef = useRef(activeEnergy)
-  const energyNetworksRef = useRef(new Map([['water', []], ['power', []], ['steam', []]]))
 
   const resetView = useCallback(() => resetRef.current(), [])
   const focusFloor = useCallback((buildingId, floorId) => focusFloorRef.current(buildingId, floorId), [])
@@ -104,10 +100,6 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
   useEffect(() => {
     trafficEnabledRef.current = trafficEnabled
   }, [trafficEnabled])
-
-  useEffect(() => {
-    activeEnergyRef.current = activeEnergy
-  }, [activeEnergy])
 
   useEffect(() => {
     focusModeRef.current = focusMode
@@ -190,7 +182,6 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
         applyCampusMaterialQuality({ root: park.root, renderer })
         materialControllerRef.current?.dispose()
         materialControllerRef.current = createCampusMaterialController(park.root)
-        energyNetworksRef.current = collectCampusEnergyNetworks(park.root)
         materialEditsRef.current.forEach(({ buildingId, scope, settings }) => {
           materialControllerRef.current.apply(buildingId, scope, settings)
         })
@@ -338,7 +329,6 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
       updateVehicleAnimations(park.animated, seconds, reducedMotion, trafficEnabledRef.current)
       updatePersonAnimations(park.animated, seconds, reducedMotion)
       updateGateAnimations(park.animated, seconds, reducedMotion)
-      updateCampusEnergyNetworks(energyNetworksRef.current, { activeEnergy: activeEnergyRef.current, reducedMotion }, seconds)
       updateInspectionLighting()
 
       if (focusTransition) {
@@ -392,8 +382,6 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
       setBuildingHighlight(hovered, false)
       controls.dispose()
       inspectionLighting.dispose()
-      updateCampusEnergyNetworks(energyNetworksRef.current, { activeEnergy: null, reducedMotion: true }, 0)
-      energyNetworksRef.current = new Map([['water', []], ['power', []], ['steam', []]])
       materialControllerRef.current?.dispose()
       materialControllerRef.current = null
       park.dispose()

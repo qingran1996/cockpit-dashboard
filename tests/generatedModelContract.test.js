@@ -283,12 +283,3 @@ test('every interactive building has a credible rear service envelope', () => {
     assert.ok(roles.includes('rear-service-pad'), `${id} is missing a protected rear service pad`)
   }
 })
-
-test('formal campus exports connected water power and steam networks', () => {
-  const nodes = readGlbJson(MODEL_PATH).nodes ?? []
-  for (const energyType of ['water', 'power', 'steam']) {
-    const segments = nodes.filter((node) => node.extras?.energyType === energyType)
-    assert.ok(segments.length >= 8, energyType)
-    assert.ok(segments.every((node) => node.extras?.networkSegmentId))
-  }
-})
