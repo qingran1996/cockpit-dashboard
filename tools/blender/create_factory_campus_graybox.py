@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import argparse
+import array
+import hashlib
 import math
 import os
+import re
 import sys
 
 import bmesh
@@ -970,6 +973,204 @@ def linked_mesh_instance(name, prototype, location, parent, scale=(1, 1, 1), rot
     obj.scale = scale
     obj.rotation_euler = rotation
     return obj
+
+
+MATERIAL_REUSE_ALIASES = {
+    "MAT__process-wall": "MAT__factory-wall",
+    "MAT__utility-wall": "MAT__factory-wall",
+    "MAT__laboratory-wall": "MAT__factory-wall",
+    "MAT__process-panel-light": "MAT__factory-panel-light",
+    "MAT__process-panel-mid": "MAT__factory-panel-mid",
+    "MAT__utility-panel-light": "MAT__factory-panel-light",
+    "MAT__utility-panel-mid": "MAT__factory-panel-mid",
+    "MAT__laboratory-panel-light": "MAT__factory-panel-light",
+    "MAT__laboratory-panel-mid": "MAT__factory-panel-mid",
+    "MAT__forest-foliage": "MAT__foliage",
+    "MAT__forest-foliage-light": "MAT__foliage-light",
+    "MAT__entry-paving": "MAT__walkway",
+    "MAT__sidewalk": "MAT__walkway",
+    "MAT__parking-surface": "MAT__asphalt",
+    "MAT__aged-asphalt": "MAT__asphalt",
+    "MAT__tactile-paving": "MAT__safety-yellow",
+    "MAT__ground-oil-mark": "MAT__ground-tire-wear",
+    "MAT__ground-drain-discoloration": "MAT__ground-contact-transition",
+    "MAT__ground-dock-abrasion": "MAT__ground-tire-wear",
+    "MAT__ground-asphalt-repair": "MAT__asphalt-repair-warm",
+    "MAT__recycling-blue": "MAT__blue-accent",
+    "MAT__utility-iron": "MAT__vent",
+}
+
+
+def _material_base_name(name):
+    return re.sub(r"\.\d{3}$", "", name)
+
+
+def consolidate_reusable_materials():
+    """Merge small, visually equivalent finish variants while preserving primary PBR families."""
+    canonical = {}
+    for material_value in bpy.data.materials:
+        canonical.setdefault(_material_base_name(material_value.name), material_value)
+    replacements = {
+        source: canonical[target]
+        for source, target in MATERIAL_REUSE_ALIASES.items()
+        if source in canonical and target in canonical
+    }
+    replaced_slots = 0
+    for obj in bpy.context.scene.objects:
+        if obj.type != "MESH":
+            continue
+        for slot in obj.material_slots:
+            if not slot.material:
+                continue
+            replacement = replacements.get(_material_base_name(slot.material.name))
+            if replacement and replacement != slot.material:
+                slot.material = replacement
+                replaced_slots += 1
+    for material_value in list(bpy.data.materials):
+        if material_value.users == 0:
+            bpy.data.materials.remove(material_value)
+    return replaced_slots
+
+
+def _foreach_bytes(collection, attribute, typecode, value_count):
+    values = array.array(typecode, [0]) * value_count
+    if value_count:
+        collection.foreach_get(attribute, values)
+    return values.tobytes()
+
+
+def _mesh_geometry_signature(mesh):
+    if mesh.shape_keys or mesh.color_attributes:
+        return None
+    digest = hashlib.blake2b(digest_size=20)
+    digest.update(f"{len(mesh.vertices)}:{len(mesh.edges)}:{len(mesh.loops)}:{len(mesh.polygons)}".encode())
+    digest.update(_foreach_bytes(mesh.vertices, "co", "f", len(mesh.vertices) * 3))
+    digest.update(_foreach_bytes(mesh.edges, "vertices", "i", len(mesh.edges) * 2))
+    digest.update(_foreach_bytes(mesh.loops, "vertex_index", "i", len(mesh.loops)))
+    for attribute in ("loop_start", "loop_total", "material_index"):
+        digest.update(_foreach_bytes(mesh.polygons, attribute, "i", len(mesh.polygons)))
+    for uv_layer in mesh.uv_layers:
+        digest.update(uv_layer.name.encode())
+        digest.update(_foreach_bytes(uv_layer.data, "uv", "f", len(uv_layer.data) * 2))
+    digest.update("|".join(_material_base_name(mat.name) if mat else "" for mat in mesh.materials).encode())
+    digest.update(repr(sorted((key, mesh[key]) for key in mesh.keys())).encode())
+    return digest.hexdigest()
+
+
+def _reusable_modifier_signature(obj):
+    if not obj.modifiers:
+        return ("NONE",)
+    if any(modifier.type != "BEVEL" for modifier in obj.modifiers):
+        return None
+    return tuple(
+        (
+            modifier.type,
+            round(modifier.width, 6),
+            modifier.segments,
+            modifier.limit_method,
+            getattr(modifier, "affect", "EDGES"),
+            round(getattr(modifier, "angle_limit", 0.0), 6),
+            getattr(modifier, "offset_type", "OFFSET"),
+            bool(getattr(modifier, "clamp_overlap", False)),
+        )
+        for modifier in obj.modifiers
+    )
+
+
+def _apply_reusable_modifiers(obj):
+    if not obj.modifiers:
+        return
+    obj.data = obj.data.copy()
+    bpy.ops.object.select_all(action="DESELECT")
+    obj.hide_set(False)
+    obj.select_set(True)
+    bpy.context.view_layer.objects.active = obj
+    for modifier in list(obj.modifiers):
+        bpy.ops.object.modifier_apply(modifier=modifier.name)
+
+
+def deduplicate_reusable_meshes():
+    """Link byte-identical meshes, baking identical bevel stacks once per prototype."""
+    groups = {}
+    for obj in bpy.context.scene.objects:
+        if obj.type != "MESH" or obj.vertex_groups:
+            continue
+        geometry_signature = _mesh_geometry_signature(obj.data)
+        modifier_signature = _reusable_modifier_signature(obj)
+        if geometry_signature is None or modifier_signature is None:
+            continue
+        groups.setdefault((geometry_signature, modifier_signature), []).append(obj)
+
+    reused_objects = 0
+    reusable_groups = 0
+    for (geometry_signature, modifier_signature), objects in groups.items():
+        if len(objects) < 2:
+            continue
+        prototype = objects[0]
+        if modifier_signature != ("NONE",):
+            _apply_reusable_modifiers(prototype)
+        prototype_mesh = prototype.data
+        group_id = geometry_signature[:12]
+        prototype["assetReuseGroup"] = group_id
+        prototype["assetReuseRole"] = "prototype"
+        for obj in objects[1:]:
+            for modifier in list(obj.modifiers):
+                obj.modifiers.remove(modifier)
+            obj.data = prototype_mesh
+            obj["assetReuseGroup"] = group_id
+            obj["assetReuseRole"] = "instance"
+            reused_objects += 1
+        reusable_groups += 1
+
+    for mesh in list(bpy.data.meshes):
+        if mesh.users == 0:
+            bpy.data.meshes.remove(mesh)
+    return reusable_groups, reused_objects
+
+
+def tag_distance_visibility_tiers():
+    near_tokens = (
+        "shadow-joint", "pressed-batten", "roof-rib", "wall-rib", "downpipe", "storm-drain",
+        "paving-joint", "ground-", "sports-wire", "fence-wire", "weathering", "patina", "abrasion",
+    )
+    mid_tokens = (
+        "tree-trunk", "branch", "street-", "bench", "bollard", "lamp", "sign", "bin-", "grate",
+        "gutter", "curb", "flower", "ornamental", "understory", "person", "worker", "pedestrian",
+    )
+    counts = {"near": 0, "mid": 0}
+    for obj in bpy.context.scene.objects:
+        if obj.type != "MESH":
+            continue
+        name = obj.name.lower()
+        if obj.get("detailTier") == "micro" or obj.get("vegetationDetail") == "branch-structure" or any(token in name for token in near_tokens):
+            tier = "near"
+        elif any(token in name for token in mid_tokens):
+            tier = "mid"
+        else:
+            continue
+        obj["visibilityTier"] = tier
+        counts[tier] += 1
+    return counts
+
+
+def optimize_asset_reuse_and_visibility(campus):
+    material_slots = consolidate_reusable_materials()
+    reusable_groups, reused_objects = deduplicate_reusable_meshes()
+    visibility_counts = tag_distance_visibility_tiers()
+    campus["assetEfficiencyPass"] = "geometry-signature-v1"
+    campus["assetReuseGroups"] = reusable_groups
+    campus["assetReuseInstances"] = reused_objects
+    campus["visibilityNearCount"] = visibility_counts["near"]
+    campus["visibilityMidCount"] = visibility_counts["mid"]
+    campus["consolidatedMaterialSlots"] = material_slots
+    bpy.context.scene["assetEfficiencyPass"] = "geometry-signature-v1"
+    return {
+        "groups": reusable_groups,
+        "instances": reused_objects,
+        "near": visibility_counts["near"],
+        "mid": visibility_counts["mid"],
+        "material_slots": material_slots,
+    }
 
 
 def mark_interior(obj, role="interior-prop"):
@@ -5584,6 +5785,7 @@ def main() -> None:
     create_factory_operational_realism(mats, campus)
     configure_ground_uv_tiling()
     configure_architectural_uv_tiling()
+    asset_summary = optimize_asset_reuse_and_visibility(campus)
     create_editor_camera_and_lights()
 
     scene = bpy.context.scene
@@ -5613,7 +5815,11 @@ def main() -> None:
         export_lights=False,
         export_apply=True,
     )
-    print(f"GRAYBOX_EXPORT blend={blend_output} glb={glb_output} buildings={len(BUILDINGS)}")
+    print(
+        f"GRAYBOX_EXPORT blend={blend_output} glb={glb_output} buildings={len(BUILDINGS)} "
+        f"reuse={asset_summary['instances']} groups={asset_summary['groups']} "
+        f"visibility={asset_summary['near']}/{asset_summary['mid']}"
+    )
 
 
 if __name__ == "__main__":

@@ -119,3 +119,32 @@ test('updates the live quality tier only when the camera crosses a distance boun
   controller.refresh()
   assert.equal(lateMicro.visible, false, 'a newly loaded GLB must receive the current distance policy')
 })
+
+test('maps camera distance to explicit near mid and far visibility tiers', async () => {
+  const module = await import('../src/scene/campusMaterialQuality.js').catch(() => ({}))
+  assert.equal(typeof module.resolveCampusVisibilityTier, 'function', 'visibility-tier resolver is missing')
+
+  assert.equal(module.resolveCampusVisibilityTier(54, false), 'near')
+  assert.equal(module.resolveCampusVisibilityTier(102, false), 'mid')
+  assert.equal(module.resolveCampusVisibilityTier(140, false), 'far')
+  assert.equal(module.resolveCampusVisibilityTier(140, true), 'near')
+
+  const root = new THREE.Group()
+  const near = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshStandardMaterial())
+  near.userData.visibilityTier = 'near'
+  const mid = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshStandardMaterial())
+  mid.userData.visibilityTier = 'mid'
+  const far = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshStandardMaterial())
+  far.userData.visibilityTier = 'far'
+  root.add(near, mid, far)
+
+  module.applyCampusDistanceQuality(root, module.deriveCampusDistanceQuality(102, false))
+  assert.equal(near.visible, false)
+  assert.equal(mid.visible, true)
+  assert.equal(far.visible, true)
+
+  module.applyCampusDistanceQuality(root, module.deriveCampusDistanceQuality(54, false))
+  assert.equal(near.visible, true)
+  assert.equal(mid.visible, true)
+  assert.equal(far.visible, true)
+})

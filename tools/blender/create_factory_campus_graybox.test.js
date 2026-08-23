@@ -9,7 +9,20 @@ import { buildingRegistry } from '../../src/scene/buildingRegistry.js'
 const BLENDER = '/Applications/Blender.app/Contents/MacOS/Blender'
 const BLENDER_TIMEOUT = 1_200_000
 const GENERATOR = new URL('./create_factory_campus_graybox.py', import.meta.url).pathname
+const ASSET_EFFICIENCY_UPDATER = new URL('./update_factory_asset_efficiency.py', import.meta.url).pathname
 let generatedFixture
+
+test('asset-efficiency pass is reproducible from both the generator and incremental updater', () => {
+  const generatorSource = readFileSync(GENERATOR, 'utf8')
+  const updaterSource = readFileSync(ASSET_EFFICIENCY_UPDATER, 'utf8')
+
+  assert.match(generatorSource, /def optimize_asset_reuse_and_visibility\(campus\):/)
+  assert.match(generatorSource, /deduplicate_reusable_meshes\(\)/)
+  assert.match(generatorSource, /tag_distance_visibility_tiers\(\)/)
+  assert.match(generatorSource, /campus\["assetEfficiencyPass"\] = "geometry-signature-v1"/)
+  assert.match(updaterSource, /generator\.optimize_asset_reuse_and_visibility\(campus\)/)
+  assert.match(updaterSource, /export_extras=True/)
+})
 
 function getGeneratedFixture() {
   if (generatedFixture) return generatedFixture

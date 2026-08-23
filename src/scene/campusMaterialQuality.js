@@ -3,6 +3,7 @@ import * as THREE from 'three'
 const COLOR_TEXTURE_KEYS = ['map', 'emissiveMap']
 const DATA_TEXTURE_KEYS = ['normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'alphaMap']
 const ALL_TEXTURE_KEYS = [...COLOR_TEXTURE_KEYS, ...DATA_TEXTURE_KEYS]
+const VISIBILITY_TIER_RANK = Object.freeze({ near: 0, mid: 1, far: 2 })
 
 function materialEntries(object) {
   return (Array.isArray(object.material) ? object.material : [object.material]).filter(Boolean)
@@ -64,14 +65,25 @@ export function deriveCampusDistanceQuality(distance, reducedMotion = false) {
   return { tier: 'high', microdetails: true, branchStructure: true, postProcessing: true, anisotropy: 8 }
 }
 
+export function resolveCampusVisibilityTier(distance, focused = false) {
+  if (focused || distance <= 88) return 'near'
+  if (distance <= 120) return 'mid'
+  return 'far'
+}
+
+function allowsVisibilityTier(policy, visibilityTier) {
+  if (!Object.hasOwn(VISIBILITY_TIER_RANK, visibilityTier)) return true
+  const activeTier = policy.tier === 'high' ? 'near' : policy.tier === 'balanced' ? 'mid' : 'far'
+  return VISIBILITY_TIER_RANK[visibilityTier] >= VISIBILITY_TIER_RANK[activeTier]
+}
+
 export function applyCampusDistanceQuality(root, policy) {
   root.traverse((object) => {
     if (object.userData.qualityBaseVisible === undefined) object.userData.qualityBaseVisible = object.visible
-    if (object.userData.detailTier === 'micro') {
-      object.visible = object.userData.qualityBaseVisible && policy.microdetails
-    } else if (object.userData.vegetationDetail === 'branch-structure') {
-      object.visible = object.userData.qualityBaseVisible && policy.branchStructure
-    }
+    const tierVisible = allowsVisibilityTier(policy, object.userData.visibilityTier)
+    const microVisible = object.userData.detailTier !== 'micro' || policy.microdetails
+    const branchVisible = object.userData.vegetationDetail !== 'branch-structure' || policy.branchStructure
+    object.visible = object.userData.qualityBaseVisible && tierVisible && microVisible && branchVisible
     materialEntries(object).forEach((material) => {
       ALL_TEXTURE_KEYS.forEach((key) => {
         const texture = material[key]

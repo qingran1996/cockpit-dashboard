@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { readFileSync, statSync } from 'node:fs'
 
 const MODEL_PATH = process.env.GENERATED_MODEL_PATH || new URL('../public/models/factory-campus-graybox.glb', import.meta.url)
 const BUILDING_IDS = [
@@ -26,6 +26,25 @@ function nodeDimensions(gltf, nodeName) {
   const scale = node.scale || [1, 1, 1]
   return accessor.max.map((value, index) => (value - accessor.min[index]) * Math.abs(scale[index]))
 }
+
+test('formal campus reuses repeated assets within the render budget', () => {
+  const gltf = readGlbJson(MODEL_PATH)
+  const meshCount = (gltf.meshes ?? []).length
+  const materialCount = (gltf.materials ?? []).length
+  const campusRoot = (gltf.nodes ?? []).find(({ name }) => name === 'FactoryCampusGraybox')
+  const visibilityTiers = (gltf.nodes ?? []).reduce((counts, node) => {
+    const tier = node.extras?.visibilityTier
+    if (tier) counts[tier] = (counts[tier] ?? 0) + 1
+    return counts
+  }, {})
+
+  assert.ok(meshCount <= 3800, `expected at most 3800 exported meshes, received ${meshCount}`)
+  assert.ok(materialCount <= 100, `expected at most 100 exported materials, received ${materialCount}`)
+  assert.ok(statSync(MODEL_PATH).size <= 32 * 1024 * 1024, 'formal campus exceeds the 32 MiB reuse target')
+  assert.equal(campusRoot?.extras?.assetEfficiencyPass, 'geometry-signature-v1')
+  assert.ok((visibilityTiers.near ?? 0) >= 100, `expected near-detail visibility tags, received ${visibilityTiers.near ?? 0}`)
+  assert.ok((visibilityTiers.mid ?? 0) >= 40, `expected mid-detail visibility tags, received ${visibilityTiers.mid ?? 0}`)
+})
 
 test('generated GLB carries tactile facade joints and pressed battens', () => {
   const gltf = readGlbJson(MODEL_PATH)
