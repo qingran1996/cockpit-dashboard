@@ -10,6 +10,8 @@ import { DEFAULT_CAMPUS_LIGHTING_MODE } from '../scene/campusViewDefaults.js'
 import { DEFAULT_CAMPUS_SUNLIGHT } from '../scene/campusSunlight.js'
 import { CAMPUS_LIGHTING_PARAMETER_GROUPS } from '../scene/campusLightingProfiles.js'
 import { createBuildingMaterialSettings, updateBuildingMaterialSettings } from '../scene/campusMaterialLab.js'
+import { DEFAULT_CAMPUS_RENDER_STYLE } from '../scene/campusRenderStyle.js'
+import { CampusTourControl } from './CampusTourControl.js'
 
 function useReducedMotion() {
   const [reduced, setReduced] = useState(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches)
@@ -28,6 +30,8 @@ export function IndustrialScene({
   focusMode = false,
   lightingMode = DEFAULT_CAMPUS_LIGHTING_MODE,
   onLightingModeChange = () => {},
+  renderStyle = DEFAULT_CAMPUS_RENDER_STYLE,
+  onRenderStyleChange = () => {},
   sunlightPercent = DEFAULT_CAMPUS_SUNLIGHT[lightingMode],
   onSunlightChange = () => {},
   lightingProfile,
@@ -82,13 +86,26 @@ export function IndustrialScene({
     exploded: floorsExploded,
     focusedFloorId,
   }), [selectedId, floorsExploded, focusedFloorId])
-  const { webglError, resetView, focusFloor, applyBuildingMaterial, resetBuildingMaterial } = useIndustrialScene({
+  const {
+    webglError,
+    resetView,
+    focusFloor,
+    applyBuildingMaterial,
+    resetBuildingMaterial,
+    tourState,
+    startTour,
+    toggleTour,
+    previousTourStop,
+    nextTourStop,
+    stopTour,
+  } = useIndustrialScene({
     containerRef: canvasRef,
     onHover: handleHover,
     onSelect: handleSelect,
     reducedMotion,
     floorView,
     lightingMode,
+    renderStyle,
     sunlightPercent,
     lightingProfile,
     trafficEnabled,
@@ -123,6 +140,13 @@ export function IndustrialScene({
     handleSelect(null)
     resetView()
   }, [handleSelect, resetView])
+
+  const handleStartTour = useCallback(() => {
+    setLightingPanelOpen(false)
+    setMaterialLabOpen(false)
+    handleSelect(null)
+    startTour()
+  }, [handleSelect, startTour])
 
   const handleOpenMaterialLab = useCallback(() => {
     if (!selected) return
@@ -192,12 +216,22 @@ export function IndustrialScene({
       )}
 
       <div className="scene-controls-tip"><span>拖拽旋转</span><i />滚轮缩放</div>
+      <CampusTourControl
+        state={tourState}
+        onStart={handleStartTour}
+        onToggle={toggleTour}
+        onPrevious={previousTourStop}
+        onNext={nextTourStop}
+        onExit={stopTour}
+      />
       <TrafficDemoToggle active={trafficEnabled} onToggle={() => setTrafficEnabled((value) => !value)} />
       <SunlightControl
         value={sunlightPercent}
         mode={lightingMode}
         onChange={onSunlightChange}
         onModeChange={onLightingModeChange}
+        renderStyle={renderStyle}
+        onRenderStyleChange={onRenderStyleChange}
         advancedOpen={lightingPanelOpen}
         onAdvancedToggle={() => {
           setMaterialLabOpen(false)

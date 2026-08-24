@@ -15,13 +15,15 @@ import { chartOptions, dashboardData, energyDetailData } from './data/dashboard.
 import { resolveDashboardPresentation } from './dashboardPresentation.js'
 import { resolveEnergyDetail } from './energyDetailState.js'
 import { resolveEnergyDetailWorkspaceLayout } from './energyDetailWorkspaceLayout.js'
-import { resolveHomepageSceneControlsLayout } from './homepagePanelLayout.js'
+import { resolveHomepagePanelLayout, resolveHomepageSceneControlsLayout } from './homepagePanelLayout.js'
 import { useViewportScale } from './hooks/useViewportScale.js'
 import { DEFAULT_CAMPUS_LIGHTING_MODE, resolveCampusFocusViewport } from './scene/campusViewDefaults.js'
 import { DEFAULT_CAMPUS_SUNLIGHT, resolveCampusSunlight, updateCampusSunlight } from './scene/campusSunlight.js'
 import { createCampusLightingProfiles, resetCampusLightingProfile, resolveCampusLightingProfile, updateCampusLightingProfile } from './scene/campusLightingProfiles.js'
+import { DEFAULT_CAMPUS_RENDER_STYLE } from './scene/campusRenderStyle.js'
 
 const detailWorkspaceLayout = resolveEnergyDetailWorkspaceLayout()
+const homepagePanelLayout = resolveHomepagePanelLayout()
 const homepageSceneControlsLayout = resolveHomepageSceneControlsLayout()
 const detailOriginTop = 118
 
@@ -30,6 +32,7 @@ export default function App({ surfaceMode = APP_SURFACES.campus }) {
   const [campusFocus, setCampusFocus] = useState(false)
   const [energyDetail, setEnergyDetail] = useState(null)
   const [campusLightingMode, setCampusLightingMode] = useState(DEFAULT_CAMPUS_LIGHTING_MODE)
+  const [campusRenderStyle, setCampusRenderStyle] = useState(DEFAULT_CAMPUS_RENDER_STYLE)
   const [campusSunlight, setCampusSunlight] = useState(() => ({ ...DEFAULT_CAMPUS_SUNLIGHT }))
   const [campusLightingProfiles, setCampusLightingProfiles] = useState(createCampusLightingProfiles)
 
@@ -86,6 +89,9 @@ export default function App({ surfaceMode = APP_SURFACES.campus }) {
           '--energy-detail-side-height': `${detailWorkspaceLayout.leftZone.height}px`,
           '--energy-detail-backdrop-width': `${detailWorkspaceLayout.centerBackdrop.widthPercent}%`,
           '--energy-detail-backdrop-height': `${detailWorkspaceLayout.centerBackdrop.height}px`,
+          '--energy-detail-side-width': `${detailWorkspaceLayout.horizontal.sideWidth}px`,
+          '--energy-detail-center-left': `${detailWorkspaceLayout.horizontal.centerLeft}px`,
+          '--energy-detail-center-width': `${detailWorkspaceLayout.horizontal.centerWidth}px`,
           '--energy-detail-lighting-right': `${detailWorkspaceLayout.sceneControls.lightingRight}px`,
           '--energy-detail-lighting-bottom': `${detailWorkspaceLayout.sceneControls.lightingBottom}px`,
           '--energy-detail-reset-right': `${detailWorkspaceLayout.sceneControls.resetRight}px`,
@@ -102,6 +108,12 @@ export default function App({ surfaceMode = APP_SURFACES.campus }) {
           '--homepage-traffic-bottom': `${homepageSceneControlsLayout.trafficBottom}px`,
           '--homepage-hint-left': `${homepageSceneControlsLayout.hintLeft}px`,
           '--homepage-hint-bottom': `${homepageSceneControlsLayout.hintBottom}px`,
+          '--homepage-side-width': `${homepagePanelLayout.side.width}px`,
+          '--homepage-center-left': `${homepagePanelLayout.center.left}px`,
+          '--homepage-center-width': `${homepagePanelLayout.center.width}px`,
+          '--homepage-pulse-left': `${homepagePanelLayout.pulse.left}px`,
+          '--homepage-pulse-width': `${homepagePanelLayout.pulse.width}px`,
+          '--homepage-focus-toggle-right': `${homepagePanelLayout.focusToggleRight}px`,
           '--campus-focus-left': `${focusViewport.scene.left}px`,
           '--campus-focus-top': `${focusViewport.scene.top}px`,
           '--campus-focus-width': `${focusViewport.scene.width}px`,
@@ -123,6 +135,8 @@ export default function App({ surfaceMode = APP_SURFACES.campus }) {
             focusMode={campusFocus}
             lightingMode={campusLightingMode}
             onLightingModeChange={setCampusLightingMode}
+            renderStyle={campusRenderStyle}
+            onRenderStyleChange={setCampusRenderStyle}
             sunlightPercent={activeSunlight}
             onSunlightChange={(value) => setCampusSunlight((current) => updateCampusSunlight(current, campusLightingMode, value))}
             lightingProfile={activeLightingProfile}

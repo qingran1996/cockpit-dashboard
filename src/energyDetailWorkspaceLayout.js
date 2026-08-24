@@ -3,13 +3,18 @@ const band = (top, height) => ({ top, height, bottom: top + height })
 export function resolveEnergyDetailWorkspaceLayout() {
   const alignedSideZone = band(204, 611)
   return {
+    horizontal: {
+      sideWidth: 380,
+      centerLeft: 399,
+      centerWidth: 1066,
+    },
     scene: band(153, 516),
     tabs: band(99, 44),
     metrics: band(669, 90),
     diagnostics: band(759, 56),
     leftZone: alignedSideZone,
     rightZone: { ...alignedSideZone },
-    centerBackdrop: { widthPercent: 54.5, height: 551 },
+    centerBackdrop: { widthPercent: 57.2, height: 551 },
     sceneControls: {
       lightingRight: 76,
       lightingBottom: 16,

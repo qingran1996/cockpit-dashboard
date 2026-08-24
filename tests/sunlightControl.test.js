@@ -12,6 +12,8 @@ test('renders an accessible sunlight instrument above the lighting modes', async
     mode: 'evening',
     onChange: () => {},
     onModeChange: () => {},
+    renderStyle: 'unity',
+    onRenderStyleChange: () => {},
     advancedOpen: false,
     onAdvancedToggle: () => {},
   }))
@@ -27,4 +29,8 @@ test('renders an accessible sunlight instrument above the lighting modes', async
   assert.match(markup, /aria-pressed="true"/)
   assert.match(markup, /aria-label="打开高级光照参数"/)
   assert.match(markup, /aria-expanded="false"/)
+  assert.match(markup, /aria-label="厂区渲染风格"/)
+  assert.match(markup, />科技</)
+  assert.match(markup, />Unity</)
+  assert.match(markup, /aria-label="切换为 Unity 风格" aria-pressed="true"/)
 })

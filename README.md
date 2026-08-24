@@ -124,6 +124,8 @@ Web 日间呈现使用 `1.34` 曝光和 `1.38` 半球环境填充，在保持日
 
 选中建筑后可从楼层剖面打开“材质实验室”，在不修改 Blender 源文件或 GLB 几何的情况下预览现有五套内嵌 PBR 材质族：涂层金属板、仓库夹芯板、浅色石灰石、建筑混凝土和镀锌屋面板。墙面、屋面与勒脚使用各自符合构造逻辑的候选材质；每次编辑都会为当前建筑克隆独立的 Base Color、Normal、Roughness 与 AO 纹理，因此不会影响其他建筑或共享模板。操作员可在安全范围内调整色调、粗糙度、法线强度、AO、纹理缩放和单体环境反射，并通过“恢复当前构件原材质”精确还原 GLB 初始材质引用。材质修改仅保留在当前 Web 会话，不增加运行时纹理请求，也不改变正式 GLB 体积。
 
+生产工艺设备阶段在保持厂区布局不变的前提下，为主生产车间一层增加两套装配机械臂工作站，为前区原料仓库一层增加一码垛机械臂工作站。每套工作站包含分层关节、输送辊道、工件、控制范围、安全围栏和警示灯；中央处理车间与东区工艺车间的一、二层增加局部设备管道、阀门和支架。点击建筑并进入楼层爆炸/内部聚焦视角后可近距离观察。这里的管道属于固定的生产工艺设备，不是水网、电网、蒸汽网或气网可视化，也不会显示发光流向。Blender 负责机械臂与设备实体及关节元数据，Web 端 `robotArmAnimation` 负责转台、肩、肘、腕、夹爪和工件的循环动作；启用“减少动态效果”时恢复 Blender 原始姿态。
+
 主要资产：
 
 - `assets/blender/factory-campus-graybox.blend`：可编辑 Blender 源文件
@@ -157,6 +159,8 @@ GLB 中的可交互节点遵循以下命名规则：
 - 路线车辆：`VEHICLE__delivery-truck__root`、`VEHICLE__maintenance-van__root`、`VEHICLE__fire-patrol__root`
 - 作业叙事根节点：`SITE__operational-realism`
 - 任务人员与锚点：`TASK_OPERATOR__*`、`TASK_ANCHOR__*__start`、`TASK_ANCHOR__*__end`
+- 机械臂工作站：`ROBOT_CELL__<building-id>__<floor-id>__<cell-id>`
+- 局部工艺管道：`LOCAL_PROCESS_PIPE__<building-id>__<floor-id>`
 
 楼层爆炸动画、三面剖切房间、内部检查灯光、聚焦镜头和路线车辆位移由 Web 端 Three.js 控制；Blender 负责提供可独立移动的楼层节点、功能区、内部物体、路线节点、路径点和车辆动画元数据。`campusRouteRegistry` 将 GLB 路径点整理为不可变路线，`campusRouteAnimation` 负责等距采样、停留周期、人员任务阶段和转角航向平滑；仓库叉车使用轻量 `yard-shuttle` 按轴往返，任务人员则使用带检查与汇报停留的 `task-route`。闸杆与门口车辆继续共同消费独立的 `gateTrafficCycle` 状态机，确保车辆进入识别区后停车、闸杆向上抬起再放行，并在车辆清场后向下落回水平关闭位。交通演示按钮暂停路线车辆和仓库叉车；启用“减少动态效果”时，人员/车辆停止，闸杆恢复关闭。
 

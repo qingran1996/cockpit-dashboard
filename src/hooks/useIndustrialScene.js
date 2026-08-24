@@ -10,6 +10,7 @@ import { cameraLimits, clampPixelRatio, focusCameraView, initialCameraView, norm
 import { updateVehicleAnimations } from '../scene/vehicleAnimation.js'
 import { updatePersonAnimations } from '../scene/personAnimation.js'
 import { updateGateAnimations } from '../scene/gateAnimation.js'
+import { updateRobotArmAnimations } from '../scene/robotArmAnimation.js'
 import { createFloorInspectionLighting } from '../scene/floorInspectionLighting.js'
 import { applyCampusLightingMode, updateCampusBackdropCamera } from '../scene/campusLightingMode.js'
 import { configureCampusShadowQuality } from '../scene/campusShadowQuality.js'
@@ -19,11 +20,16 @@ import { createCampusMaterialController } from '../scene/campusMaterialLab.js'
 import { configureCampusRenderer, createCampusPostProcessing } from '../scene/campusPostProcessing.js'
 import { DEFAULT_CAMPUS_LIGHTING_MODE, deriveCampusOrbitPolicy } from '../scene/campusViewDefaults.js'
 import { resolveCampusSunlight } from '../scene/campusSunlight.js'
+import { DEFAULT_CAMPUS_RENDER_STYLE } from '../scene/campusRenderStyle.js'
+import { normalizeCampusTourIndex, resolveCampusTourStop } from '../scene/campusTour.js'
+import { createBuildingPickIndex } from '../scene/buildingPickIndex.js'
+import { createPointerPickScheduler } from '../scene/pointerPickScheduler.js'
 
 const INITIAL_CAMERA = new THREE.Vector3(...initialCameraView.position)
 const INITIAL_TARGET = new THREE.Vector3(...initialCameraView.target)
 const FOCUS_CAMERA = new THREE.Vector3(...focusCameraView.position)
 const FOCUS_TARGET = new THREE.Vector3(...focusCameraView.target)
+const INACTIVE_TOUR_STATE = Object.freeze({ active: false, playing: false, index: 0, progress: 0 })
 
 function setBuildingHighlight(building, active) {
   if (!building) return
@@ -45,20 +51,15 @@ function setBuildingHighlight(building, active) {
   })
 }
 
-function findBuildingGroup(object) {
-  let current = object
-  while (current && !current.userData.buildingId) current = current.parent
-  while (current?.parent?.userData?.buildingId === current.userData.buildingId) current = current.parent
-  return current
-}
-
-export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMotion, floorView, lightingMode = DEFAULT_CAMPUS_LIGHTING_MODE, sunlightPercent, lightingProfile, trafficEnabled = true, focusMode = false }) {
+export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMotion, floorView, lightingMode = DEFAULT_CAMPUS_LIGHTING_MODE, renderStyle = DEFAULT_CAMPUS_RENDER_STYLE, sunlightPercent, lightingProfile, trafficEnabled = true, focusMode = false }) {
   const [webglError, setWebglError] = useState(false)
+  const [tourState, setTourState] = useState(INACTIVE_TOUR_STATE)
   const resetRef = useRef(() => {})
   const focusFloorRef = useRef(() => {})
   const parkRef = useRef(null)
   const floorViewRef = useRef(floorView)
   const lightingModeRef = useRef(lightingMode)
+  const renderStyleRef = useRef(renderStyle)
   const sunlightPercentRef = useRef(resolveCampusSunlight({ [lightingMode]: sunlightPercent }, lightingMode))
   const lightingProfileRef = useRef(lightingProfile)
   const lightingControllerRef = useRef(null)
@@ -67,6 +68,7 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
   const materialControllerRef = useRef(null)
   const materialEditsRef = useRef(new Map())
   const trafficEnabledRef = useRef(trafficEnabled)
+  const tourActionRef = useRef({ start: () => {}, toggle: () => {}, previous: () => {}, next: () => {}, stop: () => {} })
 
   const resetView = useCallback(() => resetRef.current(), [])
   const focusFloor = useCallback((buildingId, floorId) => focusFloorRef.current(buildingId, floorId), [])
@@ -79,6 +81,11 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
     materialEditsRef.current.delete(`${buildingId}:${scope}`)
     return materialControllerRef.current?.reset(buildingId, scope) ?? false
   }, [])
+  const startTour = useCallback(() => tourActionRef.current.start(), [])
+  const toggleTour = useCallback(() => tourActionRef.current.toggle(), [])
+  const previousTourStop = useCallback(() => tourActionRef.current.previous(), [])
+  const nextTourStop = useCallback(() => tourActionRef.current.next(), [])
+  const stopTour = useCallback(() => tourActionRef.current.stop(), [])
 
   useEffect(() => {
     floorViewRef.current = floorView
@@ -90,12 +97,13 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
 
   useEffect(() => {
     lightingModeRef.current = lightingMode
+    renderStyleRef.current = renderStyle
     sunlightPercentRef.current = resolveCampusSunlight({ [lightingMode]: sunlightPercent }, lightingMode)
     lightingProfileRef.current = lightingProfile
     if (lightingControllerRef.current) {
-      applyCampusLightingMode(lightingControllerRef.current, lightingMode, sunlightPercentRef.current, lightingProfileRef.current)
+      applyCampusLightingMode(lightingControllerRef.current, lightingMode, sunlightPercentRef.current, lightingProfileRef.current, renderStyleRef.current)
     }
-  }, [lightingMode, sunlightPercent, lightingProfile])
+  }, [lightingMode, renderStyle, sunlightPercent, lightingProfile])
 
   useEffect(() => {
     trafficEnabledRef.current = trafficEnabled
@@ -176,6 +184,7 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
     })
     qualityController.update()
     parkRef.current = park
+    let buildingPickIndex = null
     applyFloorView(park.interactiveObjects, floorViewRef.current)
     park.ready.then(() => {
       if (parkRef.current === park) {
@@ -188,14 +197,17 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
         qualityController.refresh()
         applyFloorView(park.interactiveObjects, floorViewRef.current)
         applyInspectionOccluders(park.root, Boolean(floorViewRef.current?.focusedFloorId))
+        buildingPickIndex?.refresh()
       }
     })
     park.root.position.y = -1.2
     scene.add(park.root)
+    park.root.updateMatrixWorld(true)
+    buildingPickIndex = createBuildingPickIndex(park.interactiveObjects)
     applyInspectionOccluders(park.root, Boolean(floorViewRef.current?.focusedFloorId))
-    applyCampusLightingMode({ scene, camera, renderer, postProcessing }, lightingModeRef.current, sunlightPercentRef.current, lightingProfileRef.current)
+    applyCampusLightingMode({ scene, camera, renderer, postProcessing }, lightingModeRef.current, sunlightPercentRef.current, lightingProfileRef.current, renderStyleRef.current)
     park.ready.then(() => {
-      if (parkRef.current === park) applyCampusLightingMode({ scene, camera, renderer, postProcessing }, lightingModeRef.current, sunlightPercentRef.current, lightingProfileRef.current)
+      if (parkRef.current === park) applyCampusLightingMode({ scene, camera, renderer, postProcessing }, lightingModeRef.current, sunlightPercentRef.current, lightingProfileRef.current, renderStyleRef.current)
     })
     const raycaster = new THREE.Raycaster()
     const pointer = new THREE.Vector2(2, 2)
@@ -208,6 +220,72 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
     let resetToTarget = focusMode ? FOCUS_TARGET : INITIAL_TARGET
     let focusTransition = null
     let previousFrameTime = 0
+    let tourPublishTime = 0
+    const tour = {
+      active: false,
+      playing: false,
+      index: 0,
+      transition: null,
+      arrivedAt: 0,
+    }
+
+    const publishTourState = (progress = 0, force = false) => {
+      const now = performance.now()
+      if (!force && now - tourPublishTime < 120) return
+      tourPublishTime = now
+      setTourState({
+        active: tour.active,
+        playing: tour.playing,
+        index: tour.index,
+        progress: Math.max(0, Math.min(1, progress)),
+      })
+    }
+
+    const leaveTour = () => {
+      tour.active = false
+      tour.playing = false
+      tour.transition = null
+      tour.arrivedAt = 0
+      publishTourState(0, true)
+    }
+
+    const flyToTourStop = (index, playing = tour.playing) => {
+      const safeIndex = normalizeCampusTourIndex(index)
+      const stop = resolveCampusTourStop(safeIndex)
+      tour.active = true
+      tour.playing = playing
+      tour.index = safeIndex
+      tour.arrivedAt = 0
+      tour.transition = {
+        startedAt: performance.now(),
+        duration: reducedMotion ? 0 : stop.transitionMs,
+        fromPosition: camera.position.clone(),
+        fromTarget: controls.target.clone(),
+      }
+      resetStart = 0
+      focusTransition = null
+      publishTourState(0, true)
+    }
+
+    tourActionRef.current = {
+      start: () => flyToTourStop(0, true),
+      toggle: () => {
+        if (!tour.active) return flyToTourStop(0, true)
+        if (tour.playing) {
+          tour.playing = false
+          tour.transition = null
+          publishTourState(0, true)
+        } else {
+          flyToTourStop(tour.index, true)
+        }
+      },
+      previous: () => flyToTourStop(tour.index - 1, tour.playing),
+      next: () => flyToTourStop(tour.index + 1, tour.playing),
+      stop: () => {
+        leaveTour()
+        resetRef.current()
+      },
+    }
 
     const resolveFloorPose = (buildingId, floorId) => {
       const building = park.interactiveObjects.find((item) => item.userData.buildingId === buildingId)
@@ -248,28 +326,32 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
       const normalized = normalizePointer(event.clientX, event.clientY, rect)
       pointer.set(normalized.x, normalized.y)
       raycaster.setFromCamera(pointer, camera)
-      const hit = raycaster.intersectObjects(park.interactiveObjects, true)[0]
-      return { building: hit ? findBuildingGroup(hit.object) : null, rect }
+      return { building: buildingPickIndex.pick(raycaster), rect }
     }
 
-    const handlePointerMove = (event) => {
-      const { building, rect } = pick(event)
+    const publishPointerPick = (result, event) => {
+      const building = result?.building ?? null
       if (building !== hovered) {
         setBuildingHighlight(hovered, false)
         hovered = building
         setBuildingHighlight(hovered, true)
       }
       renderer.domElement.style.cursor = building ? 'pointer' : 'grab'
-      onHover(building?.userData.buildingId ?? null, building ? { x: event.clientX - rect.left, y: event.clientY - rect.top } : null)
+      onHover(building?.userData.buildingId ?? null, building && event ? { x: event.clientX - result.rect.left, y: event.clientY - result.rect.top } : null)
     }
 
-    const handlePointerLeave = () => {
-      setBuildingHighlight(hovered, false)
-      hovered = null
-      onHover(null, null)
-    }
+    const pointerPickScheduler = createPointerPickScheduler({
+      requestFrame: (callback) => window.requestAnimationFrame(callback),
+      cancelFrame: (id) => window.cancelAnimationFrame(id),
+      pick,
+      publish: publishPointerPick,
+    })
+
+    const handlePointerMove = (event) => pointerPickScheduler.move(event)
+    const handlePointerLeave = () => pointerPickScheduler.leave()
 
     const handleClick = (event) => {
+      if (tour.active) return
       const { building } = pick(event)
       onSelect(building?.userData.buildingId ?? null)
     }
@@ -277,11 +359,22 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
     renderer.domElement.addEventListener('pointermove', handlePointerMove)
     renderer.domElement.addEventListener('pointerleave', handlePointerLeave)
     renderer.domElement.addEventListener('click', handleClick)
-    controls.addEventListener('start', () => {
+    const handleControlsStart = () => {
+      pointerPickScheduler.setInteracting(true)
+      pointerPickScheduler.leave()
       focusTransition = null
-    })
+      if (tour.active && tour.playing) {
+        tour.playing = false
+        tour.transition = null
+        publishTourState(0, true)
+      }
+    }
+    const handleControlsEnd = () => pointerPickScheduler.setInteracting(false)
+    controls.addEventListener('start', handleControlsStart)
+    controls.addEventListener('end', handleControlsEnd)
 
     resetRef.current = () => {
+      if (tour.active) leaveTour()
       focusTransition = null
       controls.minDistance = cameraLimits.minDistance
       controls.maxDistance = cameraLimits.maxDistance
@@ -293,6 +386,7 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
     }
 
     focusModeControllerRef.current = (focused) => {
+      if (tour.active) leaveTour()
       focusTransition = null
       controls.minDistance = cameraLimits.minDistance
       controls.maxDistance = cameraLimits.maxDistance
@@ -306,6 +400,7 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
     focusFloorRef.current = (buildingId, floorId) => {
       const pose = resolveFloorPose(buildingId, floorId)
       if (!pose) return false
+      if (tour.active) leaveTour()
       resetStart = 0
       controls.minDistance = 1.2
       controls.maxDistance = Math.min(24, cameraLimits.maxDistance)
@@ -329,7 +424,30 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
       updateVehicleAnimations(park.animated, seconds, reducedMotion, trafficEnabledRef.current)
       updatePersonAnimations(park.animated, seconds, reducedMotion)
       updateGateAnimations(park.animated, seconds, reducedMotion)
+      updateRobotArmAnimations(park.animated, seconds, reducedMotion)
       updateInspectionLighting()
+
+      if (tour.active) {
+        const stop = resolveCampusTourStop(tour.index)
+        const totalDuration = stop.transitionMs + stop.holdMs
+        if (tour.transition) {
+          const elapsed = performance.now() - tour.transition.startedAt
+          const progress = tour.transition.duration ? Math.min(elapsed / tour.transition.duration, 1) : 1
+          const eased = progress * progress * (3 - 2 * progress)
+          camera.position.lerpVectors(tour.transition.fromPosition, new THREE.Vector3(...stop.position), eased)
+          controls.target.lerpVectors(tour.transition.fromTarget, new THREE.Vector3(...stop.target), eased)
+          publishTourState((progress * stop.transitionMs) / totalDuration)
+          if (progress === 1) {
+            tour.transition = null
+            tour.arrivedAt = performance.now()
+            publishTourState(stop.transitionMs / totalDuration, true)
+          }
+        } else if (tour.playing) {
+          const holdElapsed = Math.max(0, performance.now() - tour.arrivedAt)
+          publishTourState((stop.transitionMs + Math.min(holdElapsed, stop.holdMs)) / totalDuration)
+          if (holdElapsed >= stop.holdMs) flyToTourStop(tour.index + 1, true)
+        }
+      }
 
       if (focusTransition) {
         const pose = resolveFloorPose(focusTransition.buildingId, focusTransition.floorId)
@@ -379,6 +497,9 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
       renderer.domElement.removeEventListener('pointermove', handlePointerMove)
       renderer.domElement.removeEventListener('pointerleave', handlePointerLeave)
       renderer.domElement.removeEventListener('click', handleClick)
+      controls.removeEventListener('start', handleControlsStart)
+      controls.removeEventListener('end', handleControlsEnd)
+      pointerPickScheduler.dispose()
       setBuildingHighlight(hovered, false)
       controls.dispose()
       inspectionLighting.dispose()
@@ -396,8 +517,21 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
       resetRef.current = () => {}
       focusFloorRef.current = () => false
       focusModeControllerRef.current = () => {}
+      tourActionRef.current = { start: () => {}, toggle: () => {}, previous: () => {}, next: () => {}, stop: () => {} }
     }
   }, [containerRef, onHover, onSelect, reducedMotion])
 
-  return { webglError, resetView, focusFloor, applyBuildingMaterial, resetBuildingMaterial }
+  return {
+    webglError,
+    resetView,
+    focusFloor,
+    applyBuildingMaterial,
+    resetBuildingMaterial,
+    tourState,
+    startTour,
+    toggleTour,
+    previousTourStop,
+    nextTourStop,
+    stopTour,
+  }
 }

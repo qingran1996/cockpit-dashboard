@@ -3,14 +3,20 @@ import { buildingRegistry } from './buildingRegistry.js'
 import { prepareBuildingFloors } from './floorInteraction.js'
 import { collectCampusRoutes } from './campusRouteRegistry.js'
 import { configureCampusMeshShadows } from './campusShadowQuality.js'
+import { optimizeCampusStaticInstances } from './campusStaticInstancing.js'
 
 export const FACTORY_CAMPUS_MODEL_URL = '/models/factory-campus-graybox.glb'
 
 export function prepareFactoryCampusModel(root) {
-  const routes = collectCampusRoutes(root)
-  const interactiveObjects = buildingRegistry.map((record) => {
+  const buildingNodes = new Map(buildingRegistry.map((record) => {
     const building = root.getObjectByName(record.nodeName)
     if (!building) throw new Error(`missing required building node: ${record.nodeName}`)
+    return [record.id, building]
+  }))
+  const routes = collectCampusRoutes(root)
+  const instancingStats = optimizeCampusStaticInstances(root)
+  const interactiveObjects = buildingRegistry.map((record) => {
+    const building = buildingNodes.get(record.id)
 
     building.userData.buildingId = record.id
     building.userData.interactive = true
@@ -28,6 +34,37 @@ export function prepareFactoryCampusModel(root) {
   const animatedObjects = []
   root.traverse((object) => {
     if (!object.userData.motionPath) return
+    if (object.userData.motionPath === 'robot-work-cycle') {
+      const joints = {}
+      object.traverse((child) => {
+        const role = child.userData.robotJointRole
+        if (role === 'turntable') joints.turntable = child
+        if (role === 'shoulder') joints.shoulder = child
+        if (role === 'elbow') joints.elbow = child
+        if (role === 'wrist') joints.wrist = child
+        if (role === 'gripper-left') joints.gripperLeft = child
+        if (role === 'gripper-right') joints.gripperRight = child
+        if (role === 'payload') joints.payload = child
+      })
+      animatedObjects.push({
+        kind: 'robot-arm',
+        object,
+        motionPath: object.userData.motionPath,
+        speed: Number(object.userData.motionSpeed) || 0,
+        phase: Number(object.userData.motionPhase) || 0,
+        joints,
+        basePose: {
+          turntableY: joints.turntable?.rotation.y ?? 0,
+          shoulderZ: joints.shoulder?.rotation.z ?? 0,
+          elbowZ: joints.elbow?.rotation.z ?? 0,
+          wristZ: joints.wrist?.rotation.z ?? 0,
+          gripperLeftX: joints.gripperLeft?.position.x ?? 0,
+          gripperRightX: joints.gripperRight?.position.x ?? 0,
+          payloadY: joints.payload?.position.y ?? 0,
+        },
+      })
+      return
+    }
     if (object.userData.motionPath === 'campus-route') {
       const routeId = String(object.userData.linkedRoute || '')
       const route = routes.get(routeId)
@@ -105,7 +142,8 @@ export function prepareFactoryCampusModel(root) {
 
   root.name ||= 'FactoryCampusGraybox'
   root.userData.assetSource = 'blender-glb'
-  return { root, interactiveObjects, animatedObjects, routes }
+  root.userData.staticInstancing = { ...instancingStats }
+  return { root, interactiveObjects, animatedObjects, routes, instancingStats }
 }
 
 export async function loadFactoryCampusModel(loader = new GLTFLoader()) {

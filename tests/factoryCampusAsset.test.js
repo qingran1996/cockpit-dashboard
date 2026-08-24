@@ -4,7 +4,7 @@ import * as THREE from 'three'
 import { buildingRegistry } from '../src/scene/buildingRegistry.js'
 import { prepareFactoryCampusModel } from '../src/scene/factoryCampusAsset.js'
 
-function makeCampus({ omitId = null, includeRoute = false, linkedRoute = 'warehouse-delivery' } = {}) {
+function makeCampus({ omitId = null, includeRoute = false, includeStaticRepeats = false, linkedRoute = 'warehouse-delivery' } = {}) {
   const root = new THREE.Group()
   root.name = 'FactoryCampusGraybox'
   const sharedMaterial = new THREE.MeshStandardMaterial({ color: 0xcccccc })
@@ -23,6 +23,19 @@ function makeCampus({ omitId = null, includeRoute = false, linkedRoute = 'wareho
       floorRoot.userData = { ...floor, buildingId: record.id, floorId: floor.id }
       floorRoot.add(new THREE.Mesh(new THREE.BoxGeometry(.8, .2, .8), sharedMaterial))
       building.add(floorRoot)
+    }
+    if (includeStaticRepeats && record.id === 'main-production-hall') {
+      const cladding = new THREE.Group()
+      cladding.name = 'CLADDING__main-production-hall'
+      const panelGeometry = new THREE.BoxGeometry(.2, 1, 1)
+      for (let index = 0; index < 3; index += 1) {
+        const panel = new THREE.Mesh(panelGeometry, sharedMaterial)
+        panel.name = `CLADDING__panel-${index + 1}`
+        panel.position.x = index * .4
+        panel.userData = { detailTier: 'micro', visibilityTier: 'near' }
+        cladding.add(panel)
+      }
+      building.add(cladding)
     }
     root.add(building)
   }
@@ -59,6 +72,16 @@ function makeCampus({ omitId = null, includeRoute = false, linkedRoute = 'wareho
   forklift.position.set(2, .1, 3)
   forklift.userData = { motionPath: 'yard-shuttle', motionAxis: 'x', motionDistance: 3.2, motionSpeed: .06, motionPhase: .4 }
   root.add(forklift)
+  const robot = new THREE.Group()
+  robot.name = 'ROBOT_CELL__main-production-hall__L01__assembly-01'
+  robot.userData = { motionPath: 'robot-work-cycle', motionSpeed: .18, motionPhase: .08 }
+  for (const role of ['turntable', 'shoulder', 'elbow', 'wrist', 'gripper-left', 'gripper-right', 'payload']) {
+    const joint = new THREE.Group()
+    joint.name = `${robot.name}__joint-${role}`
+    joint.userData = { robotJointRole: role }
+    robot.add(joint)
+  }
+  root.add(robot)
   const firstFloor = root.getObjectByName('FLOOR__main-production-hall__L01')
   const walker = new THREE.Group()
   walker.name = 'WALKER__main-production-hall__L01__01'
@@ -90,6 +113,23 @@ function makeCampus({ omitId = null, includeRoute = false, linkedRoute = 'wareho
   return root
 }
 
+test('instances repeated static GLB siblings before floor materials are prepared', () => {
+  const campus = makeCampus({ includeStaticRepeats: true })
+  const prepared = prepareFactoryCampusModel(campus)
+  const cladding = campus.getObjectByName('CLADDING__main-production-hall')
+  const [batch] = cladding.children
+  const walker = campus.getObjectByName('WALKER__main-production-hall__L01__01')
+
+  assert.equal(batch.isInstancedMesh, true)
+  assert.equal(batch.count, 3)
+  assert.equal(batch.userData.buildingId, 'main-production-hall')
+  assert.equal(prepared.instancingStats.sourceMeshes, 3)
+  assert.equal(prepared.instancingStats.instancedMeshes, 1)
+  assert.equal(prepared.instancingStats.drawCallsSaved, 2)
+  assert.deepEqual(prepared.root.userData.staticInstancing, prepared.instancingStats)
+  assert.equal(walker.children.some((object) => object.isInstancedMesh), false)
+})
+
 test('maps every required GLB building node to one interactive building id', () => {
   const campus = makeCampus()
   const prepared = prepareFactoryCampusModel(campus)
@@ -100,7 +140,7 @@ test('maps every required GLB building node to one interactive building id', () 
     buildingRegistry.map(({ id }) => id),
   )
   assert.equal(new Set(prepared.interactiveObjects).size, buildingRegistry.length)
-  assert.equal(prepared.animatedObjects?.length, 6)
+  assert.equal(prepared.animatedObjects?.length, 7)
   const vehicle = prepared.animatedObjects.find(({ object }) => object.name === 'VEHICLE__gate-shuttle__root')
   assert.equal(vehicle.kind, 'vehicle')
   assert.equal(vehicle.motionPath, 'gate-lane')
@@ -138,6 +178,17 @@ test('maps every required GLB building node to one interactive building id', () 
   assert.equal(forklift.axis, 'x')
   assert.equal(forklift.baseX, 2)
   assert.equal(forklift.baseZ, 3)
+  const robot = prepared.animatedObjects.find(({ object }) => object.name === 'ROBOT_CELL__main-production-hall__L01__assembly-01')
+  assert.equal(robot.kind, 'robot-arm')
+  assert.equal(robot.speed, .18)
+  assert.equal(robot.phase, .08)
+  assert.equal(robot.joints.turntable.userData.robotJointRole, 'turntable')
+  assert.equal(robot.joints.shoulder.userData.robotJointRole, 'shoulder')
+  assert.equal(robot.joints.elbow.userData.robotJointRole, 'elbow')
+  assert.equal(robot.joints.wrist.userData.robotJointRole, 'wrist')
+  assert.equal(robot.joints.gripperLeft.userData.robotJointRole, 'gripper-left')
+  assert.equal(robot.joints.gripperRight.userData.robotJointRole, 'gripper-right')
+  assert.equal(robot.joints.payload.userData.robotJointRole, 'payload')
   const preparedMaterials = prepared.interactiveObjects.map((building) => building.children[0].material)
   assert.equal(new Set(preparedMaterials).size, buildingRegistry.length)
   for (const building of prepared.interactiveObjects) {

@@ -38,7 +38,18 @@ test('describes a proportional center backdrop instead of fixed side insets', as
   const { resolveEnergyDetailWorkspaceLayout } = await import('../src/energyDetailWorkspaceLayout.js')
   const layout = resolveEnergyDetailWorkspaceLayout()
 
-  assert.deepEqual(layout.centerBackdrop, { widthPercent: 54.5, height: 551 })
+  assert.deepEqual(layout.centerBackdrop, { widthPercent: 57.2, height: 551 })
+})
+
+test('uses narrower secondary side rails and a wider campus workspace', async () => {
+  const { resolveEnergyDetailWorkspaceLayout } = await import('../src/energyDetailWorkspaceLayout.js')
+  const layout = resolveEnergyDetailWorkspaceLayout()
+
+  assert.deepEqual(layout.horizontal, {
+    sideWidth: 380,
+    centerLeft: 399,
+    centerWidth: 1066,
+  })
 })
 
 test('keeps secondary scene controls in a compact bottom-right dock', async () => {

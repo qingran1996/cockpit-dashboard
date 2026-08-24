@@ -283,3 +283,31 @@ test('every interactive building has a credible rear service envelope', () => {
     assert.ok(roles.includes('rear-service-pad'), `${id} is missing a protected rear service pad`)
   }
 })
+
+test('generated GLB exposes animated robot workcells and local process piping', () => {
+  const gltf = readGlbJson(MODEL_PATH)
+  const nodes = gltf.nodes || []
+  const byName = new Map(nodes.map((node) => [node.name, node]))
+  const workcellNames = [
+    'ROBOT_CELL__main-production-hall__L01__assembly-01',
+    'ROBOT_CELL__main-production-hall__L01__assembly-02',
+    'ROBOT_CELL__front-warehouse__L01__palletizer-01',
+  ]
+
+  for (const name of workcellNames) {
+    const workcell = byName.get(name)
+    assert.ok(workcell, `missing ${name}`)
+    assert.equal(workcell.extras?.motionPath, 'robot-work-cycle')
+    assert.ok(workcell.extras?.motionSpeed > 0, `${name} needs a positive work-cycle speed`)
+  }
+
+  const jointRoles = new Set(nodes.map((node) => node.extras?.robotJointRole).filter(Boolean))
+  for (const role of ['turntable', 'shoulder', 'elbow', 'wrist', 'gripper-left', 'gripper-right', 'payload']) {
+    assert.ok(jointRoles.has(role), `missing articulated robot joint role ${role}`)
+  }
+
+  assert.ok(nodes.filter((node) => node.extras?.equipmentRole === 'workcell-conveyor').length >= 3)
+  assert.ok(nodes.filter((node) => node.extras?.equipmentRole === 'robot-safety-fence').length >= 6)
+  assert.ok(nodes.filter((node) => node.extras?.layerRole === 'local-process-pipe').length >= 4)
+  assert.equal(nodes.some((node) => ['SITE__water-network', 'SITE__power-network', 'SITE__steam-network', 'SITE__gas-network'].includes(node.name)), false)
+})

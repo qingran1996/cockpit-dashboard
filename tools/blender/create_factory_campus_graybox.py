@@ -1648,6 +1648,114 @@ def create_factory_work_cell(prefix, width, depth, mats, parent):
     mark_interior(box(f"{prefix}__control-panel-01", (width * .13, .12, .38), (width * .27, -depth * .04, .20), mats["interior_equipment"], parent, .018))
 
 
+def mark_robot_joint(obj, role):
+    obj["robotJointRole"] = role
+    obj["layerRole"] = "robot-articulation"
+    return obj
+
+
+def create_robot_workcell(name, location, mats, parent, phase=0.0, scale=1.0):
+    """Create a compact articulated six-axis-style workcell for GLB/Web animation."""
+    cell = empty(name, location, parent)
+    cell["motionPath"] = "robot-work-cycle"
+    cell["motionSpeed"] = 0.18
+    cell["motionPhase"] = phase
+    cell["equipmentType"] = "industrial-robot-workcell"
+    cell["layerRole"] = "production-equipment"
+    cell["interactive"] = True
+
+    platform = mark_interior(box(f"{name}__platform", (1.55 * scale, 1.18 * scale, .07), (0, 0, .035), mats["floor_slab"], cell, .018))
+    platform["equipmentRole"] = "robot-workcell-platform"
+
+    conveyor = mark_interior(box(f"{name}__conveyor", (1.42 * scale, .30 * scale, .16), (0, .34 * scale, .25 * scale), mats["interior_equipment"], cell, .018))
+    conveyor["equipmentRole"] = "workcell-conveyor"
+    for index in range(7):
+        roller = mark_interior(cylinder(
+            f"{name}__conveyor-roller-{index + 1:02d}",
+            .035 * scale,
+            .29 * scale,
+            (-.57 * scale + index * .19 * scale, .34 * scale, .34 * scale),
+            mats["pipe"],
+            cell,
+            rotation=(math.pi / 2, 0, 0),
+            vertices=10,
+        ))
+        roller["equipmentRole"] = "conveyor-roller"
+
+    turntable = mark_robot_joint(empty(f"{name}__joint-turntable", (-.30 * scale, -.14 * scale, .10 * scale), cell), "turntable")
+    mark_interior(cylinder(f"{name}__robot-base", .18 * scale, .20 * scale, (0, 0, .10 * scale), mats["pipe"], turntable, vertices=18))
+    mark_interior(cylinder(f"{name}__robot-turntable", .15 * scale, .13 * scale, (0, 0, .25 * scale), mats["safety_yellow"], turntable, vertices=18))
+
+    shoulder = mark_robot_joint(empty(f"{name}__joint-shoulder", (0, 0, .30 * scale), turntable), "shoulder")
+    mark_interior(cylinder(f"{name}__shoulder-housing", .13 * scale, .20 * scale, (0, 0, 0), mats["safety_yellow"], shoulder, rotation=(math.pi / 2, 0, 0), vertices=16))
+    mark_interior(box(f"{name}__upper-arm", (.13 * scale, .15 * scale, .39 * scale), (0, 0, .20 * scale), mats["safety_yellow"], shoulder, .055 * scale))
+
+    elbow = mark_robot_joint(empty(f"{name}__joint-elbow", (0, 0, .40 * scale), shoulder), "elbow")
+    mark_interior(cylinder(f"{name}__elbow-housing", .115 * scale, .18 * scale, (0, 0, 0), mats["pipe_accent"], elbow, rotation=(math.pi / 2, 0, 0), vertices=16))
+    mark_interior(box(f"{name}__forearm", (.11 * scale, .13 * scale, .32 * scale), (0, 0, .16 * scale), mats["safety_yellow"], elbow, .045 * scale))
+
+    wrist = mark_robot_joint(empty(f"{name}__joint-wrist", (0, 0, .33 * scale), elbow), "wrist")
+    mark_interior(cylinder(f"{name}__wrist-housing", .09 * scale, .16 * scale, (0, 0, 0), mats["pipe"], wrist, rotation=(math.pi / 2, 0, 0), vertices=14))
+    mark_interior(box(f"{name}__tool-head", (.18 * scale, .14 * scale, .12 * scale), (0, 0, .10 * scale), mats["interior_equipment"], wrist, .025 * scale))
+
+    for role, side in (("gripper-left", -1), ("gripper-right", 1)):
+        finger = mark_robot_joint(empty(f"{name}__joint-{role}", (side * .07 * scale, 0, .17 * scale), wrist), role)
+        mark_interior(box(f"{name}__{role}-finger", (.035 * scale, .08 * scale, .15 * scale), (0, 0, .04 * scale), mats["pipe"], finger, .008 * scale))
+
+    payload = mark_robot_joint(box(f"{name}__payload", (.18 * scale, .18 * scale, .14 * scale), (.30 * scale, .34 * scale, .47 * scale), mats["interior_storage"], cell, .02 * scale), "payload")
+    payload["equipmentRole"] = "robot-payload"
+
+    fence_specs = (
+        ("rear", (0, -.57 * scale, .55 * scale), (1.55 * scale, .035, 1.02 * scale)),
+        ("left", (-.76 * scale, 0, .55 * scale), (.035, 1.16 * scale, 1.02 * scale)),
+        ("right", (.76 * scale, 0, .55 * scale), (.035, 1.16 * scale, 1.02 * scale)),
+    )
+    for label, fence_location, fence_size in fence_specs:
+        fence = mark_interior(box(f"{name}__safety-fence-{label}", fence_size, fence_location, mats["fence"], cell, .006))
+        fence["equipmentRole"] = "robot-safety-fence"
+
+    beacon_pole = mark_interior(cylinder(f"{name}__beacon-pole", .025 * scale, .78 * scale, (.67 * scale, -.48 * scale, .45 * scale), mats["pipe"], cell, vertices=8))
+    beacon_pole["equipmentRole"] = "workcell-warning"
+    beacon = mark_interior(cylinder(f"{name}__warning-beacon", .07 * scale, .11 * scale, (.67 * scale, -.48 * scale, .90 * scale), mats["safety_yellow"], cell, vertices=12))
+    beacon["equipmentRole"] = "workcell-warning"
+    return cell
+
+
+def create_local_process_pipes(building_id, floor_id, width, depth, mats, parent):
+    root = empty(f"LOCAL_PROCESS_PIPE__{building_id}__{floor_id}", (0, 0, .18), parent)
+    root["equipmentType"] = "local-process-pipe-skid"
+    root["layerRole"] = "local-process-equipment"
+    run_length = width * .68
+    for index, py in enumerate((-depth * .15, depth * .02), start=1):
+        run = mark_interior(cylinder(
+            f"{root.name}__run-{index:02d}",
+            .045,
+            run_length,
+            (0, py, .38 + index * .11),
+            mats["pipe_accent" if index == 1 else "pipe"],
+            root,
+            rotation=(0, math.pi / 2, 0),
+            vertices=12,
+        ))
+        run["layerRole"] = "local-process-pipe"
+        for valve_index, px in enumerate((-run_length * .24, run_length * .24), start=1):
+            valve = mark_interior(cylinder(
+                f"{root.name}__valve-{index:02d}-{valve_index:02d}",
+                .085,
+                .055,
+                (px, py, .38 + index * .11),
+                mats["pipe_band"],
+                root,
+                rotation=(0, math.pi / 2, 0),
+                vertices=12,
+            ))
+            valve["equipmentRole"] = "process-valve"
+    for px in (-run_length * .38, 0, run_length * .38):
+        support = mark_interior(box(f"{root.name}__support-{px:+.2f}", (.055, depth * .30, .58), (px, -depth * .06, .30), mats["pipe"], root, .008))
+        support["equipmentRole"] = "local-pipe-support"
+    return root
+
+
 def create_packing_cell(prefix, width, depth, mats, parent):
     mark_interior(box(f"{prefix}__packing-table-01", (width * .42, depth * .20, .18), (0, 0, .10), mats["interior_worktop"], parent, .025))
     for index, px in enumerate((-width * .29, width * .29), start=1):
@@ -1698,6 +1806,15 @@ def create_floor_interior(building_id, floor_id, usage, width, depth, floor_heig
         mark_interior(box(f"{prefix}__pallet-01", (width * 0.18, depth * 0.18, 0.10), (width * 0.28, 0, prop_z + 0.05), mats["interior_worktop"], interior, 0.018))
         packing_zone = create_zone(f"ZONE__{building_id}__{floor_id}__packing", (width * .18, 0, prop_z), interior, "packing-dispatch", .70)
         create_packing_cell(prefix, width * .46, depth * .54, mats, packing_zone)
+        if building_id == "front-warehouse" and floor_id == "L01":
+            create_robot_workcell(
+                "ROBOT_CELL__front-warehouse__L01__palletizer-01",
+                (-width * .34, 0, 0),
+                mats,
+                packing_zone,
+                phase=.58,
+                scale=.78,
+            )
     else:
         for index, px in enumerate((-width * 0.20, width * 0.12), start=1):
             mark_interior(box(f"{prefix}__process-skid-{index:02d}", (width * 0.22, depth * 0.24, max_height), (px, -depth * 0.10, prop_z + max_height / 2), mats["interior_equipment"], interior, 0.035))
@@ -1705,6 +1822,25 @@ def create_floor_interior(building_id, floor_id, usage, width, depth, floor_heig
         process_zone = create_zone(f"ZONE__{building_id}__{floor_id}__process-line", (0, depth * .12, prop_z), interior, "process-operation", .72)
         aisle_zone = create_zone(f"ZONE__{building_id}__{floor_id}__inspection-aisle", (0, depth * .31, prop_z), interior, "inspection-aisle", .78)
         create_factory_work_cell(prefix, width * .64, depth * .52, mats, process_zone)
+        if building_id == "main-production-hall" and floor_id == "L01":
+            create_robot_workcell(
+                "ROBOT_CELL__main-production-hall__L01__assembly-01",
+                (-width * .24, -depth * .03, 0),
+                mats,
+                process_zone,
+                phase=.08,
+                scale=.86,
+            )
+            create_robot_workcell(
+                "ROBOT_CELL__main-production-hall__L01__assembly-02",
+                (width * .24, -depth * .03, 0),
+                mats,
+                process_zone,
+                phase=.48,
+                scale=.86,
+            )
+        if building_id in {"central-processing-hall", "east-process-hall"} and floor_id in {"L01", "L02"}:
+            create_local_process_pipes(building_id, floor_id, width, depth, mats, process_zone)
         for stripe_index, px in enumerate((-width * .30, width * .30), start=1):
             mark_interior(box(f"{prefix}__aisle-line-{stripe_index:02d}", (.035, depth * .56, .012), (px, 0, .018), mats["safety_vest"], aisle_zone, 0))
 

@@ -1,4 +1,4 @@
-export const DEFAULT_CAMPUS_LIGHTING_MODE = 'evening'
+export const DEFAULT_CAMPUS_LIGHTING_MODE = 'day'
 
 const DESIGN_WIDTH = 1920
 const DESIGN_HEIGHT = 1080

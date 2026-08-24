@@ -36,10 +36,10 @@
 .bottom-metric:is(button)::before {
   content: "查看详情";
   position: absolute;
-  right: 25px;
-  top: 7px;
+  right: 20px;
+  top: 5px;
   color: rgba(113, 202, 224, .48);
-  font-size: 9px;
+  font-size: 8px;
   letter-spacing: 1px;
 }
 .bottom-metric:is(button):hover,
@@ -441,9 +441,9 @@
 
 /* ===== Approved homepage live operating rail ===== */
 .campus-energy-pulse {
-  left: 452px;
+  left: var(--homepage-pulse-left, 427px);
   top: 82px;
-  width: 1016px;
+  width: var(--homepage-pulse-width, 1066px);
   height: 61px;
   grid-template-columns: repeat(6, 1fr);
   clip-path: polygon(14px 0, calc(100% - 14px) 0, 100% 14px, 100% calc(100% - 6px), calc(100% - 6px) 100%, 6px 100%, 0 calc(100% - 6px), 0 14px);
@@ -1049,7 +1049,7 @@
 }
 
 .dashboard-canvas.is-energy-detail-open .scene-lighting-console {
-  right: var(--energy-detail-lighting-right, 76px);
+  right: calc(var(--energy-detail-lighting-right, 76px) + 16px);
   bottom: var(--energy-detail-lighting-bottom, 16px);
 }
 .dashboard-canvas.is-energy-detail-open .scene-reset {
@@ -1067,7 +1067,7 @@
 }
 
 .dashboard-canvas:not(.is-energy-detail-open) .scene-lighting-console {
-  right: var(--homepage-lighting-right, 76px);
+  right: calc(var(--homepage-lighting-right, 76px) + 16px);
   bottom: var(--homepage-lighting-bottom, 16px);
 }
 .dashboard-canvas:not(.is-energy-detail-open) .scene-reset {
@@ -1312,3 +1312,35 @@
 @media (prefers-reduced-motion: reduce) {
   .energy-side-echart__canvas canvas { animation: none; }
 }
+
+/* ===== Shared campus expansion geometry ===== */
+.energy-detail__header,
+.energy-detail__return-rail,
+.energy-detail__zone--analysis,
+.energy-detail__zone--operations {
+  width: var(--energy-detail-side-width, 380px);
+}
+
+.energy-detail__tabs,
+.energy-detail__metrics,
+.energy-detail__diagnostics,
+.energy-detail__zone--comparison {
+  left: var(--energy-detail-center-left, 399px);
+  width: var(--energy-detail-center-width, 1066px);
+}
+
+.dashboard-canvas.is-energy-detail-open .industrial-scene {
+  left: calc(28px + var(--energy-detail-center-left, 399px));
+  width: var(--energy-detail-center-width, 1066px);
+  height: var(--energy-detail-scene-height, 516px);
+}
+
+.energy-detail__header-action {
+  flex: 0 0 auto;
+  min-height: 30px;
+  margin-left: auto;
+  padding: 0 1px 0 6px;
+  border-left: 1px solid rgba(var(--detail-rgb), .16);
+}
+
+.energy-detail__header-action .energy-detail__return-line { width: 18px; }

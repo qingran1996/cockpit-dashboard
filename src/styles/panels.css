@@ -269,9 +269,9 @@
 }
 
 /* ===== Approved dense resource panels ===== */
-.water-panel { left: 20px; top: 92px; width: 420px; height: 834px; }
-.power-panel { right: 20px; top: 92px; width: 420px; height: 834px; }
-.steam-panel { left: 452px; top: var(--steam-panel-top, 612px); width: 1016px; height: var(--steam-panel-height, 314px); z-index: 12; }
+.water-panel { left: 20px; top: 92px; width: var(--homepage-side-width, 392px); height: 862px; }
+.power-panel { right: 20px; top: 92px; width: var(--homepage-side-width, 392px); height: 862px; }
+.steam-panel { left: var(--homepage-center-left, 424px); top: var(--steam-panel-top, 684px); width: var(--homepage-center-width, 1072px); height: var(--steam-panel-height, 270px); z-index: 12; }
 
 .tech-panel {
   clip-path: polygon(16px 0, calc(100% - 28px) 0, 100% 28px, 100% calc(100% - 16px), calc(100% - 16px) 100%, 16px 100%, 0 calc(100% - 16px), 0 16px);
@@ -363,7 +363,7 @@
 
 .resource-terminal {
   position: relative;
-  height: 160px;
+  height: 188px;
   display: grid;
   grid-template-columns: 84px 1fr;
   align-items: center;
@@ -490,14 +490,14 @@
   left: 20px;
   bottom: 16px;
   width: 1880px;
-  height: 120px;
-  padding: 10px 28px;
+  height: 92px;
+  padding: 6px 24px;
 }
-.bottom-metric { grid-template-columns: 62px 1fr; padding: 0 34px; }
-.bottom-metric > i { width: 50px; height: 50px; border: 0; font-size: 34px; background: rgba(25, 215, 255, .06); }
+.bottom-metric { grid-template-columns: 50px 1fr; padding: 0 26px; }
+.bottom-metric > i { width: 40px; height: 40px; border: 0; font-size: 28px; background: rgba(25, 215, 255, .06); }
 .bottom-metric--yellow > i { color: #ffc447; border-color: rgba(255, 196, 71, .45); box-shadow: 0 0 14px rgba(255, 196, 71, .23); }
-.bottom-metric span { font-size: 14px; }
-.bottom-metric strong { margin-top: 4px; font-size: 29px; }
+.bottom-metric span { font-size: 12px; }
+.bottom-metric strong { margin-top: 2px; font-size: 25px; }
 .bottom-metric em { display: none; }
 
 @media (prefers-reduced-motion: reduce) {

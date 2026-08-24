@@ -4,7 +4,12 @@ import { SteamTelemetry } from './HomepageTelemetry.js'
 import { TechPanel } from './TechPanel.jsx'
 import { resolveCompactSteamPanelLayout } from '../homepagePanelLayout.js'
 
-const compactLayout = resolveCompactSteamPanelLayout({ panelHeight: 314, titleHeight: 48 })
+const compactLayout = resolveCompactSteamPanelLayout({
+  panelHeight: 314,
+  titleHeight: 48,
+  footerHeightReduction: 28,
+  campusHeightGain: 24,
+})
 
 export function SteamPanel({ data, chartOption, onOpenDetails }) {
   return (

@@ -1,11 +1,13 @@
 import * as THREE from 'three'
 import { DEFAULT_CAMPUS_SUNLIGHT, clampCampusSunlight } from './campusSunlight.js'
 import { resolveCampusLightingProfile } from './campusLightingProfiles.js'
+import { applyCampusRenderStyleToLightingState, resolveCampusRendererPolicy } from './campusRenderStyle.js'
 
 const BACKDROP_NAME = 'CampusBackdrop'
 
-export function resolveCampusBackdrop(mode, profile) {
-  const state = resolveCampusLightingProfile(profile, mode === 'evening' ? 'evening' : 'day')
+export function resolveCampusBackdrop(mode, profile, renderStyle) {
+  const safeMode = mode === 'evening' ? 'evening' : 'day'
+  const state = applyCampusRenderStyleToLightingState(resolveCampusLightingProfile(profile, safeMode), renderStyle, safeMode)
   return {
     topColor: state.skyColor,
     horizonColor: state.horizonColor,
@@ -72,9 +74,9 @@ function deriveSunlightFactor(mode, sunlightPercent) {
   return 1 + .28 * ((percent - baseline) / (100 - baseline))
 }
 
-export function deriveCampusLightingState(mode, sunlightPercent, profile) {
+export function deriveCampusLightingState(mode, sunlightPercent, profile, renderStyle) {
   const safeMode = mode === 'evening' ? 'evening' : 'day'
-  const state = resolveCampusLightingProfile(profile, safeMode)
+  const state = applyCampusRenderStyleToLightingState(resolveCampusLightingProfile(profile, safeMode), renderStyle, safeMode)
   const baseline = DEFAULT_CAMPUS_SUNLIGHT[safeMode]
   const percent = clampCampusSunlight(sunlightPercent ?? baseline)
   const factor = deriveSunlightFactor(safeMode, percent)
@@ -115,9 +117,10 @@ export function resolveFixtureLighting(object, state) {
   return profiles[object.userData.lightRole] ?? null
 }
 
-export function applyCampusLightingMode({ scene, camera, renderer, postProcessing }, mode, sunlightPercent, profile) {
-  const state = deriveCampusLightingState(mode, sunlightPercent, profile)
-  const backdropState = resolveCampusBackdrop(mode, state)
+export function applyCampusLightingMode({ scene, camera, renderer, postProcessing }, mode, sunlightPercent, profile, renderStyle) {
+  const state = deriveCampusLightingState(mode, sunlightPercent, profile, renderStyle)
+  const backdropState = { topColor: state.skyColor, horizonColor: state.horizonColor, lowColor: state.lowColor }
+  renderer.toneMapping = resolveCampusRendererPolicy(renderStyle).toneMapping
   renderer.toneMappingExposure = state.exposure
   scene.environmentIntensity = state.environmentIntensity
   if (scene.environmentRotation) scene.environmentRotation.y = state.environmentRotation

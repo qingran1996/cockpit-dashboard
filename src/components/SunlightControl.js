@@ -1,7 +1,8 @@
 import { createElement as h } from 'react'
 import { clampCampusSunlight } from '../scene/campusSunlight.js'
+import { DEFAULT_CAMPUS_RENDER_STYLE } from '../scene/campusRenderStyle.js'
 
-export function SunlightControl({ value, mode, onChange, onModeChange, advancedOpen = false, onAdvancedToggle }) {
+export function SunlightControl({ value, mode, onChange, onModeChange, renderStyle = DEFAULT_CAMPUS_RENDER_STYLE, onRenderStyleChange = () => {}, advancedOpen = false, onAdvancedToggle }) {
   const safeValue = clampCampusSunlight(value)
   return h('div', {
     className: 'scene-lighting-console',
@@ -35,8 +36,25 @@ export function SunlightControl({ value, mode, onChange, onModeChange, advancedO
       onChange: (event) => onChange(clampCampusSunlight(event.currentTarget.value)),
     }),
   ),
-  h('div', { className: 'scene-lighting-toggle', role: 'group', 'aria-label': '厂区照明模式' },
-    h('button', { type: 'button', 'aria-pressed': mode === 'day', onClick: () => onModeChange('day') }, '日间'),
-    h('button', { type: 'button', 'aria-pressed': mode === 'evening', onClick: () => onModeChange('evening') }, '傍晚'),
+  h('div', { className: 'scene-lighting-console__modes' },
+    h('div', { className: 'scene-lighting-toggle', role: 'group', 'aria-label': '厂区照明模式' },
+      h('button', { type: 'button', 'aria-pressed': mode === 'day', onClick: () => onModeChange('day') }, '日间'),
+      h('button', { type: 'button', 'aria-pressed': mode === 'evening', onClick: () => onModeChange('evening') }, '傍晚'),
+    ),
+    h('div', { className: 'scene-render-style-toggle', role: 'group', 'aria-label': '厂区渲染风格', 'data-render-style': renderStyle },
+      h('span', { className: 'scene-render-style-toggle__label' }, h('i', { 'aria-hidden': 'true' }), '影像'),
+      h('button', {
+        type: 'button',
+        'aria-label': '切换为科技驾驶舱风格',
+        'aria-pressed': renderStyle === 'cockpit',
+        onClick: () => onRenderStyleChange('cockpit'),
+      }, '科技'),
+      h('button', {
+        type: 'button',
+        'aria-label': '切换为 Unity 风格',
+        'aria-pressed': renderStyle === 'unity',
+        onClick: () => onRenderStyleChange('unity'),
+      }, 'Unity'),
+    ),
   ))
 }

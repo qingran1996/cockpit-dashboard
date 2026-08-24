@@ -22,6 +22,7 @@ test('keeps six homepage live signals and renders approved footer totals', async
 
   assert.equal((pulse.match(/class="campus-energy-pulse__signal/g) ?? []).length, 6)
   assert.match(pulse, /活跃告警/)
+  assert.match(footer, /<footer class="bottom-metrics" data-density="compact">/)
   for (const label of ['今日总用水', '今日总用电', '今日总蒸汽', '综合能耗', '碳排放']) {
     assert.match(footer, new RegExp(label))
   }
@@ -34,14 +35,25 @@ test('groups steam trend and boiler readings in the shared instrument frame', as
   assert.match(markup, /role="group" aria-label="蒸汽运行分析"/)
 })
 
-test('reduces the first-level steam panel by exactly one 48px title row', async () => {
+test('keeps the compact steam panel aligned above the reduced footer', async () => {
   const module = await import('../src/homepagePanelLayout.js').catch(() => ({}))
   assert.equal(typeof module.resolveCompactSteamPanelLayout, 'function', 'compact steam layout resolver is missing')
-  assert.deepEqual(module.resolveCompactSteamPanelLayout({ panelHeight: 314, titleHeight: 48 }), {
-    panelTop: 660,
-    panelHeight: 266,
-    processHeight: 199,
-    chartHeight: 160,
+  assert.deepEqual(module.resolveCompactSteamPanelLayout({ panelHeight: 314, titleHeight: 48, footerHeightReduction: 28, campusHeightGain: 24 }), {
+    panelTop: 684,
+    panelHeight: 270,
+    processHeight: 203,
+    chartHeight: 164,
+  })
+})
+
+test('narrows homepage side rails and gives the released width to the campus', async () => {
+  const module = await import('../src/homepagePanelLayout.js').catch(() => ({}))
+  assert.equal(typeof module.resolveHomepagePanelLayout, 'function', 'homepage panel layout resolver is missing')
+  assert.deepEqual(module.resolveHomepagePanelLayout(), {
+    side: { outer: 20, width: 392, gap: 12 },
+    center: { left: 424, width: 1072 },
+    pulse: { left: 427, width: 1066 },
+    focusToggleRight: 436,
   })
 })
 

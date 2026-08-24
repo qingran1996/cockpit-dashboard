@@ -14,7 +14,7 @@ function metricContents(metric) {
 }
 
 export function BottomMetrics({ metrics, onMetricClick }) {
-  return h('footer', { className: 'bottom-metrics' }, metrics.map((metric) => {
+  return h('footer', { className: 'bottom-metrics', 'data-density': 'compact' }, metrics.map((metric) => {
     const className = `bottom-metric bottom-metric--${metric.tone}`
     if (metric.detailKey) {
       return h('button', {
