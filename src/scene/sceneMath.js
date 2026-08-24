@@ -6,16 +6,16 @@ export const cameraLimits = Object.freeze({
 })
 
 export const initialCameraView = Object.freeze({
-  position: Object.freeze([-47, 29, -58]),
-  target: Object.freeze([0, 1.4, -3.2]),
+  position: Object.freeze([-43, 42, -55]),
+  target: Object.freeze([0, 17.4, 0]),
   fov: 38,
   fogDensity: .0055,
   exposure: 1.86,
 })
 
 export const focusCameraView = Object.freeze({
-  position: Object.freeze([-43, 26, -53]),
-  target: Object.freeze([0, .35, -1.8]),
+  position: Object.freeze([-40, 38, -49]),
+  target: Object.freeze([0, 15.2, 0]),
   fov: 38,
 })
 

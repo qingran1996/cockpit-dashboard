@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import { buildingRegistry } from './buildingRegistry.js'
 import { createBuilding, createMaterialLibrary } from './buildingFactory.js'
-import { loadFactoryCampusModel } from './factoryCampusAsset.js'
+import { loadExternalFactoryModel } from './externalFactoryAsset.js'
 
 function createBase() {
   const group = new THREE.Group()
@@ -147,7 +147,7 @@ function disposeTree(tree) {
   materials.forEach((material) => material.dispose())
 }
 
-export function createIndustrialScene({ loadCampus = loadFactoryCampusModel } = {}) {
+export function createIndustrialScene({ loadCampus = loadExternalFactoryModel } = {}) {
   const root = new THREE.Group()
   const fallback = new THREE.Group()
   fallback.name = 'ProceduralFallback'
