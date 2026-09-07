@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 import { prepareRotaryKilnModel, ROTARY_KILN_MODEL_URL } from '../scene/rotaryKilnAsset.js'
+import { createRotaryKilnLighting } from '../scene/rotaryKilnLighting.js'
 
 function disposeModel(root) {
   root.traverse((object) => {
@@ -36,19 +38,19 @@ export function RotaryKilnModel({ modelUrl = ROTARY_KILN_MODEL_URL, ariaLabel = 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' })
     renderer.outputColorSpace = THREE.SRGBColorSpace
     renderer.toneMapping = THREE.ACESFilmicToneMapping
-    renderer.toneMappingExposure = 1.12
+    renderer.toneMappingExposure = 1.08
     renderer.setClearColor(0x000000, 0)
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.25))
     host.appendChild(renderer.domElement)
 
-    scene.add(new THREE.HemisphereLight(0xc9efff, 0x071018, 2.4))
-    scene.add(new THREE.AmbientLight(0xdff7ff, .9))
-    const key = new THREE.DirectionalLight(0xfff3df, 4.2)
-    key.position.set(-4, 8, 6)
-    scene.add(key)
-    const rim = new THREE.DirectionalLight(0x3ad9ff, 2.1)
-    rim.position.set(7, 3, -6)
-    scene.add(rim)
+    createRotaryKilnLighting(scene)
+    const pmremGenerator = new THREE.PMREMGenerator(renderer)
+    const roomEnvironment = new RoomEnvironment()
+    const environmentTarget = pmremGenerator.fromScene(roomEnvironment, .04)
+    scene.environment = environmentTarget.texture
+    scene.environmentIntensity = .72
+    roomEnvironment.dispose()
+    pmremGenerator.dispose()
 
     const controls = new OrbitControls(camera, renderer.domElement)
     controls.target.set(0, 0, 0)
@@ -100,6 +102,7 @@ export function RotaryKilnModel({ modelUrl = ROTARY_KILN_MODEL_URL, ariaLabel = 
       controls.removeEventListener('change', render)
       controls.dispose()
       if (model) disposeModel(model)
+      environmentTarget.dispose()
       renderer.dispose()
       renderer.domElement.remove()
     }

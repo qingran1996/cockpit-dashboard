@@ -73,3 +73,18 @@ test('mounts the hzy model viewport in place of the CSS kiln illustration', asyn
   assert.match(markup, /aria-label="回转窑三维设备模型"/)
   assert.doesNotMatch(markup, /rk-kiln-machine|rk-kiln-segment/)
 })
+
+test('builds a layered product-lighting rig for the kiln model', async () => {
+  const module = await import('../src/scene/rotaryKilnLighting.js').catch(() => ({}))
+  assert.equal(typeof module.createRotaryKilnLighting, 'function', 'rotary kiln lighting rig is missing')
+
+  const scene = new THREE.Scene()
+  const lights = module.createRotaryKilnLighting(scene)
+
+  assert.deepEqual(Object.keys(lights).sort(), ['ambient', 'fill', 'groundBounce', 'hemisphere', 'key', 'rim'])
+  assert.ok(lights.key.intensity > lights.ambient.intensity)
+  assert.ok(lights.fill.intensity > lights.ambient.intensity)
+  assert.ok(lights.rim.intensity > lights.fill.intensity)
+  assert.equal(lights.groundBounce.color.getHex(), 0xff8a52)
+  assert.equal(scene.children.filter((child) => child.isLight).length, 6)
+})
