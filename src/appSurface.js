@@ -3,6 +3,7 @@ export const APP_SURFACES = Object.freeze({
   unityOverlay: 'unity-overlay',
   part1Chart: 'part-1-chart',
   part2Chart: 'part-2-chart',
+  rotaryKiln: 'rotary-kiln',
 })
 
 const CAMPUS_CENTER_STAGE = Object.freeze({
@@ -20,6 +21,7 @@ export function resolveAppSurface(pathname = '/') {
   if (normalizedPath === '/unity-dashboard') return APP_SURFACES.unityOverlay
   if (normalizedPath === '/test1') return APP_SURFACES.part1Chart
   if (normalizedPath === '/test2') return APP_SURFACES.part2Chart
+  if (normalizedPath === '/rotary-kiln') return APP_SURFACES.rotaryKiln
   return APP_SURFACES.campus
 }
 
