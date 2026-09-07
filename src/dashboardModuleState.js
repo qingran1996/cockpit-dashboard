@@ -6,8 +6,8 @@ export const DASHBOARD_MODULES = Object.freeze([
 
 const supportedModules = new Set(DASHBOARD_MODULES.map(({ id }) => id))
 
-export function shouldRenderDashboardSideRails(module) {
-  return supportedModules.has(module)
+export function shouldRenderDashboardSideRails(module, surfaceMode = 'campus') {
+  return surfaceMode !== 'unity-overlay' && supportedModules.has(module)
 }
 
 export function resolveDashboardModule(current = 'energy', action = {}) {

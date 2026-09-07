@@ -1371,5 +1371,37 @@ button, input, select { font: inherit; }
   filter: drop-shadow(0 0 5px rgba(25, 215, 255, .65));
 }
 
+.industrial-scene.is-campus-image {
+  background: #071824;
+}
+
+.industrial-scene.is-campus-image::before {
+  z-index: 2;
+  mask-image: none;
+  transform: none;
+  background:
+    linear-gradient(180deg, rgba(3, 21, 33, .16), transparent 18%, transparent 78%, rgba(2, 15, 26, .5)),
+    linear-gradient(90deg, rgba(2, 16, 29, .34), transparent 7%, transparent 93%, rgba(2, 16, 29, .34));
+}
+
+.campus-image-scene__image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  object-position: 50% 58%;
+  user-select: none;
+}
+
+.campus-image-scene__shade {
+  position: absolute;
+  z-index: 3;
+  inset: 0;
+  pointer-events: none;
+  box-shadow: inset 0 0 28px rgba(0, 20, 34, .3);
+}
+
 .campus-focus-toggle { top: 164px; right: var(--homepage-focus-toggle-right, 436px); transform: scale(.88); transform-origin: right top; }
 .dashboard-canvas.is-campus-focus .campus-focus-toggle { transform: none; }

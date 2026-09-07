@@ -7,14 +7,14 @@ import { DashboardHeader } from './components/DashboardHeader.jsx'
 import { DashboardModuleStage } from './components/DashboardModuleStage.js'
 import { EnergyDetailSidecar } from './components/EnergyDetailSidecar.js'
 import { EChart } from './components/EChart.jsx'
-import { IndustrialScene } from './components/IndustrialScene.jsx'
+import { CampusImageScene } from './components/CampusImageScene.js'
 import { PowerPanel } from './components/PowerPanel.jsx'
 import { MaterialPriceDashboard } from './components/MaterialPriceDashboard.js'
 import { SideRail } from './components/SideRail.jsx'
 import { SteamPanel } from './components/SteamPanel.jsx'
 import { WaterPanel } from './components/WaterPanel.jsx'
 import { UnityViewport } from './components/UnityViewport.js'
-import { APP_SURFACES, resolveCenterStage } from './appSurface.js'
+import { APP_SURFACES, resolveCenterStage, resolveSurfaceTransform } from './appSurface.js'
 import { apsChartOptions } from './data/apsDashboardData.js'
 import { chartOptions, dashboardData, energyDetailData } from './data/dashboard.js'
 import { materialPriceChartOptions } from './data/materialPriceDashboardData.js'
@@ -89,16 +89,18 @@ export default function App({ surfaceMode = APP_SURFACES.campus }) {
   const unityOverlay = surfaceMode === APP_SURFACES.unityOverlay
   const centerStage = resolveCenterStage(surfaceMode)
   const focusViewport = resolveCampusFocusViewport(viewportWidth, viewportHeight)
+  const renderSideRails = shouldRenderDashboardSideRails(activeDashboard, surfaceMode)
+  const canvasTransform = resolveSurfaceTransform(surfaceMode, { scale, left, top, viewportWidth, viewportHeight })
 
   return (
     <main className={`dashboard-shell${campusFocus ? ' is-campus-focus' : ''}${unityOverlay ? ' is-unity-overlay' : ''}`}>
       <div className="ambient ambient--one" /><div className="ambient ambient--two" />
-      {shouldRenderDashboardSideRails(activeDashboard) && <SideRail side="left" gap={left} />}
-      {shouldRenderDashboardSideRails(activeDashboard) && <SideRail side="right" gap={left} />}
+      {renderSideRails && <SideRail side="left" gap={left} />}
+      {renderSideRails && <SideRail side="right" gap={left} />}
       <div
         className={`dashboard-canvas${campusFocus ? ' is-campus-focus' : ''}${presentation.hasEnergyDetailClass ? ' is-energy-detail-open' : ''}${unityOverlay ? ' is-unity-overlay' : ''}`}
         style={{
-          transform: `translate(${left}px, ${top}px) scale(${scale})`,
+          transform: canvasTransform,
           '--energy-detail-scene-height': `${detailWorkspaceLayout.scene.height}px`,
           '--energy-detail-tabs-top': `${detailWorkspaceLayout.tabs.top - detailOriginTop}px`,
           '--energy-detail-metrics-top': `${detailWorkspaceLayout.metrics.top - detailOriginTop}px`,
@@ -154,19 +156,7 @@ export default function App({ surfaceMode = APP_SURFACES.campus }) {
           <WaterPanel data={dashboardData.water} chartOption={chartOptions.waterUsage} onOpenDetails={() => openEnergyDetail('water')} />
           {centerStage.renderUnityViewport && <UnityViewport />}
           {centerStage.renderFactoryModel && (
-            <IndustrialScene
-              focusMode={campusFocus}
-              lightingMode={campusLightingMode}
-              onLightingModeChange={setCampusLightingMode}
-              renderStyle={campusRenderStyle}
-              onRenderStyleChange={setCampusRenderStyle}
-              sunlightPercent={activeSunlight}
-              onSunlightChange={(value) => setCampusSunlight((current) => updateCampusSunlight(current, campusLightingMode, value))}
-              lightingProfile={activeLightingProfile}
-              onLightingParameterChange={(key, value) => setCampusLightingProfiles((current) => updateCampusLightingProfile(current, campusLightingMode, key, value))}
-              onResetLightingMode={resetCurrentLightingMode}
-              onResetAllLighting={resetAllLighting}
-            />
+            <CampusImageScene />
           )}
           <SteamPanel data={dashboardData.steam} chartOption={chartOptions.steamFlow} onOpenDetails={() => openEnergyDetail('steam')} />
           <PowerPanel data={dashboardData.power} chartOption={chartOptions.powerLoad} onOpenDetails={() => openEnergyDetail('power')} />

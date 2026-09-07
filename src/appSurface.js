@@ -28,3 +28,10 @@ export function resolveCenterStage(surfaceMode) {
     ? UNITY_CENTER_STAGE
     : CAMPUS_CENTER_STAGE
 }
+
+export function resolveSurfaceTransform(surfaceMode, viewport) {
+  if (surfaceMode === APP_SURFACES.unityOverlay) {
+    return `translate(0px, 0px) scale(${viewport.viewportWidth / 1920}, ${viewport.viewportHeight / 1080})`
+  }
+  return `translate(${viewport.left}px, ${viewport.top}px) scale(${viewport.scale})`
+}

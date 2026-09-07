@@ -38,3 +38,36 @@ test('renders a transparent Unity viewport without mounting a web 3D canvas', as
   assert.doesNotMatch(markup, /industrial-scene/)
   assert.doesNotMatch(markup, /<canvas/)
 })
+
+test('removes decorative side buses only from the full-screen Unity surface', async () => {
+  const module = await import('../src/dashboardModuleState.js').catch(() => ({}))
+
+  assert.equal(module.shouldRenderDashboardSideRails('energy', 'campus'), true)
+  assert.equal(module.shouldRenderDashboardSideRails('energy', 'unity-overlay'), false)
+})
+
+test('stretches the Unity overlay to every viewport edge without letterboxing', async () => {
+  const module = await import('../src/appSurface.js').catch(() => ({}))
+
+  assert.equal(typeof module.resolveSurfaceTransform, 'function', 'surface transform resolver is missing')
+  assert.equal(
+    module.resolveSurfaceTransform('unity-overlay', {
+      scale: 1,
+      left: 320,
+      top: 0,
+      viewportWidth: 2560,
+      viewportHeight: 1080,
+    }),
+    'translate(0px, 0px) scale(1.3333333333333333, 1)',
+  )
+  assert.equal(
+    module.resolveSurfaceTransform('campus', {
+      scale: 1,
+      left: 320,
+      top: 0,
+      viewportWidth: 2560,
+      viewportHeight: 1080,
+    }),
+    'translate(320px, 0px) scale(1)',
+  )
+})
