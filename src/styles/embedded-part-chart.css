@@ -1,0 +1,238 @@
+html[data-surface$="-chart"],
+html[data-surface$="-chart"] body,
+html[data-surface$="-chart"] #root {
+  background: #020a12;
+}
+
+.embedded-part-chart {
+  --instrument-cyan: #35e2ff;
+  --instrument-blue: #0878d8;
+  --instrument-amber: #ffb85c;
+  width: 100vw;
+  height: 100vh;
+  min-width: 280px;
+  min-height: 220px;
+  padding: clamp(8px, 1.5vw, 22px);
+  overflow: hidden;
+  color: #dff9ff;
+  background:
+    radial-gradient(circle at 77% 4%, rgba(23, 130, 171, .18), transparent 37%),
+    linear-gradient(rgba(40, 142, 177, .045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(40, 142, 177, .045) 1px, transparent 1px),
+    #020a12;
+  background-size: auto, 28px 28px, 28px 28px, auto;
+}
+
+.embedded-part-chart__instrument {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid rgba(77, 208, 239, .26);
+  clip-path: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 18px 100%, 0 calc(100% - 18px));
+  background:
+    linear-gradient(135deg, rgba(21, 72, 94, .22), transparent 32%),
+    rgba(3, 16, 27, .88);
+  box-shadow: inset 0 0 46px rgba(0, 107, 156, .08);
+}
+
+.embedded-part-chart__instrument::before,
+.embedded-part-chart__instrument::after {
+  content: "";
+  position: absolute;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.embedded-part-chart__instrument::before {
+  top: 0;
+  left: 0;
+  width: clamp(86px, 24vw, 240px);
+  height: 2px;
+  background: linear-gradient(90deg, var(--instrument-cyan), transparent);
+  box-shadow: 0 0 12px rgba(53, 226, 255, .5);
+}
+
+.embedded-part-chart__instrument::after {
+  right: 0;
+  bottom: 0;
+  width: clamp(62px, 15vw, 150px);
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--instrument-amber));
+}
+
+.embedded-part-chart__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: clamp(12px, 2.1vh, 22px) clamp(14px, 2.4vw, 30px) 10px;
+}
+
+.embedded-part-chart__eyebrow {
+  margin: 0 0 4px;
+  color: #5d9caf;
+  font: 600 clamp(8px, 1.1vw, 11px)/1.2 "Arial Narrow", "DIN Alternate", sans-serif;
+  letter-spacing: .18em;
+}
+
+.embedded-part-chart__header h1 {
+  margin: 0;
+  color: #dffaff;
+  font-size: clamp(16px, 2.8vw, 30px);
+  font-weight: 650;
+  letter-spacing: .06em;
+  text-shadow: 0 0 16px rgba(53, 226, 255, .18);
+}
+
+.embedded-part-chart__status {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 7px;
+  color: #82dcb2;
+  font-size: clamp(10px, 1.3vw, 13px);
+}
+
+.embedded-part-chart__status i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #3ae89a;
+  box-shadow: 0 0 10px rgba(58, 232, 154, .85);
+}
+
+.embedded-part-chart__summary {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 20px;
+  margin: 0 clamp(14px, 2.4vw, 30px);
+  padding: clamp(5px, 1vh, 10px) 0 clamp(8px, 1.4vh, 14px);
+  border-bottom: 1px solid rgba(78, 170, 201, .14);
+}
+
+.embedded-part-chart__primary-metric {
+  display: flex;
+  align-items: baseline;
+  min-width: 0;
+}
+
+.embedded-part-chart__primary-metric span {
+  align-self: center;
+  margin-right: clamp(10px, 1.6vw, 18px);
+  color: #799daf;
+  font-size: clamp(10px, 1.4vw, 14px);
+}
+
+.embedded-part-chart__primary-metric strong {
+  color: #f1fdff;
+  font: 700 clamp(30px, 6.8vw, 66px)/.88 "DIN Alternate", "Arial Narrow", sans-serif;
+  letter-spacing: -.035em;
+}
+
+.embedded-part-chart__primary-metric em {
+  margin-left: 5px;
+  color: var(--instrument-cyan);
+  font: normal 600 clamp(12px, 2vw, 20px)/1 "DIN Alternate", sans-serif;
+}
+
+.embedded-part-chart__secondary-metrics {
+  display: flex;
+  flex: 0 0 auto;
+  gap: clamp(16px, 3.2vw, 40px);
+  margin: 0;
+}
+
+.embedded-part-chart__secondary-metrics div {
+  min-width: 58px;
+  text-align: right;
+}
+
+.embedded-part-chart__secondary-metrics dt {
+  color: #66899b;
+  font-size: clamp(9px, 1.2vw, 12px);
+}
+
+.embedded-part-chart__secondary-metrics dd {
+  margin: 3px 0 0;
+  color: #d5f7ff;
+  font: 600 clamp(13px, 2vw, 20px)/1.1 "DIN Alternate", "Arial Narrow", sans-serif;
+}
+
+.embedded-part-chart__plot {
+  position: relative;
+  min-height: 0;
+  margin: 0 clamp(4px, .8vw, 10px) clamp(5px, 1vh, 10px);
+}
+
+.embedded-part-chart__plot-meta {
+  position: absolute;
+  z-index: 2;
+  top: 9px;
+  left: clamp(48px, 6vw, 62px);
+  right: clamp(18px, 2.4vw, 30px);
+  display: flex;
+  justify-content: space-between;
+  color: rgba(99, 151, 169, .66);
+  font: 9px/1 "Arial Narrow", sans-serif;
+  letter-spacing: .08em;
+  pointer-events: none;
+}
+
+.embedded-part-chart__canvas {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.embedded-part-chart__legend {
+  position: absolute;
+  z-index: 2;
+  right: clamp(18px, 2.4vw, 30px);
+  bottom: 8px;
+  display: flex;
+  gap: 15px;
+  color: #7695a4;
+  font-size: 10px;
+  pointer-events: none;
+}
+
+.embedded-part-chart__legend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.embedded-part-chart__legend-item i {
+  width: 13px;
+  height: 2px;
+  background: var(--instrument-cyan);
+  box-shadow: 0 0 6px rgba(53, 226, 255, .45);
+}
+
+.embedded-part-chart__legend-item.is-series-2 i {
+  background: var(--instrument-amber);
+  box-shadow: none;
+}
+
+@media (max-height: 360px) {
+  .embedded-part-chart__header { padding-top: 9px; padding-bottom: 5px; }
+  .embedded-part-chart__eyebrow { display: none; }
+  .embedded-part-chart__summary { padding: 3px 0 6px; }
+  .embedded-part-chart__primary-metric strong { font-size: clamp(27px, 9vh, 44px); }
+  .embedded-part-chart__secondary-metrics dd { font-size: 14px; }
+}
+
+@media (max-width: 430px) {
+  .embedded-part-chart__secondary-metrics { gap: 12px; }
+  .embedded-part-chart__secondary-metrics div:last-child { display: none; }
+  .embedded-part-chart__plot-meta { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .embedded-part-chart__status i { box-shadow: none; }
+}

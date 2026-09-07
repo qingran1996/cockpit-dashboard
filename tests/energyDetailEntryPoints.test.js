@@ -30,5 +30,6 @@ test('makes the first three bottom metrics detail buttons and keeps the last two
   assert.match(markup, /aria-label="查看水资源详情"/)
   assert.match(markup, /aria-label="查看电力资源详情"/)
   assert.match(markup, /aria-label="查看蒸汽资源详情"/)
-  assert.match(markup, /<div[^>]*>[^<]*<i[^>]*>▣/)
+  assert.match(markup, /<div class="bottom-metric bottom-metric--cyan"><i[^>]*>ϟ<\/i><div><span>综合能耗<\/span>/)
+  assert.match(markup, /<div class="bottom-metric bottom-metric--warning"><i[^>]*>!<\/i><div><span>告警数量<\/span>/)
 })

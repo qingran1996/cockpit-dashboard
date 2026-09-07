@@ -12,6 +12,8 @@ import { CAMPUS_LIGHTING_PARAMETER_GROUPS } from '../scene/campusLightingProfile
 import { createBuildingMaterialSettings, updateBuildingMaterialSettings } from '../scene/campusMaterialLab.js'
 import { DEFAULT_CAMPUS_RENDER_STYLE } from '../scene/campusRenderStyle.js'
 import { CampusTourControl } from './CampusTourControl.js'
+import { FactoryModelLoading, resolveFactorySceneInterfaceProps } from './FactoryModelLoading.js'
+import { FactorySceneTelemetry } from './FactorySceneTelemetry.js'
 
 function useReducedMotion() {
   const [reduced, setReduced] = useState(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches)
@@ -88,6 +90,12 @@ export function IndustrialScene({
   }), [selectedId, floorsExploded, focusedFloorId])
   const {
     webglError,
+    assetStatus,
+    assetProgress,
+    assetError,
+    qualityLevel,
+    setQualityLevel,
+    telemetry,
     resetView,
     focusFloor,
     applyBuildingMaterial,
@@ -179,11 +187,13 @@ export function IndustrialScene({
   }, [materialScope, resetBuildingMaterial, selected])
 
   return (
-    <section className="industrial-scene" data-building-count={buildingRegistry.length} aria-label="交互式三维工业园区">
+    <section className="industrial-scene is-plant-v068" data-building-count={buildingRegistry.length} aria-label="交互式三维工业园区夜景">
       <div ref={canvasRef} className="industrial-scene__canvas" />
       <div className="industrial-scene__vignette" />
       <div className="industrial-scene__scanline" />
+      <FactoryModelLoading status={assetStatus} progress={assetProgress} error={assetError} unavailable={webglError} />
 
+      <div className="industrial-scene__interface" {...resolveFactorySceneInterfaceProps(assetStatus)}>
       {hoveredBuilding && (
         <div className="scene-tooltip" style={{ left: hovered.point.x, top: hovered.point.y }}>
           <b>{hoveredBuilding.name}</b><span>{hoveredBuilding.type}</span>
@@ -216,6 +226,7 @@ export function IndustrialScene({
       )}
 
       <div className="scene-controls-tip"><span>拖拽旋转</span><i />滚轮缩放</div>
+      <FactorySceneTelemetry quality={qualityLevel} telemetry={telemetry} onQualityChange={setQualityLevel} />
       <CampusTourControl
         state={tourState}
         onStart={handleStartTour}
@@ -251,6 +262,7 @@ export function IndustrialScene({
         onResetAll={onResetAllLighting}
       />
       <button type="button" className="scene-reset" onClick={handleReset}>复位视角</button>
+      </div>
 
       {webglError && (
         <div className="industrial-scene__fallback" role="status">

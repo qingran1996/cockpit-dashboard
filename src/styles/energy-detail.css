@@ -444,25 +444,28 @@
   left: var(--homepage-pulse-left, 427px);
   top: 82px;
   width: var(--homepage-pulse-width, 1066px);
-  height: 61px;
+  height: 84px;
   grid-template-columns: repeat(6, 1fr);
   clip-path: polygon(14px 0, calc(100% - 14px) 0, 100% 14px, 100% calc(100% - 6px), calc(100% - 6px) 100%, 6px 100%, 0 calc(100% - 6px), 0 14px);
   border: 1px solid rgba(25, 215, 255, .22);
   background: linear-gradient(90deg, rgba(3, 20, 34, .97), rgba(7, 43, 60, .93), rgba(3, 20, 34, .97));
 }
 .campus-energy-pulse__label { display: none; }
-.campus-energy-pulse__signal { grid-template-columns: 32px 1fr; grid-template-rows: 20px 1fr; padding: 6px 12px 6px 44px; }
-.campus-energy-pulse__signal::before { content: "◉"; position: absolute; left: 14px; top: 17px; color: #26dfff; font-size: 21px; text-shadow: 0 0 9px currentColor; }
+.campus-energy-pulse__signal { grid-template-columns: 32px minmax(0, 1fr); grid-template-rows: 1fr; align-items: center; padding: 0 7px 0 14px; }
+.campus-energy-pulse__signal::before { content: "◉"; position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #26dfff; font-size: 21px; text-shadow: 0 0 9px currentColor; }
 .campus-energy-pulse__signal:nth-child(2)::before { content: "◆"; }
 .campus-energy-pulse__signal:nth-child(3)::before { content: "ϟ"; color: #ffc64f; }
 .campus-energy-pulse__signal:nth-child(4)::before { content: "≋"; color: #ff9a55; }
 .campus-energy-pulse__signal:nth-child(5)::before { content: "◴"; }
 .campus-energy-pulse__signal:nth-child(6)::before { content: "◎"; }
 .campus-energy-pulse__signal:nth-child(7)::before { content: "!"; color: #ff6c58; }
+.campus-energy-pulse__signal-content { grid-column: 2; display: grid; grid-template-rows: 17px 22px 24px; align-content: center; min-width: 0; }
 .campus-energy-pulse__signal span { font-size: 10px; }
-.campus-energy-pulse__signal strong { grid-column: 2; grid-row: 2; font-size: 18px; }
+.campus-energy-pulse__signal strong { grid-row: 2; font-size: 17px; }
 .campus-energy-pulse__signal small { font-size: 9px; }
-.campus-energy-pulse__signal em { display: none; }
+.campus-energy-pulse__comparisons { grid-column: 1; grid-row: 3; display: flex; align-items: center; gap: 4px; min-width: 0; }
+.campus-energy-pulse__signal .campus-energy-pulse__comparisons em { display: block; grid-column: auto; grid-row: auto; overflow: visible; margin: 0; font-size: 7px; line-height: 1; white-space: nowrap; }
+.campus-energy-pulse__comparisons b { font-weight: 560; }
 
 /* ===== Integrated detail entry + dense second-level workspace ===== */
 .energy-detail-entry {
@@ -1344,3 +1347,158 @@
 }
 
 .energy-detail__header-action .energy-detail__return-line { width: 18px; }
+
+/* Keep homepage comparison labels readable when the fixed canvas is scaled. */
+.dashboard-canvas em.homepage-comparison {
+  font-size: 12px;
+  font-weight: 560;
+  line-height: 1.3;
+  letter-spacing: 0;
+  text-shadow: 0 0 5px rgba(8, 27, 38, .92);
+}
+
+.dashboard-canvas .telemetry-kpi {
+  padding-right: 3px;
+  padding-left: 3px;
+}
+
+.dashboard-canvas .telemetry-kpi__comparisons em.homepage-comparison,
+.dashboard-canvas .telemetry-comparisons em.homepage-comparison {
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.dashboard-canvas .telemetry-kpi__comparisons em.homepage-comparison {
+  display: grid;
+  grid-template-columns: 44px auto;
+  justify-content: start;
+  align-items: baseline;
+  column-gap: 2px;
+  font-size: 11px;
+  line-height: 1.2;
+  letter-spacing: 0;
+}
+
+.dashboard-canvas .telemetry-kpi__comparisons {
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.dashboard-canvas .telemetry-kpi__comparisons .comparison-label {
+  color: inherit;
+  font-size: 11px;
+}
+
+.dashboard-canvas .telemetry-kpi__comparisons b {
+  font-size: 12px;
+}
+
+.dashboard-canvas .resource-terminal__signals .telemetry-comparisons em.homepage-comparison {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  align-items: baseline;
+  column-gap: 2px;
+  font-size: 11px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.dashboard-canvas .resource-terminal__signals {
+  height: 100%;
+  align-items: center;
+  box-sizing: border-box;
+  padding: 8px 6px 17px 0;
+}
+
+.dashboard-canvas .resource-terminal--power .resource-terminal__signals {
+  grid-template-rows: 34px 1fr;
+}
+
+.dashboard-canvas .resource-terminal__status {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  align-self: stretch;
+  gap: 7px;
+  min-width: 0;
+  padding: 0 5px;
+  border-right: 0;
+  border-bottom: 1px solid rgba(25, 215, 255, .16);
+  background: linear-gradient(90deg, rgba(25, 215, 255, .08), transparent 72%);
+}
+
+.dashboard-canvas .resource-terminal__status > span {
+  color: #8fb7c5;
+  font-size: 10px;
+  letter-spacing: .4px;
+}
+
+.dashboard-canvas .resource-terminal__status > strong {
+  position: relative;
+  margin: 0;
+  padding-left: 9px;
+  color: #58e2a3;
+  font-size: 11px;
+  text-shadow: 0 0 7px rgba(88, 226, 163, .32);
+}
+
+.dashboard-canvas .resource-terminal__status > strong::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 5px;
+  height: 5px;
+  transform: translateY(-50%);
+  border-radius: 50%;
+  background: #58e2a3;
+  box-shadow: 0 0 7px #58e2a3;
+}
+
+.dashboard-canvas .resource-terminal__status > small {
+  overflow: hidden;
+  margin: 0 0 0 auto;
+  color: #5593a5;
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-canvas .resource-terminal__signal {
+  min-width: 0;
+  padding: 3px;
+}
+
+.dashboard-canvas .resource-terminal__signal > strong {
+  margin-top: 4px;
+}
+
+.dashboard-canvas .resource-terminal__signal .telemetry-comparisons {
+  gap: 2px;
+  margin-top: 4px;
+}
+
+.dashboard-canvas .resource-terminal__signal .comparison-label {
+  overflow: visible;
+  color: inherit;
+  font-size: 10px;
+  text-overflow: clip;
+}
+
+.dashboard-canvas .resource-terminal__signal .homepage-comparison b {
+  font-size: 10px;
+}
+
+.dashboard-canvas .campus-energy-pulse__signal-content {
+  grid-template-rows: 15px 20px 29px;
+}
+
+.dashboard-canvas .campus-energy-pulse__comparisons {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0;
+}
+
+.dashboard-canvas .bottom-metric__comparisons em.homepage-comparison {
+  font-size: 13px;
+}

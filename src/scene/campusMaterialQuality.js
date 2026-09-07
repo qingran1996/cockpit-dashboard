@@ -43,11 +43,15 @@ export function applyCampusMaterialQuality({ root, renderer, anisotropy = 8 }) {
   for (const [object, material] of materials) {
     COLOR_TEXTURE_KEYS.forEach((key) => configureTexture(material[key], THREE.SRGBColorSpace, maximumAnisotropy))
     DATA_TEXTURE_KEYS.forEach((key) => configureTexture(material[key], THREE.NoColorSpace, maximumAnisotropy))
-    if (isGlass(material)) material.envMapIntensity = 1.15
-    else if (isInterior(material)) material.envMapIntensity = .36
-    else if (isFacade(object, material)) material.envMapIntensity = .72
-    else if (isMetal(material)) material.envMapIntensity = 1.0
-    else material.envMapIntensity = .62
+    let environmentIntensity = .62
+    if (isGlass(material)) environmentIntensity = 1.15
+    else if (isInterior(material)) environmentIntensity = .36
+    else if (isFacade(object, material)) environmentIntensity = .72
+    else if (isMetal(material)) environmentIntensity = 1.0
+    const importedCap = Number(material.userData.environmentIntensityCap)
+    material.envMapIntensity = Number.isFinite(importedCap)
+      ? Math.min(environmentIntensity, importedCap)
+      : environmentIntensity
     if (material.aoMap) material.aoMapIntensity = isInterior(material) ? .88 : .78
     material.needsUpdate = true
     materialCount += 1

@@ -1,6 +1,6 @@
 import { createElement as h } from 'react'
 
-const glyphs = { drop: '♦', bolt: 'ϟ', heat: 'ϟ', energy: 'ϟ', carbon: '▣' }
+const glyphs = { drop: '♦', bolt: 'ϟ', heat: 'ϟ', energy: 'ϟ', alarm: '!' }
 
 function metricContents(metric) {
   return [
@@ -9,7 +9,10 @@ function metricContents(metric) {
       h('span', null, metric.label),
       h('strong', null, metric.value, h('small', null, metric.unit)),
     ),
-    h('em', { key: 'trend' }, '同比 ', h('b', null, metric.trend)),
+    h('div', { className: 'bottom-metric__comparisons', key: 'comparisons' }, metric.comparisons.map((item) =>
+      h('em', { className: `comparison comparison--${item.tone} homepage-comparison`, key: item.label }, item.label, ' ', h('b', null, item.value))),
+      metric.summary ? h('small', { className: 'bottom-metric__summary' }, metric.summary) : null,
+    ),
   ]
 }
 

@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import { buildingRegistry } from './buildingRegistry.js'
 import { createBuilding, createMaterialLibrary } from './buildingFactory.js'
-import { loadExternalFactoryModel } from './externalFactoryAsset.js'
+import { loadPlantV068Model } from './plantV068Asset.js'
 
 function createBase() {
   const group = new THREE.Group()
@@ -111,6 +111,7 @@ function createSiteProps() {
 function createLights() {
   const group = new THREE.Group()
   group.name = 'CampusLightingRig'
+  group.visible = false
   const hemisphere = new THREE.HemisphereLight(0xb6f5ff, 0x031422, 2.45)
   hemisphere.name = 'CampusHemisphere'
   group.add(hemisphere)
@@ -147,7 +148,12 @@ function disposeTree(tree) {
   materials.forEach((material) => material.dispose())
 }
 
-export function createIndustrialScene({ loadCampus = loadExternalFactoryModel } = {}) {
+export function createIndustrialScene({
+  loadCampus = loadPlantV068Model,
+  onAssetStatusChange = () => {},
+  onAssetProgress = () => {},
+  onAssetError = () => {},
+} = {}) {
   const root = new THREE.Group()
   const fallback = new THREE.Group()
   fallback.name = 'ProceduralFallback'
@@ -156,6 +162,8 @@ export function createIndustrialScene({ loadCampus = loadExternalFactoryModel } 
   const materials = { cyan: createMaterialLibrary('cyan'), orange: createMaterialLibrary('orange') }
   let disposed = false
   let materialTemplatesDisposed = false
+
+  onAssetStatusChange('loading')
 
   const disposeMaterialTemplates = () => {
     if (materialTemplatesDisposed) return
@@ -180,7 +188,7 @@ export function createIndustrialScene({ loadCampus = loadExternalFactoryModel } 
   })
 
   const ready = Promise.resolve()
-    .then(() => loadCampus())
+    .then(() => loadCampus({ onProgress: onAssetProgress }))
     .then((campus) => {
       if (disposed) {
         disposeTree(campus.root)
@@ -196,9 +204,16 @@ export function createIndustrialScene({ loadCampus = loadExternalFactoryModel } 
         baseZ: item.object.position.z,
         baseRotationY: item.object.rotation.y,
       })))
+      onAssetStatusChange('ready')
       return { source: 'glb' }
     })
-    .catch((error) => ({ source: 'fallback', error }))
+    .catch((error) => {
+      if (!disposed) {
+        onAssetStatusChange('error')
+        onAssetError(error)
+      }
+      return { source: 'fallback', error }
+    })
 
   const dispose = () => {
     if (disposed) return

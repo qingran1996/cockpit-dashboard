@@ -1,34 +1,40 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
-import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 import { createIndustrialScene } from '../scene/sceneFactory.js'
 import { applyFloorView, applyInspectionOccluders, updateFloorAnimations } from '../scene/floorInteraction.js'
 import { createFloorCameraPose, getFloorInspectionAnchor } from '../scene/floorCamera.js'
 import { buildingById } from '../scene/buildingRegistry.js'
-import { cameraLimits, clampPixelRatio, focusCameraView, initialCameraView, normalizePointer } from '../scene/sceneMath.js'
+import { clampPixelRatio, normalizePointer } from '../scene/sceneMath.js'
 import { updateVehicleAnimations } from '../scene/vehicleAnimation.js'
 import { updatePersonAnimations } from '../scene/personAnimation.js'
 import { updateGateAnimations } from '../scene/gateAnimation.js'
 import { updateRobotArmAnimations } from '../scene/robotArmAnimation.js'
 import { createFloorInspectionLighting } from '../scene/floorInspectionLighting.js'
-import { applyCampusLightingMode, updateCampusBackdropCamera } from '../scene/campusLightingMode.js'
-import { configureCampusShadowQuality } from '../scene/campusShadowQuality.js'
-import { installCampusEnvironment } from '../scene/campusEnvironment.js'
-import { applyCampusMaterialQuality, createCampusQualityController } from '../scene/campusMaterialQuality.js'
+import { applyCampusMaterialQuality } from '../scene/campusMaterialQuality.js'
 import { createCampusMaterialController } from '../scene/campusMaterialLab.js'
-import { configureCampusRenderer, createCampusPostProcessing } from '../scene/campusPostProcessing.js'
-import { DEFAULT_CAMPUS_LIGHTING_MODE, deriveCampusOrbitPolicy } from '../scene/campusViewDefaults.js'
+import { createCampusPostProcessing } from '../scene/campusPostProcessing.js'
+import { DEFAULT_CAMPUS_LIGHTING_MODE } from '../scene/campusViewDefaults.js'
 import { resolveCampusSunlight } from '../scene/campusSunlight.js'
 import { DEFAULT_CAMPUS_RENDER_STYLE } from '../scene/campusRenderStyle.js'
 import { normalizeCampusTourIndex, resolveCampusTourStop } from '../scene/campusTour.js'
 import { createBuildingPickIndex } from '../scene/buildingPickIndex.js'
 import { createPointerPickScheduler } from '../scene/pointerPickScheduler.js'
+import {
+  PLANT_V068_CAMERA,
+  applyPlantV068LightingMode,
+  applyPlantV068Quality,
+  configurePlantV068Renderer,
+  createPlantV068BlueHourEnvironment,
+  createPlantV068DayEnvironment,
+  createPlantV068LightingRig,
+} from '../scene/plantV068Environment.js'
+import { createSceneTelemetrySampler } from '../scene/sceneTelemetry.js'
 
-const INITIAL_CAMERA = new THREE.Vector3(...initialCameraView.position)
-const INITIAL_TARGET = new THREE.Vector3(...initialCameraView.target)
-const FOCUS_CAMERA = new THREE.Vector3(...focusCameraView.position)
-const FOCUS_TARGET = new THREE.Vector3(...focusCameraView.target)
+const INITIAL_CAMERA = new THREE.Vector3(...PLANT_V068_CAMERA.position)
+const INITIAL_TARGET = new THREE.Vector3(...PLANT_V068_CAMERA.target)
+const FOCUS_CAMERA = new THREE.Vector3(...PLANT_V068_CAMERA.position)
+const FOCUS_TARGET = new THREE.Vector3(...PLANT_V068_CAMERA.target)
 const INACTIVE_TOUR_STATE = Object.freeze({ active: false, playing: false, index: 0, progress: 0 })
 
 function setBuildingHighlight(building, active) {
@@ -53,6 +59,11 @@ function setBuildingHighlight(building, active) {
 
 export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMotion, floorView, lightingMode = DEFAULT_CAMPUS_LIGHTING_MODE, renderStyle = DEFAULT_CAMPUS_RENDER_STYLE, sunlightPercent, lightingProfile, trafficEnabled = true, focusMode = false }) {
   const [webglError, setWebglError] = useState(false)
+  const [assetStatus, setAssetStatus] = useState('loading')
+  const [assetProgress, setAssetProgress] = useState(0)
+  const [assetError, setAssetError] = useState('')
+  const [qualityLevel, setQualityLevelState] = useState('high')
+  const [telemetry, setTelemetry] = useState({ fps: null, calls: null, triangles: null, geometries: null, textures: null, heapMb: null })
   const [tourState, setTourState] = useState(INACTIVE_TOUR_STATE)
   const resetRef = useRef(() => {})
   const focusFloorRef = useRef(() => {})
@@ -69,6 +80,8 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
   const materialEditsRef = useRef(new Map())
   const trafficEnabledRef = useRef(trafficEnabled)
   const tourActionRef = useRef({ start: () => {}, toggle: () => {}, previous: () => {}, next: () => {}, stop: () => {} })
+  const qualityLevelRef = useRef('high')
+  const qualityApplyRef = useRef(() => {})
 
   const resetView = useCallback(() => resetRef.current(), [])
   const focusFloor = useCallback((buildingId, floorId) => focusFloorRef.current(buildingId, floorId), [])
@@ -86,6 +99,13 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
   const previousTourStop = useCallback(() => tourActionRef.current.previous(), [])
   const nextTourStop = useCallback(() => tourActionRef.current.next(), [])
   const stopTour = useCallback(() => tourActionRef.current.stop(), [])
+  const setQualityLevel = useCallback((level) => {
+    if (!['high', 'balanced', 'performance'].includes(level)) return false
+    qualityLevelRef.current = level
+    setQualityLevelState(level)
+    qualityApplyRef.current(level)
+    return true
+  }, [])
 
   useEffect(() => {
     floorViewRef.current = floorView
@@ -100,9 +120,7 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
     renderStyleRef.current = renderStyle
     sunlightPercentRef.current = resolveCampusSunlight({ [lightingMode]: sunlightPercent }, lightingMode)
     lightingProfileRef.current = lightingProfile
-    if (lightingControllerRef.current) {
-      applyCampusLightingMode(lightingControllerRef.current, lightingMode, sunlightPercentRef.current, lightingProfileRef.current, renderStyleRef.current)
-    }
+    lightingControllerRef.current?.applyLightingMode?.(lightingMode)
   }, [lightingMode, renderStyle, sunlightPercent, lightingProfile])
 
   useEffect(() => {
@@ -121,7 +139,7 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
 
     let renderer
     try {
-      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' })
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' })
     } catch {
       setWebglError(true)
       return undefined
@@ -129,22 +147,24 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
 
     setWebglError(false)
     const pixelRatio = clampPixelRatio(window.devicePixelRatio)
+    configurePlantV068Renderer(renderer)
     renderer.setPixelRatio(pixelRatio)
-    renderer.setClearColor(0x000000, 0)
-    configureCampusRenderer(renderer, { exposure: initialCameraView.exposure })
     renderer.domElement.className = 'industrial-scene__webgl'
     renderer.domElement.setAttribute('aria-label', '可旋转缩放的三维工业园区能源网络')
     container.appendChild(renderer.domElement)
 
     const scene = new THREE.Scene()
     const pmremGenerator = new THREE.PMREMGenerator(renderer)
-    const environmentScene = new RoomEnvironment()
-    const environmentTarget = pmremGenerator.fromScene(environmentScene, .04)
+    const eveningEnvironmentScene = createPlantV068BlueHourEnvironment()
+    const dayEnvironmentScene = createPlantV068DayEnvironment()
+    const environmentTargets = {
+      evening: pmremGenerator.fromScene(eveningEnvironmentScene, .04),
+      day: pmremGenerator.fromScene(dayEnvironmentScene, .04),
+    }
     pmremGenerator.dispose()
-    environmentScene.dispose()
-    installCampusEnvironment(scene, environmentTarget.texture, lightingModeRef.current)
-    scene.fog = new THREE.FogExp2(0x020b14, initialCameraView.fogDensity)
-    const camera = new THREE.PerspectiveCamera(initialCameraView.fov, 1, .1, 160)
+    eveningEnvironmentScene.userData.dispose()
+    dayEnvironmentScene.userData.dispose()
+    const camera = new THREE.PerspectiveCamera(PLANT_V068_CAMERA.fov, 1, PLANT_V068_CAMERA.near, PLANT_V068_CAMERA.far)
     camera.position.copy(focusMode ? FOCUS_CAMERA : INITIAL_CAMERA)
     const postProcessing = createCampusPostProcessing({
       renderer,
@@ -154,35 +174,49 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
       reducedMotion,
       pixelRatio,
       focused: focusMode,
+      profile: 'plant-v068',
     })
-    lightingControllerRef.current = { scene, camera, renderer, postProcessing }
+    const plantLighting = createPlantV068LightingRig()
+    scene.add(plantLighting.group)
+    const environmentMaps = {
+      evening: environmentTargets.evening.texture,
+      day: environmentTargets.day.texture,
+    }
+    const applyLightingMode = (mode) => applyPlantV068LightingMode({
+      scene,
+      renderer,
+      lighting: plantLighting,
+      environmentMaps,
+      mode,
+    })
+    applyLightingMode(lightingModeRef.current)
+    lightingControllerRef.current = { scene, camera, renderer, postProcessing, applyLightingMode }
     const inspectionLighting = createFloorInspectionLighting()
     scene.add(inspectionLighting.group)
 
     const controls = new OrbitControls(camera, renderer.domElement)
-    const orbitPolicy = deriveCampusOrbitPolicy({ reducedMotion })
     controls.target.copy(focusMode ? FOCUS_TARGET : INITIAL_TARGET)
-    controls.enableDamping = orbitPolicy.enableDamping
-    controls.dampingFactor = orbitPolicy.dampingFactor
-    controls.enablePan = false
-    controls.minDistance = cameraLimits.minDistance
-    controls.maxDistance = cameraLimits.maxDistance
-    controls.minPolarAngle = cameraLimits.minPolarAngle
-    controls.maxPolarAngle = cameraLimits.maxPolarAngle
-    controls.autoRotate = orbitPolicy.autoRotate
+    controls.enableDamping = !reducedMotion
+    controls.dampingFactor = reducedMotion ? 0 : PLANT_V068_CAMERA.controls.dampingFactor
+    controls.minDistance = PLANT_V068_CAMERA.controls.minDistance
+    controls.maxDistance = PLANT_V068_CAMERA.controls.maxDistance
+    controls.maxPolarAngle = PLANT_V068_CAMERA.controls.maxPolarAngle
+    controls.autoRotate = false
     controls.update()
 
-    const park = createIndustrialScene()
-    configureCampusShadowQuality({ renderer, root: park.root })
-    applyCampusMaterialQuality({ root: park.root, renderer })
-    const qualityController = createCampusQualityController({
-      root: park.root,
-      camera,
-      target: controls.target,
-      reducedMotion,
-      onQualityChange: (quality) => postProcessing.setQuality(quality),
+    setAssetStatus('loading')
+    setAssetProgress(0)
+    setAssetError('')
+    const park = createIndustrialScene({
+      onAssetStatusChange: (status) => {
+        setAssetStatus(status)
+        if (status === 'ready') setAssetProgress(100)
+      },
+      onAssetProgress: setAssetProgress,
+      onAssetError: (error) => setAssetError(error?.message ?? String(error)),
     })
-    qualityController.update()
+    applyCampusMaterialQuality({ root: park.root, renderer })
+    const qualityController = { refresh: () => {}, update: () => {} }
     parkRef.current = park
     let buildingPickIndex = null
     applyFloorView(park.interactiveObjects, floorViewRef.current)
@@ -200,15 +234,10 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
         buildingPickIndex?.refresh()
       }
     })
-    park.root.position.y = -1.2
     scene.add(park.root)
     park.root.updateMatrixWorld(true)
     buildingPickIndex = createBuildingPickIndex(park.interactiveObjects)
     applyInspectionOccluders(park.root, Boolean(floorViewRef.current?.focusedFloorId))
-    applyCampusLightingMode({ scene, camera, renderer, postProcessing }, lightingModeRef.current, sunlightPercentRef.current, lightingProfileRef.current, renderStyleRef.current)
-    park.ready.then(() => {
-      if (parkRef.current === park) applyCampusLightingMode({ scene, camera, renderer, postProcessing }, lightingModeRef.current, sunlightPercentRef.current, lightingProfileRef.current, renderStyleRef.current)
-    })
     const raycaster = new THREE.Raycaster()
     const pointer = new THREE.Vector2(2, 2)
     let hovered = null
@@ -221,6 +250,7 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
     let focusTransition = null
     let previousFrameTime = 0
     let tourPublishTime = 0
+    const telemetrySampler = createSceneTelemetrySampler({ publishIntervalMs: 750 })
     const tour = {
       active: false,
       playing: false,
@@ -312,10 +342,22 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
     const resize = () => {
       const { width, height } = container.getBoundingClientRect()
       if (!width || !height) return
+      applyPlantV068Quality({
+        level: qualityLevelRef.current,
+        renderer,
+        postProcessing,
+        lighting: plantLighting,
+        devicePixelRatio: window.devicePixelRatio,
+        width,
+        height,
+      })
       renderer.setSize(width, height, false)
       postProcessing.setSize(width, height)
       camera.aspect = width / height
       camera.updateProjectionMatrix()
+    }
+    qualityApplyRef.current = (level) => {
+      resize()
     }
     const observer = new ResizeObserver(resize)
     observer.observe(container)
@@ -376,8 +418,8 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
     resetRef.current = () => {
       if (tour.active) leaveTour()
       focusTransition = null
-      controls.minDistance = cameraLimits.minDistance
-      controls.maxDistance = cameraLimits.maxDistance
+      controls.minDistance = PLANT_V068_CAMERA.controls.minDistance
+      controls.maxDistance = PLANT_V068_CAMERA.controls.maxDistance
       resetStart = performance.now()
       resetFromPosition = camera.position.clone()
       resetFromTarget = controls.target.clone()
@@ -388,8 +430,8 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
     focusModeControllerRef.current = (focused) => {
       if (tour.active) leaveTour()
       focusTransition = null
-      controls.minDistance = cameraLimits.minDistance
-      controls.maxDistance = cameraLimits.maxDistance
+      controls.minDistance = PLANT_V068_CAMERA.controls.minDistance
+      controls.maxDistance = PLANT_V068_CAMERA.controls.maxDistance
       resetStart = performance.now()
       resetFromPosition = camera.position.clone()
       resetFromTarget = controls.target.clone()
@@ -403,7 +445,7 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
       if (tour.active) leaveTour()
       resetStart = 0
       controls.minDistance = 1.2
-      controls.maxDistance = Math.min(24, cameraLimits.maxDistance)
+      controls.maxDistance = Math.min(24, PLANT_V068_CAMERA.controls.maxDistance)
       focusTransition = {
         buildingId,
         floorId,
@@ -485,9 +527,13 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
       }
 
       controls.update()
-      updateCampusBackdropCamera(scene, camera)
       qualityController.update()
       postProcessing.render()
+      const snapshot = telemetrySampler.sample(time, renderer, performance)
+      if (snapshot) {
+        setTelemetry(snapshot)
+        window.__COCKPIT_SCENE_METRICS__ = { ...snapshot, quality: qualityLevelRef.current, assetStatus: 'ready' }
+      }
     }
     frameId = window.requestAnimationFrame(animate)
 
@@ -507,13 +553,15 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
       materialControllerRef.current = null
       park.dispose()
       postProcessing.dispose()
-      environmentTarget.dispose()
+      environmentTargets.evening.dispose()
+      environmentTargets.day.dispose()
       if (parkRef.current === park) parkRef.current = null
       if (lightingControllerRef.current?.scene === scene) lightingControllerRef.current = null
       scene.clear()
       renderer.dispose()
       renderer.forceContextLoss()
       renderer.domElement.remove()
+      qualityApplyRef.current = () => {}
       resetRef.current = () => {}
       focusFloorRef.current = () => false
       focusModeControllerRef.current = () => {}
@@ -523,6 +571,12 @@ export function useIndustrialScene({ containerRef, onHover, onSelect, reducedMot
 
   return {
     webglError,
+    assetStatus,
+    assetProgress,
+    assetError,
+    qualityLevel,
+    setQualityLevel,
+    telemetry,
     resetView,
     focusFloor,
     applyBuildingMaterial,

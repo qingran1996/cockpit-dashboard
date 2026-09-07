@@ -1,11 +1,30 @@
 export const APP_SURFACES = Object.freeze({
   campus: 'campus',
   unityOverlay: 'unity-overlay',
+  part1Chart: 'part-1-chart',
+  part2Chart: 'part-2-chart',
+})
+
+const CAMPUS_CENTER_STAGE = Object.freeze({
+  renderFactoryModel: true,
+  renderUnityViewport: false,
+})
+
+const UNITY_CENTER_STAGE = Object.freeze({
+  renderFactoryModel: false,
+  renderUnityViewport: true,
 })
 
 export function resolveAppSurface(pathname = '/') {
   const normalizedPath = pathname.replace(/\/+$/, '') || '/'
-  return normalizedPath === '/unity-dashboard'
-    ? APP_SURFACES.unityOverlay
-    : APP_SURFACES.campus
+  if (normalizedPath === '/unity-dashboard') return APP_SURFACES.unityOverlay
+  if (normalizedPath === '/test1') return APP_SURFACES.part1Chart
+  if (normalizedPath === '/test2') return APP_SURFACES.part2Chart
+  return APP_SURFACES.campus
+}
+
+export function resolveCenterStage(surfaceMode) {
+  return surfaceMode === APP_SURFACES.unityOverlay
+    ? UNITY_CENTER_STAGE
+    : CAMPUS_CENTER_STAGE
 }

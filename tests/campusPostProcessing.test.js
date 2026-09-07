@@ -87,3 +87,53 @@ test('keeps post-processing disabled when lighting mode changes in the performan
   assert.equal(merged.bloom.enabled, false)
   assert.equal(merged.antialias, 'native')
 })
+
+test('keeps bloom but disables screen-space AO for the tiled v068 ground surfaces', async () => {
+  const module = await import('../src/scene/campusPostProcessing.js').catch(() => ({}))
+  const plant = module.deriveCampusPostProcessingPolicy({ profile: 'plant-v068', webgl2: true })
+
+  assert.equal(plant.enabled, true)
+  assert.deepEqual(plant.contact, { enabled: false, radius: 0, intensity: 0 })
+  assert.deepEqual(plant.bloom, { enabled: true, threshold: 1.15, strength: .18, radius: .32 })
+  assert.equal(plant.antialias, 'smaa')
+})
+
+test('accumulates renderer info across every composer pass before publishing frame telemetry', async () => {
+  const module = await import('../src/scene/campusPostProcessing.js').catch(() => ({}))
+  assert.equal(typeof module.renderFrameWithAccumulatedStats, 'function')
+  const renderer = {
+    info: {
+      autoReset: true,
+      render: { calls: 99, triangles: 99 },
+      reset() { this.render.calls = 0; this.render.triangles = 0 },
+    },
+  }
+
+  module.renderFrameWithAccumulatedStats(renderer, () => {
+    renderer.info.render.calls += 612
+    renderer.info.render.triangles += 13_410_000
+  })
+
+  assert.equal(renderer.info.autoReset, true)
+  assert.deepEqual(renderer.info.render, { calls: 612, triangles: 13_410_000 })
+})
+
+test('keeps bloom buffers inside a lightweight quarter-resolution budget for the high-fidelity GLB', async () => {
+  const module = await import('../src/scene/campusPostProcessing.js').catch(() => ({}))
+  assert.equal(typeof module.resolveBloomBufferSize, 'function')
+
+  const size = module.resolveBloomBufferSize(1072, 540)
+
+  assert.deepEqual(size, { width: 268, height: 135 })
+  assert.ok(size.width * size.height <= 1072 * 540 * .0625)
+})
+
+test('falls back to native renderer output for the detailed plant in full-screen focus', async () => {
+  const module = await import('../src/scene/campusPostProcessing.js').catch(() => ({}))
+  assert.equal(typeof module.resolvePostProcessingAvailability, 'function')
+
+  assert.equal(module.resolvePostProcessingAvailability({ profile: 'plant-v068', focused: false, qualityAllows: true }), true)
+  assert.equal(module.resolvePostProcessingAvailability({ profile: 'plant-v068', focused: true, qualityAllows: true }), false)
+  assert.equal(module.resolvePostProcessingAvailability({ profile: 'campus', focused: true, qualityAllows: true }), true)
+  assert.equal(module.resolvePostProcessingAvailability({ profile: 'plant-v068', focused: false, qualityAllows: false }), false)
+})

@@ -22,6 +22,7 @@ export function SteamPanel({ data, chartOption, onOpenDetails }) {
         '--steam-panel-height': `${compactLayout.panelHeight}px`,
         '--steam-process-height': `${compactLayout.processHeight}px`,
         '--steam-chart-height': `${compactLayout.chartHeight}px`,
+        '--steam-balance-height': `${compactLayout.balanceHeight}px`,
       }}
       action={<EnergyDetailEntryButton resource="steam" title="蒸汽资源" onOpen={onOpenDetails} />}
     >

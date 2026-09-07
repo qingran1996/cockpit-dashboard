@@ -15,6 +15,13 @@ test('renders operator-visible water summary, districts, health and warning', as
   assert.match(markup, /38/)
   assert.match(markup, /40/)
   assert.match(markup, /二区压力接近高限/)
+  assert.match(markup, /夜间基流/)
+  assert.match(markup, /漏损异常/)
+  assert.equal((markup.match(/class="telemetry-kpi__comparisons"/g) ?? []).length, 4)
+  assert.match(markup, /class="comparison comparison--[^ ]+ homepage-comparison"/)
+  assert.match(markup, /<em class="comparison comparison--good homepage-comparison"><span class="comparison-label">较昨日<\/span><b>-5\.1%<\/b><\/em>/)
+  assert.match(markup, /较昨日/)
+  assert.match(markup, /环比上月/)
 })
 
 test('renders operator-visible power summary, transformers, tariff and quality', async () => {
@@ -22,11 +29,15 @@ test('renders operator-visible power summary, transformers, tariff and quality',
   assert.equal(typeof module.PowerTelemetry, 'function', 'PowerTelemetry is missing')
   const markup = renderToStaticMarkup(createElement(module.PowerTelemetry, { data: dashboardData.power }))
 
-  for (const label of ['实时负荷', '最大需量', '功率因数', '频率', '1#主变', '2#主变', '3#主变', '尖时段', '平时段', '谷时段', 'THD']) {
+  for (const label of ['实时负荷', '最大需量', '功率因数', '频率', '1#主变（高炉）', '2#主变（双螺杆挤出机）', '3#主变（空压机）', '尖时段', '平时段', '谷时段', 'THD']) {
     assert.match(markup, new RegExp(label))
   }
   assert.match(markup, /92\.1/)
   assert.match(markup, /2\.8/)
+  assert.equal((markup.match(/class="telemetry-kpi__comparisons"/g) ?? []).length, 4)
+  assert.doesNotMatch(markup, /<em class="comparison--(?:good|warning)">较昨日/)
+  assert.match(markup, /较昨日/)
+  assert.match(markup, /环比上月/)
 })
 
 test('fills the water panel terminal with network efficiency signals and a water identity mark', async () => {
@@ -40,6 +51,7 @@ test('fills the water panel terminal with network efficiency signals and a water
   assert.match(markup, /95\.0/)
   assert.match(markup, /18\.4/)
   assert.match(markup, /2\.81/)
+  assert.equal((markup.match(/class="resource-terminal__signal"/g) ?? []).length, 2)
 })
 
 test('fills the power panel terminal with availability signals and a power identity mark', async () => {
@@ -53,6 +65,10 @@ test('fills the power panel terminal with availability signals and a power ident
   assert.match(markup, /99\.98/)
   assert.match(markup, /64/)
   assert.match(markup, /85\.3/)
+  assert.equal((markup.match(/class="resource-terminal__signal"/g) ?? []).length, 3)
+  assert.match(markup, /配电系统运行态/)
+  assert.match(markup, /稳定供电/)
+  assert.match(markup, /3 台主变在线/)
 })
 
 test('groups water and power secondary readings into consistent instrument frames', async () => {

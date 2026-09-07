@@ -13,6 +13,20 @@ test('selects the transparent Unity dashboard only for its dedicated page', asyn
   assert.equal(module.resolveAppSurface('/energy-detail'), 'campus')
 })
 
+test('renders the Web factory on the campus surface and reserves the Unity viewport for its overlay', async () => {
+  const module = await import('../src/appSurface.js').catch(() => ({}))
+
+  assert.equal(typeof module.resolveCenterStage, 'function', 'center stage resolver is missing')
+  assert.deepEqual(module.resolveCenterStage('campus'), {
+    renderFactoryModel: true,
+    renderUnityViewport: false,
+  })
+  assert.deepEqual(module.resolveCenterStage('unity-overlay'), {
+    renderFactoryModel: false,
+    renderUnityViewport: true,
+  })
+})
+
 test('renders a transparent Unity viewport without mounting a web 3D canvas', async () => {
   const module = await import('../src/components/UnityViewport.js').catch(() => ({}))
 

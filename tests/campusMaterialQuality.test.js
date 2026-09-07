@@ -52,6 +52,17 @@ test('normalizes PBR texture color spaces anisotropy and reflection ranges by ma
   assert.ok(interior.aoMapIntensity >= .82, 'interior furniture needs stronger contact separation')
 })
 
+test('respects an imported material reflection cap so authored textures retain contrast', async () => {
+  const module = await import('../src/scene/campusMaterialQuality.js').catch(() => ({}))
+  const material = texturedMaterial('MI_Floor_Concrete_01a')
+  material.userData.environmentIntensityCap = .46
+  const root = new THREE.Mesh(new THREE.PlaneGeometry(10, 10), material)
+
+  module.applyCampusMaterialQuality({ root, renderer: { capabilities: { getMaxAnisotropy: () => 8 } } })
+
+  assert.equal(material.envMapIntensity, .46)
+})
+
 test('keeps construction detail near the campus and degrades deterministically with distance', async () => {
   const module = await import('../src/scene/campusMaterialQuality.js').catch(() => ({}))
   assert.equal(typeof module.deriveCampusDistanceQuality, 'function', 'distance quality policy is missing')

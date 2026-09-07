@@ -8,7 +8,29 @@ import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js'
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js'
 import { FXAAShader } from 'three/examples/jsm/shaders/FXAAShader.js'
 
-export function deriveCampusPostProcessingPolicy({ mode = 'day', reducedMotion = false, pixelRatio = 1, webgl2 = true, bloomStrength, focused = false } = {}) {
+export function renderFrameWithAccumulatedStats(renderer, renderFrame) {
+  const previousAutoReset = renderer.info.autoReset
+  renderer.info.autoReset = false
+  renderer.info.reset()
+  try {
+    renderFrame()
+  } finally {
+    renderer.info.autoReset = previousAutoReset
+  }
+}
+
+export function resolveBloomBufferSize(width, height) {
+  return {
+    width: Math.max(1, Math.floor(width * .25)),
+    height: Math.max(1, Math.floor(height * .25)),
+  }
+}
+
+export function resolvePostProcessingAvailability({ profile = 'campus', focused = false, qualityAllows = true } = {}) {
+  return Boolean(qualityAllows && !(profile === 'plant-v068' && focused))
+}
+
+export function deriveCampusPostProcessingPolicy({ mode = 'day', reducedMotion = false, pixelRatio = 1, webgl2 = true, bloomStrength, focused = false, profile = 'campus' } = {}) {
   if (reducedMotion) {
     return {
       enabled: false,
@@ -25,6 +47,15 @@ export function deriveCampusPostProcessingPolicy({ mode = 'day', reducedMotion =
       bloom: { enabled: false, threshold: 2.2, strength: 0, radius: 0 },
       antialias: 'fxaa',
       renderScale: focused && pixelRatio < 1.5 ? 1.35 : pixelRatio < 1.25 ? 1.2 : 1,
+    }
+  }
+  if (profile === 'plant-v068') {
+    return {
+      enabled: true,
+      contact: { enabled: false, radius: 0, intensity: 0 },
+      bloom: { enabled: true, threshold: 1.15, strength: .18, radius: .32 },
+      antialias: 'smaa',
+      renderScale: 1,
     }
   }
   return {
@@ -57,18 +88,20 @@ export function applyCampusQualityToPostProcessingPolicy(policy, quality) {
   }
 }
 
-export function createCampusPostProcessing({ renderer, scene, camera, mode = 'day', reducedMotion = false, pixelRatio = 1, focused = false }) {
+export function createCampusPostProcessing({ renderer, scene, camera, mode = 'day', reducedMotion = false, pixelRatio = 1, focused = false, profile = 'campus' }) {
   const webgl2 = Boolean(renderer.capabilities?.isWebGL2)
+  let currentPixelRatio = pixelRatio
   let currentMode = mode
   let currentLightingState = {}
   let currentFocused = focused
   const derivePolicy = () => deriveCampusPostProcessingPolicy({
     mode: currentMode,
     reducedMotion,
-    pixelRatio,
+    pixelRatio: currentPixelRatio,
     webgl2,
     bloomStrength: currentLightingState.bloomStrength,
     focused: currentFocused,
+    profile,
   })
   let basePolicy = derivePolicy()
   if (!basePolicy.enabled) {
@@ -78,6 +111,7 @@ export function createCampusPostProcessing({ renderer, scene, camera, mode = 'da
       setSize: () => {},
       setMode: () => {},
       setFocusMode: () => {},
+      setPixelRatio: () => {},
       setQuality: () => {},
       dispose: () => {},
     }
@@ -85,6 +119,9 @@ export function createCampusPostProcessing({ renderer, scene, camera, mode = 'da
 
   let policy = basePolicy
   let qualityAllowsPostProcessing = true
+  const mergeAvailability = (nextPolicy) => applyCampusQualityToPostProcessingPolicy(nextPolicy, {
+    postProcessing: resolvePostProcessingAvailability({ profile, focused: currentFocused, qualityAllows: qualityAllowsPostProcessing }),
+  })
 
   const composer = new EffectComposer(renderer)
   const renderPass = new RenderPass(scene, camera)
@@ -113,9 +150,11 @@ export function createCampusPostProcessing({ renderer, scene, camera, mode = 'da
   const resizeTargets = () => {
     const scaledWidth = Math.max(1, Math.floor(viewportWidth * policy.renderScale))
     const scaledHeight = Math.max(1, Math.floor(viewportHeight * policy.renderScale))
-    const physicalWidth = Math.max(1, scaledWidth * pixelRatio)
-    const physicalHeight = Math.max(1, scaledHeight * pixelRatio)
+    const physicalWidth = Math.max(1, scaledWidth * currentPixelRatio)
+    const physicalHeight = Math.max(1, scaledHeight * currentPixelRatio)
     composer.setSize(scaledWidth, scaledHeight)
+    const bloomSize = resolveBloomBufferSize(scaledWidth, scaledHeight)
+    bloomPass.setSize(bloomSize.width, bloomSize.height)
     smaaPass.setSize(physicalWidth, physicalHeight)
     fxaaPass.uniforms.resolution.value.set(1 / physicalWidth, 1 / physicalHeight)
   }
@@ -134,11 +173,11 @@ export function createCampusPostProcessing({ renderer, scene, camera, mode = 'da
     resizeTargets()
   }
 
-  applyPolicy(policy)
+  applyPolicy(mergeAvailability(policy))
 
   return {
     enabled: true,
-    render: () => composer.render(),
+    render: () => renderFrameWithAccumulatedStats(renderer, () => composer.render()),
     setSize: (width, height) => {
       viewportWidth = width
       viewportHeight = height
@@ -148,16 +187,21 @@ export function createCampusPostProcessing({ renderer, scene, camera, mode = 'da
       currentMode = nextMode
       currentLightingState = lightingState
       basePolicy = derivePolicy()
-      applyPolicy(applyCampusQualityToPostProcessingPolicy(basePolicy, { postProcessing: qualityAllowsPostProcessing }))
+      applyPolicy(mergeAvailability(basePolicy))
     },
     setFocusMode: (nextFocused) => {
       currentFocused = Boolean(nextFocused)
       basePolicy = derivePolicy()
-      applyPolicy(applyCampusQualityToPostProcessingPolicy(basePolicy, { postProcessing: qualityAllowsPostProcessing }))
+      applyPolicy(mergeAvailability(basePolicy))
+    },
+    setPixelRatio: (nextPixelRatio) => {
+      currentPixelRatio = Math.max(1, Number(nextPixelRatio) || 1)
+      basePolicy = derivePolicy()
+      applyPolicy(mergeAvailability(basePolicy))
     },
     setQuality: (quality) => {
       qualityAllowsPostProcessing = quality.postProcessing
-      applyPolicy(applyCampusQualityToPostProcessingPolicy(basePolicy, quality))
+      applyPolicy(mergeAvailability(basePolicy))
     },
     dispose: () => {
       for (const pass of [contactPass, bloomPass, smaaPass, fxaaPass, outputPass]) pass.dispose?.()

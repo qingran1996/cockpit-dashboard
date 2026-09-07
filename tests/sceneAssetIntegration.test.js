@@ -32,12 +32,14 @@ test('uses a shadowless directional fill from the opposite side of the key light
   park.dispose()
 })
 
-test('replaces the procedural fallback only after a campus GLB resolves', async () => {
+test('keeps the procedural fallback available beneath the UI loading presentation', async () => {
   const loaded = makeLoadedCampus()
   const park = createIndustrialScene({ loadCampus: async () => loaded })
   const interactiveReference = park.interactiveObjects
 
-  assert.ok(park.root.getObjectByName('ProceduralFallback'))
+  const fallback = park.root.getObjectByName('ProceduralFallback')
+  assert.ok(fallback)
+  assert.equal(fallback.visible, true, 'non-UI scene consumers must retain the fallback until the external asset resolves')
   assert.equal(park.interactiveObjects.length, buildingRegistry.length)
   for (const building of park.interactiveObjects) {
     const record = buildingRegistry.find(({ id }) => id === building.userData.buildingId)
@@ -58,6 +60,38 @@ test('replaces the procedural fallback only after a campus GLB resolves', async 
   park.dispose()
 })
 
+test('reports the external factory asset lifecycle to the UI', async () => {
+  const statuses = []
+  const progress = []
+  const park = createIndustrialScene({
+    loadCampus: async ({ onProgress }) => {
+      onProgress(42)
+      return makeLoadedCampus()
+    },
+    onAssetStatusChange: (status) => statuses.push(status),
+    onAssetProgress: (value) => progress.push(value),
+  })
+
+  assert.deepEqual(statuses, ['loading'])
+  await park.ready
+  assert.deepEqual(statuses, ['loading', 'ready'])
+  assert.deepEqual(progress, [42])
+  park.dispose()
+})
+
+test('reports the root loading error while retaining the fallback', async () => {
+  const errors = []
+  const failure = new Error('meshopt decode failed')
+  const park = createIndustrialScene({
+    loadCampus: async () => { throw failure },
+    onAssetError: (error) => errors.push(error),
+  })
+
+  await park.ready
+  assert.deepEqual(errors, [failure])
+  park.dispose()
+})
+
 test('keeps the procedural fallback when campus loading fails', async () => {
   const failure = new Error('asset unavailable')
   const park = createIndustrialScene({ loadCampus: async () => { throw failure } })
@@ -66,7 +100,7 @@ test('keeps the procedural fallback when campus loading fails', async () => {
 
   assert.equal(result.source, 'fallback')
   assert.equal(result.error, failure)
-  assert.ok(park.root.getObjectByName('ProceduralFallback'))
+  assert.equal(park.root.getObjectByName('ProceduralFallback')?.visible, true)
   assert.equal(park.interactiveObjects.length, buildingRegistry.length)
   park.dispose()
 })
