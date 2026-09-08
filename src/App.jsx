@@ -149,7 +149,7 @@ export default function App({ surfaceMode = APP_SURFACES.campus }) {
           '--energy-detail-workspace-height': `${detailWorkspaceLayout.footer.bottom - detailOriginTop}px`,
         }}
       >
-        <DashboardHeader lightingMode={campusLightingMode} activeModule={activeDashboard} onModuleChange={changeDashboardModule} />
+        <DashboardHeader lightingMode={campusLightingMode} activeModule={activeDashboard} onModuleChange={changeDashboardModule} showReturnToScene={unityOverlay} />
         <DashboardModuleStage key={activeDashboard} module={activeDashboard}>
         {activeDashboard === 'energy' && <>
           <CampusEnergyPulse />
