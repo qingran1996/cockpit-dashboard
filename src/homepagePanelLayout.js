@@ -32,3 +32,33 @@ export function resolveHomepageSceneControlsLayout() {
     hintBottom: 18,
   }
 }
+
+const POWER_PANEL_FIXED_ROWS = Object.freeze([104, 238, 116, 100])
+const POWER_PANEL_GAP = 8
+
+export function resolvePowerPanelRows(availableHeight = 754) {
+  const usedHeight = POWER_PANEL_FIXED_ROWS.reduce((sum, row) => sum + row, 0)
+    + POWER_PANEL_GAP * POWER_PANEL_FIXED_ROWS.length
+  const terminalHeight = availableHeight - usedHeight
+
+  if (terminalHeight < 150) {
+    throw new RangeError('power panel height cannot preserve the terminal text safe area')
+  }
+
+  return {
+    rows: [...POWER_PANEL_FIXED_ROWS, terminalHeight],
+    gap: POWER_PANEL_GAP,
+  }
+}
+
+export function powerPanelLayoutStyle(availableHeight = 754) {
+  const { rows, gap } = resolvePowerPanelRows(availableHeight)
+  return {
+    '--power-summary-row': `${rows[0]}px`,
+    '--power-trend-row': `${rows[1]}px`,
+    '--power-transformer-row': `${rows[2]}px`,
+    '--power-economy-row': `${rows[3]}px`,
+    '--power-terminal-row': `${rows[4]}px`,
+    '--power-panel-gap': `${gap}px`,
+  }
+}

@@ -1414,6 +1414,49 @@
   grid-template-rows: 34px 1fr;
 }
 
+/* Fixed rows keep Windows fallback-font metrics from pushing the terminal below the clipped panel. */
+.dashboard-canvas .power-panel .resource-telemetry--power {
+  display: grid;
+  grid-template-rows:
+    var(--power-summary-row)
+    var(--power-trend-row)
+    var(--power-transformer-row)
+    var(--power-economy-row)
+    var(--power-terminal-row);
+  gap: var(--power-panel-gap);
+  height: 100%;
+  min-height: 0;
+}
+
+.dashboard-canvas .power-panel .resource-telemetry--power > * {
+  min-height: 0;
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+.dashboard-canvas .power-panel .resource-telemetry--power > .telemetry-kpis,
+.dashboard-canvas .power-panel .resource-telemetry--power > .resource-terminal {
+  height: auto;
+}
+
+.dashboard-canvas .power-panel .power-chart {
+  height: 185px;
+}
+
+.dashboard-canvas .power-panel .resource-terminal__signal {
+  display: grid;
+  grid-template-rows: 13px 22px 32px;
+  align-content: center;
+  padding-top: 4px;
+  padding-bottom: 8px;
+}
+
+.dashboard-canvas .power-panel .resource-terminal__signal > span,
+.dashboard-canvas .power-panel .resource-terminal__signal > strong,
+.dashboard-canvas .power-panel .resource-terminal__signal .homepage-comparison {
+  line-height: 1.2;
+}
+
 .dashboard-canvas .resource-terminal__status {
   grid-column: 1 / -1;
   display: flex;

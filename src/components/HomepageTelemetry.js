@@ -1,4 +1,5 @@
 import { createElement as h } from 'react'
+import { powerPanelLayoutStyle } from '../homepagePanelLayout.js'
 
 function Comparisons({ items = [], className = 'telemetry-comparisons' }) {
   return h('div', { className }, items.map((item) =>
@@ -89,7 +90,7 @@ export function WaterTelemetry({ data, chart = null }) {
 }
 
 export function PowerTelemetry({ data, chart = null }) {
-  return h('div', { className: 'resource-telemetry resource-telemetry--power' },
+  return h('div', { className: 'resource-telemetry resource-telemetry--power', style: powerPanelLayoutStyle() },
     h(MetricStrip, { items: data.summary }),
     h(Section, { title: '24小时电力负荷曲线' },
       h(ChartLegend, { items: [

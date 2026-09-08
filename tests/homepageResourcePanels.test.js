@@ -79,3 +79,15 @@ test('groups water and power secondary readings into consistent instrument frame
   assert.match(water, /role="group" aria-label="水资源管网状态"/)
   assert.match(power, /role="group" aria-label="电力资源经济与质量"/)
 })
+
+test('reserves a Windows-safe final row for the power terminal comparisons', async () => {
+  const module = await import('../src/homepagePanelLayout.js').catch(() => ({}))
+  assert.equal(typeof module.resolvePowerPanelRows, 'function', 'power panel row resolver is missing')
+
+  const layout = module.resolvePowerPanelRows(754)
+
+  assert.deepEqual(layout.rows, [104, 238, 116, 100, 164])
+  assert.equal(layout.gap, 8)
+  assert.ok(layout.rows.at(-1) >= 150, 'terminal row must absorb Windows fallback font metrics')
+  assert.equal(layout.rows.reduce((sum, row) => sum + row, 0) + layout.gap * 4, 754)
+})
