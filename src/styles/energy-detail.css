@@ -1566,6 +1566,35 @@
   font-size: 10px;
 }
 
+/* Reserve the bottom decoration band separately from the water readings. */
+.dashboard-canvas .resource-terminal--water .resource-terminal__signals {
+  padding: 4px 6px 22px 0;
+  align-items: start;
+  min-height: 0;
+}
+
+.dashboard-canvas .resource-terminal--water .resource-terminal__signal {
+  display: grid;
+  grid-template-rows: 12px 20px 28px;
+  gap: 2px;
+  padding: 0 3px;
+  min-height: 0;
+}
+
+.dashboard-canvas .resource-terminal--water .resource-terminal__signal > span {
+  line-height: 12px;
+}
+
+.dashboard-canvas .resource-terminal--water .resource-terminal__signal > strong {
+  margin-top: 0;
+  line-height: 20px;
+}
+
+.dashboard-canvas .resource-terminal--water .telemetry-comparisons {
+  margin-top: 0;
+  gap: 1px;
+}
+
 .dashboard-canvas .campus-energy-pulse__signal-content {
   grid-template-rows: 15px 20px 29px;
 }
