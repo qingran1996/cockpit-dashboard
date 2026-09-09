@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { BottomMetrics } from './components/BottomMetrics.js'
+import { CostDashboard } from './components/CostDashboard.jsx'
 import { ApsDashboard } from './components/ApsDashboard.js'
 import { CampusEnergyPulse } from './components/CampusEnergyPulse.js'
 import { CampusFocusToggle } from './components/CampusFocusToggle.js'
@@ -175,6 +176,7 @@ export default function App({ surfaceMode = APP_SURFACES.campus }) {
         </>}
         {activeDashboard === 'aps' && <ApsDashboard forecastChart={<EChart option={apsChartOptions.forecast} className="aps-forecast-chart" ariaLabel="未来7日能源预测曲线图" />} />}
         {activeDashboard === 'materials' && <MaterialPriceDashboard trendChart={<EChart option={materialPriceChartOptions.trend} className="material-trend-chart" ariaLabel="原材料价格指数趋势对比图" />} />}
+        {activeDashboard === 'cost' && <CostDashboard />}
         </DashboardModuleStage>
       </div>
     </main>

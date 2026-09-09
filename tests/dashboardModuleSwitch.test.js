@@ -24,9 +24,9 @@ test('renders the energy dashboard with an available APS and raw-material dropdo
   assert.match(markup, /dashboard-module-switch__dropdown[\s\S]*dashboard-module-switch__trigger/)
 })
 
-test('switches among the three supported business dashboards', async () => {
+test('switches among the supported business dashboards', async () => {
   const module = await import('../src/dashboardModuleState.js').catch(() => ({}))
-  assert.deepEqual(module.DASHBOARD_MODULES?.map(({ id }) => id), ['energy', 'aps', 'materials'])
+  assert.deepEqual(module.DASHBOARD_MODULES?.map(({ id }) => id), ['energy', 'aps', 'materials', 'cost'])
   assert.equal(module.resolveDashboardModule?.('energy', { type: 'select', module: 'aps' }), 'aps')
   assert.equal(module.resolveDashboardModule?.('aps', { type: 'select', module: 'materials' }), 'materials')
   assert.equal(module.resolveDashboardModule?.('materials', { type: 'select', module: 'unknown' }), 'materials')
@@ -44,8 +44,8 @@ test('groups APS and raw materials behind one business dropdown trigger', async 
   assert.match(materialsMarkup, /role="menu"[\s\S]*data-module="aps"[\s\S]*data-module="materials"/)
 })
 
-test('keeps both viewport energy buses visible on APS and raw-material dashboards', async () => {
-  for (const activeModule of ['energy', 'aps', 'materials']) {
+test('keeps viewport energy buses visible on all campus business dashboards', async () => {
+  for (const activeModule of ['energy', 'aps', 'materials', 'cost']) {
     const module = await import('../src/dashboardModuleState.js').catch(() => ({}))
     assert.equal(module.shouldRenderDashboardSideRails?.(activeModule), true, `${activeModule} lost its viewport buses`)
   }
@@ -72,4 +72,15 @@ test('uses a clean center-scale transition without molecular particles', async (
   assert.match(markup, /data-effect="center-scale"/)
   assert.doesNotMatch(markup, /dashboard-molecular-burst/)
   assert.doesNotMatch(markup, /dashboard-molecule/)
+})
+
+test('selects the cost dashboard and exposes its active menu entry', async () => {
+  const { resolveDashboardModule } = await import('../src/dashboardModuleState.js')
+  const { DashboardModuleSwitch } = await import('../src/components/DashboardModuleSwitch.js')
+  const selected = resolveDashboardModule('materials', { type: 'select', module: 'cost' })
+  assert.equal(selected, 'cost')
+  const markup = renderToStaticMarkup(createElement(DashboardModuleSwitch, { activeModule: selected }))
+  assert.match(markup, /dashboard-module-switch__trigger-label">能源费用总览/)
+  assert.match(markup, /aria-checked="true" data-module="cost"/)
+  assert.equal(resolveDashboardModule(selected, { type: 'select', module: 'energy' }), 'energy')
 })

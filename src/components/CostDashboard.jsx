@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { EChart } from './EChart.jsx'
 import { useViewportScale } from '../hooks/useViewportScale.js'
 import { costPages, energyBills, totalCost, lines, batches, forecast, forecastDays, dailyBudget, tariffs, shiftScenario, money } from '../data/costDashboardData.js'
@@ -65,12 +66,21 @@ function Optimization() {
   </>
 }
 const views = { overview: Overview, allocation: Allocation, forecast: Forecast, optimization: Optimization }
-export function CostDashboardPage({ page }) {
+export function CostDashboard() {
+  const [page, setPage] = useState(costPages[0])
+  return <CostDashboardPage page={page} embedded onPageChange={setPage} />
+}
+
+export function CostDashboardPage({ page, embedded = false, onPageChange }) {
   const viewport = useViewportScale()
   const View = views[page.key]
-  return <div className="cost-shell"><main className="cost-stage" style={{ transform: `scale(${viewport.viewportWidth / 1920}, ${viewport.viewportHeight / 1080})` }}>
-    <header className="cost-header"><div className="cost-brand"><i />大塚化学<span>能源经营分析</span></div><div className="cost-title"><h1>{page.title}</h1><p>{page.english}</p></div><div className="cost-header-right"><span>静态演示</span><button className="dashboard-header__return-scene" onClick={() => console.log('UE_DASHBOARD:{"type":"dashboard.close"}')}><span aria-hidden="true">↗</span>返回场景</button></div></header>
-    <nav className="cost-nav" aria-label="费用展示页面"><div>{costPages.map((p, i) => <a key={p.key} href={p.path} aria-current={p.key === page.key ? 'page' : undefined}><small>0{i + 1}</small>{p.title}</a>)}</div><span>核算日期 <b>2026.09.07</b><i />币种 CNY / 人民币</span></nav>
+  return <div className={embedded ? 'cost-embedded' : 'cost-shell'}><main className={`cost-stage${embedded ? ' cost-stage--embedded' : ''}`} style={embedded ? undefined : { transform: `scale(${viewport.viewportWidth / 1920}, ${viewport.viewportHeight / 1080})` }}>
+    {!embedded && <header className="cost-header"><div className="cost-brand"><i />大塚化学<span>能源经营分析</span></div><div className="cost-title"><h1>{page.title}</h1><p>{page.english}</p></div><div className="cost-header-right"><span>静态演示</span><button className="dashboard-header__return-scene" onClick={() => console.log('UE_DASHBOARD:{"type":"dashboard.close"}')}><span aria-hidden="true">↗</span>返回场景</button></div></header>}
+    <nav className="cost-nav" aria-label="费用展示页面"><div>{costPages.map((p, i) => <a key={p.key} href={p.path} onClick={embedded ? (event) => {
+      if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+      event.preventDefault()
+      onPageChange(p)
+    } : undefined} aria-current={p.key === page.key ? 'page' : undefined}><small>0{i + 1}</small>{p.title}</a>)}</div><span>核算日期 <b>2026.09.07</b><i />币种 CNY / 人民币</span></nav>
     <div className="cost-content"><View /></div>
     <footer className="cost-footer"><span><i />演示数据，非现场实绩；预测及节费为情景测算。</span><span>大塚综合数字孪生平台 <b>ENERGY COST CENTER</b><em>{String(costPages.indexOf(page) + 1).padStart(2, '0')} / 04</em></span></footer>
   </main></div>

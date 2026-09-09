@@ -2,6 +2,7 @@ export const DASHBOARD_MODULES = Object.freeze([
   { id: 'energy', label: '能源驾驶舱' },
   { id: 'aps', label: 'APS排产能耗' },
   { id: 'materials', label: '原材料价格' },
+  { id: 'cost', label: '能源费用总览' },
 ])
 
 const supportedModules = new Set(DASHBOARD_MODULES.map(({ id }) => id))
