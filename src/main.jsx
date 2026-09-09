@@ -1,6 +1,9 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
+import { CostDashboardPage } from './components/CostDashboard.jsx'
+import { resolveCostPage } from './data/costDashboardData.js'
+import './styles/cost-dashboard.css'
 import { EmbeddedPartChartPage } from './components/EmbeddedPartChartPage.jsx'
 import { RotaryKilnDashboardPage } from './components/RotaryKilnDashboard.jsx'
 import { APP_SURFACES, resolveAppSurface } from './appSurface.js'
@@ -14,13 +17,16 @@ import './styles/material-price-dashboard.css'
 import './styles/rotary-kiln-dashboard.css'
 
 const surfaceMode = resolveAppSurface(window.location.pathname)
+const costPage = resolveCostPage(window.location.pathname)
 document.documentElement.dataset.surface = surfaceMode
 const embeddedPartChart = resolveEmbeddedPartChart(surfaceMode)
 const isRotaryKiln = surfaceMode === APP_SURFACES.rotaryKiln
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    {isRotaryKiln
+    {costPage
+      ? <CostDashboardPage page={costPage} />
+      : isRotaryKiln
       ? <RotaryKilnDashboardPage />
       : embeddedPartChart
       ? <EmbeddedPartChartPage surfaceMode={surfaceMode} />
