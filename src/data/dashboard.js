@@ -376,7 +376,7 @@ export const chartOptions = {
             colorStops: [{ offset: 0, color: 'rgba(23, 177, 255, .4)' }, { offset: 1, color: 'rgba(8, 64, 127, .02)' }],
           },
         },
-        markLine: { symbol: 'none', label: { formatter: '需量限值 110.0 MW', color: '#ff7765', fontSize: 9 }, lineStyle: { color: '#ff6158', type: 'dashed' }, data: [{ yAxis: 110 }] },
+        markLine: { symbol: 'none', label: { formatter: '需量限值 110.0 MW', position: 'insideEndTop', distance: 4, color: '#ff7765', fontSize: 9 }, lineStyle: { color: '#ff6158', type: 'dashed' }, data: [{ yAxis: 110 }] },
       },
       { type: 'line', data: [34, 41, 53, 62, 68, 72, 86, 94, 91, 80, 74, 69, 76, 72, 66], smooth: true, showSymbol: false, lineStyle: { width: 1.5, color: '#166ed0' } },
     ],

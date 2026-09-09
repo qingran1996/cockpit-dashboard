@@ -1254,6 +1254,8 @@ button, input, select { font: inherit; }
 .dashboard-module-switch__home-label { flex: 1; padding-right: 4px; color: inherit; font-size: 15px; font-weight: 600; letter-spacing: .8px; text-align: center; }
 .dashboard-module-switch__trigger { width: 176px; justify-content: flex-start; padding: 0 42px 0 18px; border-left: 1px solid rgba(48, 178, 215, .16); }
 .dashboard-module-switch__trigger-label { overflow: hidden; text-overflow: ellipsis; }
+.dashboard-module-switch__home-label,
+.dashboard-module-switch__trigger-label { line-height: 1.5; }
 .dashboard-module-switch__dropdown { position: relative; display: flex; }
 .dashboard-module-switch__dropdown .dashboard-module-switch__chevron { position: absolute; right: 5px; top: 0; width: 34px; height: 40px; border-left: 1px solid rgba(48, 178, 215, .14); }
 .dashboard-module-switch__menu { position: absolute; z-index: 50; right: 0; top: 51px; width: 220px; padding: 7px; border: 1px solid rgba(53, 208, 244, .38); border-radius: 6px; background: linear-gradient(180deg, rgba(6, 31, 48, .99), rgba(2, 16, 28, .99)); box-shadow: 0 16px 36px rgba(0, 0, 0, .5), inset 0 1px rgba(123, 235, 255, .08); }

@@ -1443,6 +1443,40 @@
   height: 185px;
 }
 
+/* Share a bounded readout grid so enlarged comparison text stays inside the 100px row. */
+.dashboard-canvas .power-panel .power-foot-grid .telemetry-section {
+  display: grid;
+  grid-template-rows: 26px minmax(0, 1fr);
+  min-height: 0;
+  padding: 0 10px 8px;
+}
+
+.dashboard-canvas .power-panel .tariff-grid {
+  min-height: 0;
+  padding-top: 0;
+}
+
+.dashboard-canvas .power-panel .tariff-grid > div,
+.dashboard-canvas .power-panel .quality-readout {
+  display: grid;
+  grid-template-rows: 14px 28px 16px;
+  align-content: center;
+  align-items: center;
+  gap: 2px;
+  min-height: 0;
+  padding-top: 0;
+}
+
+.dashboard-canvas .power-panel .power-foot-grid strong,
+.dashboard-canvas .power-panel .power-foot-grid em {
+  margin-top: 0;
+  line-height: 1.2;
+}
+
+.dashboard-canvas .power-panel .power-foot-grid .quality-readout strong {
+  font-size: 24px;
+}
+
 .dashboard-canvas .power-panel .resource-terminal__signal {
   display: grid;
   grid-template-rows: 13px 22px 32px;

@@ -404,7 +404,7 @@
 .resource-terminal__signals small { margin-left: 2px; color: #71b3c3; font-size: 8px; }
 .resource-terminal--power { background: linear-gradient(90deg, rgba(7, 48, 72, .58), rgba(3, 27, 43, .2) 38%, rgba(3, 19, 31, .08)); }
 .resource-terminal--power .resource-terminal__identity i { color: #5de8ff; font-size: 48px; }
-.resource-terminal--water { height: 108px; margin-top: 8px; }
+.resource-terminal--water { height: 92px; margin-top: 8px; }
 .resource-terminal--signals-2 .resource-terminal__signals { grid-template-columns: repeat(2, 1fr); }
 .resource-terminal__signals .telemetry-comparisons { margin-top: 6px; }
 .resource-terminal__signals .telemetry-comparisons em { font-size: 7px; }
